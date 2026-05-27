@@ -1,0 +1,13 @@
+{
+  "name": "truenorth",
+  "private": true,
+  "workspaces": [
+    "packages/studio",
+    "packages/sdk-node"
+  ],
+  "scripts": {
+    "dev:studio": "npm run dev --workspace=packages/studio",
+    "build:node": "npm run build --workspace=packages/sdk-node",
+    "test:node": "npm test --workspace=packages/sdk-node"
+  }
+}

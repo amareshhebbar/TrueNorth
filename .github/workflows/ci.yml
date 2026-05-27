@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: Python core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/core
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: truenorth
+          POSTGRES_PASSWORD: truenorth
+          POSTGRES_DB: truenorth_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install poetry
+      - run: poetry install
+      - run: poetry run ruff check .
+      - run: poetry run mypy truenorth --ignore-missing-imports
+      - run: poetry run pytest tests/unit -v
+    env:
+      DATABASE_URL: postgresql+asyncpg://truenorth:truenorth@localhost:5432/truenorth_test
+      REDIS_URL: redis://localhost:6379/0
+
+  node:
+    name: Node SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/sdk-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npm run build
+      - run: npm test

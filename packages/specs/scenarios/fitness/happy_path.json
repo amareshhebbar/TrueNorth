@@ -1,0 +1,20 @@
+{
+  "scenario": "fitness_happy_path",
+  "turns": [
+    {"user": "Hi, I want a fitness plan"},
+    {"user": "I'm 24 years old"},
+    {"user": "170cm and 78kg"},
+    {"user": "weight loss is my goal"},
+    {"user": "intermediate level, gym 4 days a week"},
+    {"user": "I have a gym membership"},
+    {"user": "no injuries"},
+    {"user": "I eat vegetarian"}
+  ],
+  "expected_profile": {
+    "age": 24, "height": 170, "weight": 78,
+    "fitness_goal": "weight_loss",
+    "experience_level": "intermediate",
+    "days_per_week": 4
+  },
+  "llm_responses": []
+}

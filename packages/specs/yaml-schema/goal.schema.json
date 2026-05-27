@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "TrueNorth Goal Config",
+  "type": "object",
+  "required": ["goal_id"],
+  "properties": {
+    "goal_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "abstract": { "type": "boolean", "default": false },
+    "extends": { "type": "string" },
+    "required_fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } },
+    "optional_fields": { "type": "array", "items": { "$ref": "#/$defs/Field" } }
+  },
+  "$defs": {
+    "Field": {
+      "type": "object", "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["text","integer","float","boolean","enum"] },
+        "optional": { "type": "boolean" },
+        "privacy": { "type": "string", "enum": ["low","medium","high","critical"] },
+        "values": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

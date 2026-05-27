@@ -1,0 +1,109 @@
+goal_id: fitness_plan
+
+persona:
+  base: "a warm, knowledgeable fitness coach who is encouraging and practical"
+  adaptive: true
+
+required_fields:
+  - name: age
+    type: integer
+    privacy: low
+
+  - name: height
+    type: float
+    privacy: low
+
+  - name: weight
+    type: float
+    privacy: medium
+    temporal: true
+    max_age_days: 7
+
+  - name: fitness_goal
+    type: enum
+    values: [weight_loss, muscle_gain, endurance, flexibility, general_fitness]
+    privacy: low
+
+  - name: experience_level
+    type: enum
+    values: [beginner, intermediate, advanced]
+    privacy: low
+
+  - name: days_per_week
+    type: integer
+    privacy: low
+
+optional_fields:
+  - name: injuries
+    type: text
+    privacy: medium
+    optional: true
+    follow_ups:
+      - "Which area is affected?"
+      - "How long have you had it?"
+      - "Does it hurt during exercise or only after?"
+
+  - name: equipment_access
+    type: enum
+    values: [gym, home_basic, home_full, no_equipment]
+    privacy: low
+    optional: true
+
+  - name: diet_type
+    type: enum
+    values: [no_restriction, vegetarian, vegan, keto, other]
+    privacy: low
+    optional: true
+
+  - name: medical_conditions
+    type: text
+    privacy: high
+    optional: true
+    encryption: aes256
+
+output:
+  format: structured_report
+  sections:
+    - name: weekly_workout_plan
+      always_include: true
+    - name: injury_modifications
+      include_if: "profile.get('injuries') and profile['injuries'] not in ['none', 'no', '']"
+    - name: diet_recommendations
+      include_if: "profile.get('diet_type')"
+    - name: beginner_guidance
+      include_if: "profile.get('experience_level') == 'beginner'"
+    - name: progress_tracking
+      always_include: true
+
+compliance:
+  mode: none
+
+rate_limits:
+  sessions_per_day: 5
+  messages_per_session: 40
+
+cost_management:
+  max_tokens_per_session: 8000
+  max_cost_per_session_usd: 0.04
+  fallback_model: gemini-2.0-flash-lite
+
+escalation:
+  enabled: true
+  triggers:
+    - condition: "emotion_state == 'distressed'"
+      action: immediate_escalation
+      escalation_message: >
+        I'm concerned about you. Let me connect you with someone
+        who can provide the right support right now.
+    - condition: "consecutive_confusion_turns >= 3"
+      action: offer_escalation
+      message: "Would it help to speak with a human coach directly?"
+
+webhooks:
+  on_goal_complete:
+    - url: "${WEBHOOK_URL}"
+      method: POST
+      payload:
+        session_id: "{{session_id}}"
+        profile: "{{profile}}"
+        completed_at: "{{timestamp}}"
