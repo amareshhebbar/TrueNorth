@@ -36,3 +36,127 @@ vendor/
 # OS
 .DS_Store
 Thumbs.db
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TrueNorth .gitignore
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.installed.cfg
+*.egg-info
+MANIFEST
+.Python
+pip-wheel-metadata/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# ── Poetry ────────────────────────────────────────────────────────────────────
+poetry.lock          # keep this in version control actually — remove if you want
+# Uncomment to ignore:
+# packages/core/poetry.lock
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+*.junit.xml
+test-results/
+
+# ── Type checking ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# ── Database / migrations ────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Node / Studio ────────────────────────────────────────────────────────────
+node_modules/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+packages/studio/.next/
+packages/studio/out/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log
+pip-log.txt
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Build artifacts ──────────────────────────────────────────────────────────
+*.pyc
+*.pyo
+*.pyd
+.cache/
+*.orig
+*.rej
+
+# ── TrueNorth specific ───────────────────────────────────────────────────────
+# Session files
+sessions/
+*.session.json
+
+# Dry-run output reports
+dry_run_reports/
+*.dryrun.json
+
+# Local goal overrides
+goals.local/

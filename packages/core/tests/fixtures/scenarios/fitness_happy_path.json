@@ -1,24 +1,31 @@
 {
-  "scenario": "fitness_happy_path",
-  "description": "User wants to lose weight, provides all info smoothly",
-  "turns": [
-    {"user": "Hi, I want to create a fitness plan"},
-    {"user": "I'm 24 years old"},
-    {"user": "170cm tall and I weigh 78kg"},
-    {"user": "I want to lose weight"},
-    {"user": "I'm an intermediate, been working out for about a year"},
-    {"user": "I can do 4 days a week"},
-    {"user": "I have a gym membership"},
-    {"user": "No injuries, I'm fine"},
-    {"user": "I eat vegetarian food"}
-  ],
-  "expected_profile": {
-    "age": 24,
-    "height": 170,
-    "weight": 78,
-    "fitness_goal": "weight_loss",
-    "experience_level": "intermediate",
-    "days_per_week": 4
+  "_meta": {
+    "goal_id":     "fitness_plan",
+    "description": "Happy path — user answers every field clearly on the first attempt",
+    "version":     "1.0"
   },
-  "llm_responses": []
+  "answers": {
+    "name":                     "Priya",
+    "age":                      "28",
+    "weight_kg":                "65",
+    "height_cm":                "163",
+    "primary_goal":             "lose weight",
+    "activity_level":           "moderately active",
+    "workout_days_per_week":    "4",
+    "workout_duration_minutes": "45",
+    "equipment_access":         "I have a gym membership and dumbbells at home",
+    "injuries_or_limitations":  "No injuries",
+    "diet_preference":          "vegetarian"
+  },
+  "expected": {
+    "required_fields_collected": [
+      "name", "age", "weight_kg", "height_cm",
+      "primary_goal", "activity_level",
+      "workout_days_per_week", "workout_duration_minutes",
+      "equipment_access"
+    ],
+    "min_turns":  9,
+    "max_turns": 20,
+    "passed":    true
+  }
 }

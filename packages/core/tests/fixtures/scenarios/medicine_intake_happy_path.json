@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "goal_id":     "medical_intake",
+    "description": "Happy path for medical intake form",
+    "version":     "1.0"
+  },
+  "answers": {
+    "patient_name":      "Rajan Kumar",
+    "age":               "45",
+    "gender":            "male",
+    "chief_complaint":   "I have been having lower back pain for the past week",
+    "symptom_duration":  "one week",
+    "pain_scale":        "6",
+    "existing_conditions": "Type 2 diabetes, controlled",
+    "current_medications":  "Metformin 500mg twice daily",
+    "allergies":          "Penicillin"
+  },
+  "expected": {
+    "required_fields_collected": [
+      "patient_name", "age", "gender",
+      "chief_complaint", "symptom_duration", "pain_scale"
+    ],
+    "min_turns":  6,
+    "max_turns": 15,
+    "passed":    true
+  }
+}

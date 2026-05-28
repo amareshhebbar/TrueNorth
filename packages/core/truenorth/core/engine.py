@@ -1,162 +1,527 @@
 """
-TrueNorthEngine — the central orchestrator.
+truenorth/core/engine.py
 
-Processes one conversation turn:
-1. Extract field values from user message
-2. Detect emotion state
-3. Check for conflicts in collected data
-4. Update state + missing fields
-5. Plan next question
-6. Return response
+TrueNorthEngine — the main pipeline orchestrator.
+
+Every user message flows through these stages in order:
+  1. PII scan          — redact sensitive data before any LLM sees it
+  2. Language detect   — detect + track language; auto-switch response language
+  3. Field extract     — extract structured values from natural language
+  4. Emotion detect    — classify user emotional state
+  5. Conflict check    — detect contradictions with prior collected values
+  6. State update      — persist new field values + signals to GraphState
+  7. Quality check     — measure conversation health (engagement, frustration)
+  8. Reason            — decide what to do next (Reasoner)
+  9. Plan response     — generate natural language response (ConversationPlanner)
+  10. Cost tracking    — record token usage + enforce budget cap
+  11. Session save     — persist state to storage
+
+Usage:
+    engine = await TrueNorthEngine.from_yaml("examples/goals/fitness_plan.yaml")
+    response = await engine.process_message("I'm 28 years old and want to lose weight")
+    print(response.text)
 """
 
 from __future__ import annotations
-import copy
-from datetime import datetime
-from truenorth.core.graph_state import GraphState, FieldValue
-from truenorth.core.yaml_loader import GoalConfig, YamlLoader
+
+import asyncio
+import logging
+import time
+import uuid
+from dataclasses import dataclass, field
+from typing import Any, AsyncIterator, Dict, List, Optional
+
+from truenorth.core.graph_state import GraphState
+from truenorth.core.yaml_loader import YAMLLoader
+from truenorth.core.reasoner import Reasoner, ReasonerAction, ReasonerDecision
+from truenorth.core.session_manager import SessionManager
 from truenorth.core.field_extractor import FieldExtractor
 from truenorth.core.conversation_planner import ConversationPlanner
 from truenorth.intelligence.emotion_detector import EmotionDetector
+from truenorth.intelligence.confidence_scorer import ConfidenceScorer
 from truenorth.intelligence.conflict_detector import ConflictDetector
-from truenorth.llm.router import LLMRouter
-from truenorth.output.generator import OutputGenerator
+from truenorth.intelligence.conversation_quality import ConversationQualityMonitor
+from truenorth.intelligence.language_detector import LanguageDetector
+from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
 from truenorth.privacy.pii_detector import PIIDetector
+from truenorth.output.generator import OutputGenerator
 
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Engine response type
+# ---------------------------------------------------------------------------
+
+@dataclass
+class EngineResponse:
+    """Returned by process_message() after each conversation turn."""
+    text:          str                     # agent message to show the user
+    session_id:    str
+    turn:          int
+    action:        str                     # what the reasoner decided
+    target_field:  Optional[str]           # which field was being asked
+    is_complete:   bool                    # True when all required fields collected
+    final_output:  Optional[Dict[str, Any]] = None  # populated when is_complete=True
+    state_summary: Dict[str, Any] = field(default_factory=dict)
+    cost_usd:      float = 0.0
+    latency_ms:    int   = 0
+
+    def to_dict(self) -> dict:
+        return {
+            "text":          self.text,
+            "session_id":    self.session_id,
+            "turn":          self.turn,
+            "action":        self.action,
+            "target_field":  self.target_field,
+            "is_complete":   self.is_complete,
+            "final_output":  self.final_output,
+            "cost_usd":      round(self.cost_usd, 6),
+            "latency_ms":    self.latency_ms,
+            "state_summary": self.state_summary,
+        }
+
+
+# ---------------------------------------------------------------------------
+# TrueNorthEngine
+# ---------------------------------------------------------------------------
 
 class TrueNorthEngine:
     """
-    The main engine. One instance per session.
-    All processing is async and stateless — pass state in, get new state out.
+    Main TrueNorth pipeline engine.
+
+    Instantiate via:
+      - TrueNorthEngine.from_yaml(path)           — from a goal YAML file
+      - TrueNorthEngine(goal_config, **kwargs)    — from a pre-loaded config dict
+
+    The engine is stateful per-session. Create one instance per active session.
+    For multi-tenant production use, instantiate from the session store via SessionManager.
     """
 
-    def __init__(self, config: GoalConfig, router: LLMRouter):
-        self.config = config
-        self.router = router
-        self.extractor = FieldExtractor(router)
-        self.planner = ConversationPlanner(router)
-        self.emotion = EmotionDetector(router)
-        self.conflict = ConflictDetector(router)
-        self.output_gen = OutputGenerator(router)
-        self.pii = PIIDetector()
+    VERSION = "0.1.0"
+
+    def __init__(
+        self,
+        goal_config:     dict,
+        session_id:      Optional[str]     = None,
+        user_id:         Optional[str]     = None,
+        tenant_id:       Optional[str]     = None,
+        router=None,                      # LLMRouter — injected for testability
+        session_manager: Optional[SessionManager] = None,
+        cost_tracker:    Optional[CostTracker]    = None,
+        config:          Optional[dict]           = None,
+    ):
+        self._goal_config     = goal_config
+        self._config          = config or {}
+        self._router          = router
+        self._session_manager = session_manager
+        self._cost_tracker    = cost_tracker or CostTracker()
+
+        session_id = session_id or str(uuid.uuid4())
+
+        self.state = GraphState.from_goal_config(
+            goal_config = goal_config,
+            session_id  = session_id,
+            user_id     = user_id,
+            tenant_id   = tenant_id,
+        )
+
+        self._pii       = PIIDetector()
+        self._lang      = LanguageDetector()
+        self._extractor = FieldExtractor(router=router)
+        self._emotion   = EmotionDetector(router=router)
+        self._confidence= ConfidenceScorer()
+        self._conflict  = ConflictDetector()
+        self._quality   = ConversationQualityMonitor()
+        self._reasoner  = Reasoner(config=self._config.get("reasoner", {}))
+        self._planner   = ConversationPlanner(router=router)
+        self._output    = OutputGenerator(router=router)
+
+        # Budget setup
+        budget = goal_config.get("budget", {}).get("max_cost_usd")
+        if budget:
+            self._cost_tracker.set_budget(session_id, float(budget))
+
+        logger.info(
+            "engine: session=%s goal=%s fields=%d",
+            session_id,
+            goal_config.get("id", "?"),
+            len(self.state.fields_config),
+        )
+
+    # ------------------------------------------------------------------
+    # Factory methods
+    # ------------------------------------------------------------------
 
     @classmethod
-    def from_yaml(cls, source, router: LLMRouter | None = None) -> "TrueNorthEngine":
-        config = YamlLoader().load(source)
-        if router is None:
-            router = LLMRouter()
-        return cls(config, router)
+    async def from_yaml(
+        cls,
+        yaml_path: str,
+        session_id: Optional[str] = None,
+        **kwargs,
+    ) -> "TrueNorthEngine":
+        """
+        Create an engine from a goal YAML file.
 
-    def create_initial_state(self, session_id: str, user_id: str | None = None) -> GraphState:
-        """Create a fresh GraphState for a new session."""
-        state = GraphState(
-            session_id=session_id,
-            goal_id=self.config.goal_id,
-            config=self.config.model_dump(),
-            user_id=user_id,
+        Example:
+            engine = await TrueNorthEngine.from_yaml("examples/goals/fitness_plan.yaml")
+        """
+        config = YAMLLoader.load(yaml_path)
+        return cls(goal_config=config, session_id=session_id, **kwargs)
+
+    @classmethod
+    async def from_session(
+        cls,
+        session_id: str,
+        session_manager: SessionManager,
+        **kwargs,
+    ) -> Optional["TrueNorthEngine"]:
+        """
+        Resume an existing session from storage.
+        Returns None if session not found.
+        """
+        state_data = await session_manager.load(session_id)
+        if state_data is None:
+            return None
+
+        state = GraphState.from_dict(state_data)
+        engine = cls(
+            goal_config     = state.goal_config,
+            session_id      = session_id,
+            session_manager = session_manager,
+            **kwargs,
         )
-        state.missing_required = [f.name for f in self.config.required_fields]
-        state.missing_optional = [f.name for f in self.config.optional_fields]
-        return state
+        engine.state = state
+        engine.state.is_resumed = True
+        return engine
 
-    async def process_turn(self, state: GraphState, user_message: str) -> tuple[GraphState, str]:
+    # ------------------------------------------------------------------
+    # Main API
+    # ------------------------------------------------------------------
+
+    async def start(self) -> EngineResponse:
         """
-        Process one user message. Returns (new_state, agent_response).
-        Core pipeline: extract → emotion → conflict → plan → respond.
+        Start the conversation — returns the first agent message.
+        Call this once when a session begins, before any user input.
         """
-        # 1. Scan for PII in message
-        self.pii.scan(user_message)  # logs warnings, doesn't block
+        # First turn: reasoner immediately asks the first required field
+        decision = self._reasoner.decide(self.state)
+        response_text = await self._planner.plan(decision, self.state)
 
-        # 2. Add user turn to history
-        state = state.add_turn("user", user_message)
+        self.state.add_turn("assistant", response_text)
+        await self._save_state()
 
-        # 3. Extract field values from message
-        extracted = await self.extractor.extract(user_message, state, self.config)
+        return EngineResponse(
+            text         = response_text,
+            session_id   = self.state.session_id,
+            turn         = self.state.current_turn,
+            action       = decision.action.value,
+            target_field = decision.target_field,
+            is_complete  = False,
+        )
 
-        # 4. Detect emotion state
-        history_dicts = [{"role": t.role, "content": t.content} for t in state.conversation]
-        emotion_result = await self.emotion.detect(user_message, history_dicts)
+    async def process_message(self, user_message: str) -> EngineResponse:
+        """
+        Process one user message through the full pipeline.
 
-        # 5. Update state with emotion
-        new_state = copy.deepcopy(state)
-        new_state.emotion_state = emotion_result.state
-        new_state.emotion_confidence = emotion_result.confidence
+        Args:
+            user_message: Raw text from the user
 
-        # 6. Process extracted fields (conflict check + set)
-        for field_name, field_value in extracted.items():
-            # Check for conflicts with existing data
-            if field_name in new_state.profile:
-                conflict = await self.conflict.check(field_name, field_value, new_state)
-                if conflict.has_conflict and conflict.clarification_message:
-                    # Ask for clarification instead of setting
-                    new_state = new_state.add_turn("assistant", conflict.clarification_message)
-                    return new_state, conflict.clarification_message
+        Returns:
+            EngineResponse with the agent's reply and session state
+        """
+        start_time = time.perf_counter()
+        self.state.current_turn += 1
+        self.state.current_input = user_message
 
-            new_state = new_state.set_field(field_name, field_value)
+        try:
+            # ── Stage 1: PII scan ────────────────────────────────────────
+            pii_result = self._pii.scan(user_message)
+            safe_text  = pii_result.redacted  # use redacted text for all LLM calls
 
-        # 7. Update cost tracking
-        new_state.cost_usd = self.router.session_cost
-        new_state.tokens_used = self.router.session_tokens
+            # ── Stage 2: Language detection ──────────────────────────────
+            lang_result = self._lang.detect_from_history(
+                self.state.user_messages + [user_message]
+            )
+            self.state.detected_language = lang_result.language_code
+            self.state.is_romanized      = lang_result.is_romanized
 
-        # 8. Check if emotion says skip optional fields
-        if emotion_result.skip_optional:
-            new_state.missing_optional = []
+            # ── Stage 3: Field extraction ────────────────────────────────
+            extraction = await self._extractor.extract(
+                user_message  = safe_text,
+                fields_config = self.state.fields_config,
+                context       = self.state.collected_fields,
+            )
 
-        # 9. Plan the next agent response
-        agent_message, next_field = await self.planner.plan_next_turn(new_state, self.config)
+            # ── Stage 4: Emotion detection ───────────────────────────────
+            emotion = await self._emotion.detect(safe_text, use_llm=self._router is not None)
+            self.state.current_emotion = emotion.to_dict()
 
-        if next_field == "__escalate__":
-            new_state.escalated = True
-            new_state.escalation_reason = f"emotion:{new_state.emotion_state}"
-        elif next_field is None and new_state.is_ready_for_output:
-            # Generate output
-            output = await self.output_gen.generate(new_state, self.config)
-            new_state.output = output
-            new_state.completed = True
+            # ── Stage 5: Conflict detection ──────────────────────────────
+            new_values = extraction.as_map()
+            conflicts  = self._conflict.check(
+                new_extractions = new_values,
+                collected       = self.state.collected_fields,
+                fields_config   = self.state.fields_config,
+                current_turn    = self.state.current_turn,
+            )
+            for c in conflicts:
+                self.state.active_conflicts.append(c.to_dict())
+
+            # ── Stage 6: State update ─────────────────────────────────────
+            # Only update fields that have no active conflict
+            conflict_fields = {c.get("field") for c in self.state.active_conflicts if not c.get("resolved")}
+            for ef in extraction.fields:
+                if ef.name not in conflict_fields:
+                    self.state.set_field(ef.name, ef.value, ef.confidence)
+            self.state.last_extraction = (
+                extraction.fields[0].to_dict() if extraction.fields else None
+            )
+
+            # ── Stage 7: Confidence scoring ──────────────────────────────
+            confidence_scores = self._confidence.score_all(
+                collected_fields = self.state.collected_fields,
+                fields_config    = self.state.fields_config,
+                extraction_meta  = {
+                    ef.name: {"confidence": ef.confidence, "source_text": ef.raw_text}
+                    for ef in extraction.fields
+                },
+            )
+            self.state.field_confidences = {
+                k: v.score for k, v in confidence_scores.items()
+            }
+
+            # ── Stage 8: Conversation quality ────────────────────────────
+            quality = self._quality.check(
+                turn_number            = self.state.current_turn,
+                user_message           = user_message,
+                turn_history           = self.state.turn_history,
+                fields_collected       = len(self.state.collected_fields),
+                total_required_fields  = len(self.state.required_fields),
+            )
+            self.state.quality_reports.append(quality.to_dict())
+
+            # ── Stage 9: Add user turn to history ────────────────────────
+            self.state.add_turn("user", user_message, metadata={
+                "pii_detected":   pii_result.has_pii,
+                "language":       lang_result.language_code,
+                "emotion":        emotion.label,
+                "fields_extracted": [ef.name for ef in extraction.fields],
+            })
+
+            # ── Stage 10: Reason + Plan ───────────────────────────────────
+            decision      = self._reasoner.decide(self.state)
+            response_text = await self._planner.plan(decision, self.state)
+
+            # ── Stage 11: Generate output if complete ────────────────────
+            final_output = None
+            if decision.action == ReasonerAction.GENERATE_OUTPUT:
+                final_output = await self._output.generate(self.state)
+                self.state.is_complete  = True
+                self.state.final_output = final_output
+                if self._session_manager:
+                    await self._session_manager.complete(
+                        self.state.session_id, output=final_output
+                    )
+
+            # ── Stage 12: Record cost ────────────────────────────────────
+            session_cost = self._cost_tracker.get_session_cost(self.state.session_id)
+            self.state.total_cost_usd = session_cost.total_cost_usd
+
+            self.state.add_turn("assistant", response_text)
+            await self._save_state()
+
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+            logger.info(
+                "engine: turn=%d session=%s action=%s field=%s "
+                "lang=%s emotion=%s extracted=%d cost=$%.4f latency=%dms",
+                self.state.current_turn,
+                self.state.session_id,
+                decision.action.value,
+                decision.target_field or "-",
+                lang_result.language_code,
+                emotion.label,
+                len(extraction.fields),
+                self.state.total_cost_usd,
+                latency_ms,
+            )
+
+            return EngineResponse(
+                text          = response_text,
+                session_id    = self.state.session_id,
+                turn          = self.state.current_turn,
+                action        = decision.action.value,
+                target_field  = decision.target_field,
+                is_complete   = self.state.is_complete,
+                final_output  = final_output,
+                cost_usd      = self.state.total_cost_usd,
+                latency_ms    = latency_ms,
+                state_summary = self._state_summary(),
+            )
+
+        except BudgetExceededError as e:
+            logger.warning("engine: %s", e)
+            budget_response = (
+                "We've reached the session cost limit. "
+                "Your progress is saved — resume with your session ID."
+            )
+            self.state.add_turn("assistant", budget_response)
+            await self._save_state()
+            if self._session_manager:
+                await self._session_manager.fail(self.state.session_id, str(e))
+            return EngineResponse(
+                text         = budget_response,
+                session_id   = self.state.session_id,
+                turn         = self.state.current_turn,
+                action       = "budget_exceeded",
+                target_field = None,
+                is_complete  = False,
+            )
+
+        except Exception as e:
+            logger.exception("engine: unhandled error in process_message: %s", e)
+            self.state.error = str(e)
+            await self._save_state()
+            raise
+
+    async def process_message_stream(
+        self,
+        user_message: str,
+    ) -> AsyncIterator[str]:
+        """
+        Streaming version of process_message().
+        Yields response text token by token, then yields a sentinel JSON object
+        with the full EngineResponse metadata.
+
+        Usage:
+            async for chunk in engine.process_message_stream("hello"):
+                if chunk.startswith('{"session_id"'):
+                    meta = json.loads(chunk)  # final metadata
+                else:
+                    print(chunk, end="", flush=True)  # text token
+        """
+        # Run the full extraction + reasoning pipeline (non-streaming)
+        start_time = time.perf_counter()
+        self.state.current_turn += 1
+        self.state.current_input = user_message
+
+        pii_result  = self._pii.scan(user_message)
+        safe_text   = pii_result.redacted
+        lang_result = self._lang.detect_from_history(self.state.user_messages + [user_message])
+        self.state.detected_language = lang_result.language_code
+
+        extraction = await self._extractor.extract(
+            user_message  = safe_text,
+            fields_config = self.state.fields_config,
+            context       = self.state.collected_fields,
+        )
+        emotion = await self._emotion.detect(safe_text, use_llm=False)
+        self.state.current_emotion = emotion.to_dict()
+
+        for ef in extraction.fields:
+            self.state.set_field(ef.name, ef.value, ef.confidence)
+
+        self.state.add_turn("user", user_message)
+        decision = self._reasoner.decide(self.state)
+
+        # Stream the response
+        if self._router and decision.action not in (
+            ReasonerAction.GENERATE_OUTPUT, ReasonerAction.BUDGET_EXCEEDED
+        ):
+            from truenorth.core.conversation_planner import ConversationPlanner
+            from truenorth.llm.base import Message as LLMMessage
+            from truenorth.llm.router import TASK_CONVERSE
+
+            full_text = []
+            async for chunk in self._router.generate_stream(
+                task     = TASK_CONVERSE,
+                messages = [LLMMessage(role="user", content=f"Turn {self.state.current_turn}")],
+                max_tokens = 200,
+            ):
+                if chunk.delta:
+                    full_text.append(chunk.delta)
+                    yield chunk.delta
+
+            response_text = "".join(full_text)
         else:
-            new_state.current_field_target = next_field
+            response_text = await self._planner.plan(decision, self.state)
+            yield response_text
 
-        # 10. Add agent turn to history
-        new_state = new_state.add_turn("assistant", agent_message)
-
-        return new_state, agent_message
-
-    async def generate_welcome_message(self, state: GraphState) -> str:
-        """Generate the opening message for a new session."""
-        first_field = self.config.required_fields[0].name if self.config.required_fields else None
-        system = f"You are {getattr(self.config.persona, 'base', 'a helpful assistant')}."
-        prompt = f"""
-Generate a warm, brief welcome message to start collecting information.
-First field you'll ask about: {first_field or 'general information'}
-Keep it to 1-2 sentences. Be friendly and natural.
-Respond ONLY with the message text.
-"""
-        resp = await self.router.complete(
-            task="conversation", prompt=prompt, system=system,
-            temperature=0.8, max_tokens=100
+        import json
+        self.state.add_turn("assistant", response_text)
+        await self._save_state()
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        meta = EngineResponse(
+            text         = response_text,
+            session_id   = self.state.session_id,
+            turn         = self.state.current_turn,
+            action       = decision.action.value,
+            target_field = decision.target_field,
+            is_complete  = self.state.is_complete,
+            latency_ms   = latency_ms,
         )
-        return resp.content.strip()
+        yield json.dumps(meta.to_dict())
 
-    async def generate_resume_message(self, state: GraphState) -> str:
-        """Generate a resume message when user returns to an existing session."""
-        collected = ", ".join(
-            f"{k}: {v.value}" for k, v in list(state.profile.items())[:5]
+    # ------------------------------------------------------------------
+    # Utility
+    # ------------------------------------------------------------------
+
+    def get_state(self) -> dict:
+        """Return current session state as a serializable dict."""
+        return self.state.to_dict()
+
+    def get_collected_fields(self) -> Dict[str, Any]:
+        """Return all collected field values."""
+        return dict(self.state.collected_fields)
+
+    def get_missing_fields(self) -> List[str]:
+        """Return names of required fields not yet collected."""
+        return self.state.missing_required
+
+    def get_session_id(self) -> str:
+        return self.state.session_id
+
+    def explain_decision(self) -> str:
+        """Return a human-readable explanation of what the engine would do next (for dry-run)."""
+        return self._reasoner.explain(self.state)
+
+    async def force_output(self) -> Dict[str, Any]:
+        """Force final output generation even if not all fields collected."""
+        return await self._output.generate(self.state)
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    async def _save_state(self) -> None:
+        """Persist state to session manager if available."""
+        self.state.updated_at = time.time()
+        if self._session_manager:
+            try:
+                await self._session_manager.save(
+                    self.state.session_id,
+                    self.state.to_dict(),
+                )
+            except Exception as e:
+                logger.warning("engine: state save failed: %s", e)
+
+    def _state_summary(self) -> dict:
+        """Compact state summary for API responses."""
+        return {
+            "collected":   list(self.state.collected_fields.keys()),
+            "missing":     self.state.missing_required,
+            "completion":  self.state.completion_pct,
+            "turn":        self.state.current_turn,
+            "language":    self.state.detected_language,
+            "cost_usd":    round(self.state.total_cost_usd, 6),
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"TrueNorthEngine("
+            f"session={self.state.session_id!r}, "
+            f"goal={self.state.goal_id!r}, "
+            f"turn={self.state.current_turn}, "
+            f"completion={self.state.completion_pct:.0%})"
         )
-        missing = ", ".join(state.missing_required[:3])
-
-        prompt = f"""
-The user is returning to a session where we already collected: {collected}
-We still need: {missing}
-
-Generate a warm 2-3 sentence message:
-1. Welcome them back
-2. Briefly summarize what they told us
-3. Ask to continue
-
-Be natural and friendly. Respond ONLY with the message.
-"""
-        resp = await self.router.complete(
-            task="conversation", prompt=prompt,
-            temperature=0.7, max_tokens=150
-        )
-        return resp.content.strip()

@@ -1,176 +1,219 @@
-"""YAML goal config loader with validation and inheritance support."""
+"""
+truenorth/core/yaml_loader.py
+
+Loads goal YAML files, validates them against the JSON Schema,
+supports inheritance (extends:) and environment variable substitution.
+
+Usage:
+    config = YAMLLoader.load("examples/goals/fitness_plan.yaml")
+    # → fully validated dict ready for GraphState.from_goal_config()
+"""
 
 from __future__ import annotations
-import copy
+
+import json
+import logging
+import os
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional, Union
 
 import yaml
-from pydantic import BaseModel, field_validator
+
+logger = logging.getLogger(__name__)
+
+_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent.parent / \
+               "specs" / "yaml-schema" / "goal.schema.json"
 
 
-class FieldConfig(BaseModel):
-    name: str
-    type: str = "text"
-    optional: bool = False
-    privacy: str = "low"            # low | medium | high | critical
-    temporal: bool = False
-    max_age_days: int | None = None
-    values: list[str] | None = None # for enum fields
-    follow_ups: list[str] = []
-    accept_from_document: bool = False
-    accept_from_image: bool = False
-    if_true: list["FieldConfig"] = []
-    if_false: list["FieldConfig"] = []
-    if_value_is: dict[str, list["FieldConfig"]] = {}
-    validation: str | None = None   # Python expression string
-
-    model_config = {"arbitrary_types_allowed": True}
+class YAMLLoaderError(Exception):
+    """Raised when a goal YAML fails to load or validate."""
 
 
-class PersonaConfig(BaseModel):
-    base: str = "helpful_assistant"
-    adaptive: bool = False
-    available_personas: list[dict] = []
-    default_persona: str = "default"
-    allow_user_switch: bool = False
+class YAMLLoader:
+    """
+    Loads, validates, and resolves goal YAML configs.
 
+    Features:
+      - JSON Schema validation (warns but doesn't block if schema not found)
+      - extends: inheritance — child config merges on top of parent
+      - ${ENV_VAR} substitution in string values
+      - Caching — each file path is loaded once per process
+    """
 
-class OutputConfig(BaseModel):
-    format: str = "structured_report"      # structured_report | json | pdf | whatsapp | email
-    sections: list[dict] = []
-    low_confidence_handling: dict = {}
-    formats: list[dict] = []
+    _cache: Dict[str, dict] = {}
 
-
-class ComplianceConfig(BaseModel):
-    mode: str = "none"              # none | gdpr | hipaa | dpdp
-    consent_required: bool = False
-    retention_days: int = 365
-    audit_trail: bool = True
-
-
-class RateLimitConfig(BaseModel):
-    sessions_per_day: int = 10
-    sessions_per_hour: int = 3
-    messages_per_session: int = 50
-
-
-class CostConfig(BaseModel):
-    max_tokens_per_session: int = 10000
-    max_cost_per_session_usd: float = 0.05
-    fallback_model: str = "gemini-2.0-flash-lite"
-    on_budget_exceeded: str = "switch_to_cheaper_model"
-
-
-class GoalConfig(BaseModel):
-    goal_id: str
-    abstract: bool = False
-    extends: str | None = None
-    persona: PersonaConfig = PersonaConfig()
-    required_fields: list[FieldConfig] = []
-    optional_fields: list[FieldConfig] = []
-    output: OutputConfig = OutputConfig()
-    compliance: ComplianceConfig = ComplianceConfig()
-    rate_limits: RateLimitConfig = RateLimitConfig()
-    cost_management: CostConfig = CostConfig()
-    escalation: dict = {}
-    webhooks: dict = {}
-    language: dict = {"auto_detect": True, "respond_in": "user_language"}
-    session: dict = {"persist": True, "ttl_hours": 168}
-    ab_tests: list[dict] = []
-    related_goals: list[dict] = []
-    feedback: dict = {}
-
-    @field_validator("goal_id")
     @classmethod
-    def goal_id_must_be_slug(cls, v: str) -> str:
-        import re
-        if not re.match(r"^[a-z0-9_]+$", v):
-            raise ValueError("goal_id must be lowercase alphanumeric with underscores")
-        return v
+    def load(cls, path: Union[str, Path], use_cache: bool = True) -> dict:
+        """
+        Load a goal YAML file and return the validated config dict.
 
+        Args:
+            path:      Path to the .yaml file (absolute or relative to cwd)
+            use_cache: Return cached version if already loaded (default True)
 
-class YamlLoader:
-    """
-    Loads and validates TrueNorth YAML goal configs.
-    Handles inheritance (extends:) and abstract goals.
-    """
+        Returns:
+            dict — fully resolved goal configuration
 
-    def __init__(self, goals_dir: Path | None = None):
-        self.goals_dir = goals_dir or Path(".")
-        self._cache: dict[str, GoalConfig] = {}
+        Raises:
+            YAMLLoaderError: if file not found, invalid YAML, or schema fails critically
+        """
+        path = Path(path).resolve()
+        cache_key = str(path)
 
-    def load(self, source: str | Path) -> GoalConfig:
-        """Load a goal from a file path or YAML string."""
-        if isinstance(source, str) and not source.endswith(".yaml"):
-            raw = yaml.safe_load(source)
-        else:
-            path = Path(source)
-            raw = yaml.safe_load(path.read_text())
+        if use_cache and cache_key in cls._cache:
+            logger.debug("yaml_loader: cache hit for %s", path)
+            return cls._cache[cache_key]
 
-        return self._parse(raw)
+        if not path.exists():
+            raise YAMLLoaderError(f"Goal YAML not found: {path}")
 
-    def _parse(self, raw: dict) -> GoalConfig:
-        if "extends" in raw:
-            parent = self._load_parent(raw["extends"])
-            raw = self._merge(parent, raw)
+        logger.info("yaml_loader: loading %s", path)
 
-        config = GoalConfig(**raw)
+        try:
+            raw = path.read_text(encoding="utf-8")
+            raw = cls._substitute_env_vars(raw)
+            config: dict = yaml.safe_load(raw)
+        except yaml.YAMLError as e:
+            raise YAMLLoaderError(f"Invalid YAML in {path}: {e}") from e
 
-        if config.abstract:
-            raise ValueError(f"Goal '{config.goal_id}' is abstract and cannot be run directly")
+        if not isinstance(config, dict):
+            raise YAMLLoaderError(f"{path} must be a YAML mapping at the top level")
+
+        config = cls._resolve_inheritance(config, base_dir=path.parent)
+        cls._validate(config, path)
+        config = cls._normalise_fields(config)
+
+        if use_cache:
+            cls._cache[cache_key] = config
 
         return config
 
-    def _load_parent(self, goal_id: str) -> dict:
-        candidates = list(self.goals_dir.rglob(f"{goal_id}.yaml"))
-        if not candidates:
-            raise FileNotFoundError(f"Parent goal '{goal_id}' not found in {self.goals_dir}")
-        raw = yaml.safe_load(candidates[0].read_text())
-        # Allow abstract parents
-        raw.pop("abstract", None)
-        return raw
+    @classmethod
+    def load_from_string(cls, yaml_text: str) -> dict:
+        """Load from a YAML string (useful for tests and API endpoints)."""
+        try:
+            config = yaml.safe_load(cls._substitute_env_vars(yaml_text))
+        except yaml.YAMLError as e:
+            raise YAMLLoaderError(f"Invalid YAML: {e}") from e
+        if not isinstance(config, dict):
+            raise YAMLLoaderError("YAML must be a mapping at the top level")
+        return cls._normalise_fields(config)
 
-    def _merge(self, parent: dict, child: dict) -> dict:
-        """Deep merge child into parent. Child wins on conflicts."""
-        merged = copy.deepcopy(parent)
-        merged.pop("abstract", None)
-        merged.pop("extends", None)
+    @classmethod
+    def clear_cache(cls) -> None:
+        cls._cache.clear()
 
-        for key, value in child.items():
-            if key == "extends":
-                continue
-            if key == "required_fields" and key in merged:
-                existing_names = {f["name"] for f in merged[key]}
-                for field in value:
-                    if field["name"] in existing_names:
-                        # Override existing field
-                        merged[key] = [f if f["name"] != field["name"] else field for f in merged[key]]
-                    else:
-                        merged[key].append(field)
-            else:
-                merged[key] = value
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
+    @classmethod
+    def _substitute_env_vars(cls, text: str) -> str:
+        """Replace ${VAR_NAME} and ${VAR_NAME:default} with env values."""
+        def replacer(m: re.Match) -> str:
+            var, _, default = m.group(1).partition(":")
+            return os.environ.get(var, default)
+        return re.sub(r"\$\{([^}]+)\}", replacer, text)
+
+    @classmethod
+    def _resolve_inheritance(cls, config: dict, base_dir: Path) -> dict:
+        """
+        If config has an `extends:` key, load the parent YAML and deep-merge.
+        Child values override parent values. Fields are merged by name.
+        """
+        extends = config.pop("extends", None)
+        if not extends:
+            return config
+
+        parent_path = (base_dir / extends).resolve()
+        logger.debug("yaml_loader: resolving extends %s", parent_path)
+        parent = cls.load(parent_path)
+
+        merged = cls._deep_merge(parent, config)
         return merged
 
-    def get_all_fields(self, config: GoalConfig) -> list[FieldConfig]:
-        """Flatten all fields including conditional sub-trees."""
-        fields = []
-        for f in config.required_fields + config.optional_fields:
-            fields.append(f)
-            fields.extend(self._flatten_conditional_fields(f))
-        return fields
+    @classmethod
+    def _deep_merge(cls, base: dict, override: dict) -> dict:
+        """
+        Deep merge override onto base. Lists with 'name' keys (fields) are
+        merged by name rather than replaced.
+        """
+        result = dict(base)
+        for key, val in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(val, dict):
+                result[key] = cls._deep_merge(result[key], val)
+            elif key == "fields" and isinstance(result.get("fields"), list) and isinstance(val, list):
+                result["fields"] = cls._merge_field_lists(result["fields"], val)
+            else:
+                result[key] = val
+        return result
 
-    def _flatten_conditional_fields(self, field: FieldConfig) -> list[FieldConfig]:
-        sub = []
-        for f in field.if_true:
-            sub.append(f)
-            sub.extend(self._flatten_conditional_fields(f))
-        for f in field.if_false:
-            sub.append(f)
-        for branch_fields in field.if_value_is.values():
-            for f in branch_fields:
-                sub.append(f)
-                sub.extend(self._flatten_conditional_fields(f))
-        return sub
+    @classmethod
+    def _merge_field_lists(cls, base: list, override: list) -> list:
+        """Merge field lists by name — override entries replace base entries with same name."""
+        base_map = {f["name"]: f for f in base if isinstance(f, dict) and "name" in f}
+        for f in override:
+            if isinstance(f, dict) and "name" in f:
+                if f["name"] in base_map:
+                    base_map[f["name"]] = {**base_map[f["name"]], **f}
+                else:
+                    base_map[f["name"]] = f
+        return list(base_map.values())
+
+    @classmethod
+    def _validate(cls, config: dict, path: Path) -> None:
+        """Validate against JSON Schema. Logs warnings, does not raise (schema file optional)."""
+        try:
+            import jsonschema
+            schema_path = _SCHEMA_PATH
+            if not schema_path.exists():
+                # Try relative to package dir
+                schema_path = Path(__file__).parent.parent / "specs" / "yaml-schema" / "goal.schema.json"
+            if not schema_path.exists():
+                logger.debug("yaml_loader: no schema file found, skipping validation")
+                return
+            schema = json.loads(schema_path.read_text())
+            jsonschema.validate(config, schema)
+            logger.debug("yaml_loader: %s passed schema validation", path.name)
+        except ImportError:
+            logger.debug("yaml_loader: jsonschema not installed, skipping validation")
+        except Exception as e:
+            logger.warning("yaml_loader: schema validation warning for %s: %s", path.name, e)
+
+    @classmethod
+    def _normalise_fields(cls, config: dict) -> dict:
+        """
+        Ensure every field entry has the required keys with sensible defaults.
+        Converts shorthand entries to full dicts.
+        """
+        raw_fields = config.get("fields", [])
+        normalised = []
+        for f in raw_fields:
+            if isinstance(f, str):
+                # shorthand: just a name
+                f = {"name": f}
+            f.setdefault("required", True)
+            f.setdefault("type", "text")
+            f.setdefault("description", f.get("name", "").replace("_", " ").title())
+            f.setdefault("question", f"What is your {f.get('name', 'information')}?")
+            normalised.append(f)
+        config["fields"] = normalised
+
+        # Ensure top-level keys exist
+        config.setdefault("id", Path(config.get("name", "unknown")).stem)
+        config.setdefault("persona", {"name": "TrueNorth", "tone": "friendly"})
+        config.setdefault("output", {"format": "text", "template": ""})
+        config.setdefault("budget", {})
+
+        return config
+
+    @classmethod
+    def list_fields(cls, config: dict) -> list[str]:
+        """Return list of field names from a loaded config."""
+        return [f["name"] for f in config.get("fields", [])]
+
+    @classmethod
+    def required_fields(cls, config: dict) -> list[str]:
+        """Return list of required field names."""
+        return [f["name"] for f in config.get("fields", []) if f.get("required", True)]

@@ -1,88 +1,186 @@
 """
-Generate structured output from a completed profile.
-Supports conditional sections based on collected data.
+truenorth/output/generator.py
+
+Generates the final output when all required fields are collected.
+Supports multiple output formats:
+  - text     : narrative paragraph (default)
+  - markdown  : formatted markdown report
+  - json      : structured JSON object
+  - template  : Jinja2-style template from goal YAML
+
+Uses Claude Sonnet (highest quality) for generation.
 """
 
 from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
 from truenorth.core.graph_state import GraphState
-from truenorth.core.yaml_loader import GoalConfig
-from truenorth.llm.router import LLMRouter
 
-SYSTEM = """You are an expert {domain} advisor generating a personalized plan.
-Use ONLY the information provided. Be specific and actionable.
-Format your response in clear markdown with sections."""
+if TYPE_CHECKING:
+    from truenorth.llm.router import LLMRouter
 
-PROMPT_TEMPLATE = """
-Generate a personalized plan based on this profile:
-
-{profile}
-
-Include these sections (skip any section if the data isn't relevant):
-{sections}
-
-Be specific, practical, and encouraging. Use the person's actual numbers."""
+logger = logging.getLogger(__name__)
 
 
 class OutputGenerator:
-    def __init__(self, router: LLMRouter):
-        self.router = router
+    """
+    Generates the final session output.
 
-    async def generate(self, state: GraphState, config: GoalConfig) -> dict:
-        """Generate the final output for a completed session."""
-        profile_text = "\n".join(
-            f"- {k}: {v.value}"
-            for k, v in state.profile.items()
+    Usage:
+        generator = OutputGenerator(router=llm_router)
+        result = await generator.generate(state=state)
+    """
+
+    _SYSTEM = """\
+You are a precise report writer. Generate a clear, personalized output
+based ONLY on the information collected. Do not invent or assume any facts
+not explicitly provided. Reference the user's actual values, not placeholders.
+"""
+
+    def __init__(self, router: Optional["LLMRouter"] = None):
+        self._router = router
+
+    async def generate(self, state: GraphState) -> Dict[str, Any]:
+        """
+        Generate the final output for a completed session.
+
+        Returns dict with:
+          - format   : output format
+          - content  : the generated content (str or dict)
+          - fields   : the collected fields used
+          - metadata : token counts, model used, etc.
+        """
+        fmt       = state.goal_config.get("output", {}).get("format", "text")
+        template  = state.output_template
+        collected = state.collected_fields
+        goal_name = state.goal_config.get("name", state.goal_id)
+
+        logger.info(
+            "output_generator: session=%s format=%s fields=%d",
+            state.session_id, fmt, len(collected),
         )
 
-        # Build sections list based on conditional config
-        sections = self._build_sections(state, config)
-        sections_text = "\n".join(f"- {s}" for s in sections)
+        if fmt == "json":
+            content = self._json_output(collected, state)
+        elif fmt == "markdown":
+            content = await self._llm_output(collected, state, goal_name, template, fmt)
+        elif template:
+            content = await self._template_output(collected, template, state)
+        else:
+            content = await self._llm_output(collected, state, goal_name, template, fmt)
 
-        domain = config.goal_id.replace("_", " ")
-        system = SYSTEM.format(domain=domain)
-        prompt = PROMPT_TEMPLATE.format(
-            profile=profile_text,
-            sections=sections_text,
-        )
-
-        response = await self.router.complete(
-            task="output_generation", prompt=prompt, system=system,
-            temperature=0.7, max_tokens=2000
-        )
-
-        return {
-            "content": response.content,
-            "format": config.output.format,
-            "profile_snapshot": state.collected_fields,
-            "sections_included": sections,
-            "tokens_used": response.total_tokens,
-            "model": response.model,
+        result = {
+            "format":  fmt,
+            "content": content,
+            "fields":  {k: v for k, v in collected.items()},
+            "session_id": state.session_id,
+            "goal_id":    state.goal_id,
+            "metadata": {
+                "total_turns":   state.current_turn,
+                "total_cost":    round(state.total_cost_usd, 6),
+                "completion_pct": state.completion_pct,
+            },
         }
 
-    def _build_sections(self, state: GraphState, config: GoalConfig) -> list[str]:
-        sections = []
-        profile = state.collected_fields
+        logger.info("output_generator: session=%s output generated", state.session_id)
+        return result
 
-        for section in config.output.sections:
-            name = section.get("name", "")
-            if section.get("always_include"):
-                sections.append(name)
-                continue
+    # ------------------------------------------------------------------
+    # Format handlers
+    # ------------------------------------------------------------------
 
-            include_if = section.get("include_if", "")
-            if include_if:
-                try:
-                    if eval(include_if, {"profile": profile}):  # noqa: S307
-                        sections.append(name)
-                except Exception:
-                    pass
+    def _json_output(self, collected: Dict[str, Any], state: GraphState) -> dict:
+        """Pure JSON output — no LLM, just the collected fields."""
+        return {
+            "goal":   state.goal_id,
+            "fields": collected,
+            "confidence": state.field_confidences,
+        }
 
-        # If no sections configured, use smart defaults
-        if not sections:
-            sections = ["Summary", "Personalized Plan", "Key Recommendations", "Next Steps"]
-            if profile.get("injuries") and profile["injuries"] not in ("none", "no", ""):
-                sections.insert(2, "Injury Modifications")
-            if profile.get("medical_conditions"):
-                sections.insert(2, "Medical Adaptations")
+    async def _template_output(
+        self,
+        collected: Dict[str, Any],
+        template:  str,
+        state:     GraphState,
+    ) -> str:
+        """
+        Fill a YAML-defined template with collected field values.
+        Supports {field_name} placeholders. Falls back to LLM for missing context.
+        """
+        result = template
+        for field_name, value in collected.items():
+            result = result.replace(f"{{{field_name}}}", str(value))
 
-        return sections
+        unfilled = re.findall(r"\{(\w+)\}", result)
+        if unfilled:
+            logger.warning(
+                "output_generator: unfilled placeholders: %s", unfilled
+            )
+
+        return result
+
+    async def _llm_output(
+        self,
+        collected: Dict[str, Any],
+        state:     GraphState,
+        goal_name: str,
+        template:  Optional[str],
+        fmt:       str,
+    ) -> str:
+        """LLM-generated output (narrative or markdown)."""
+        if self._router is None:
+            return self._fallback_output(collected, goal_name)
+
+        from truenorth.llm.base import Message as LLMMessage
+        from truenorth.llm.router import TASK_OUTPUT
+
+        format_instruction = (
+            "Format as markdown with headers and bullet points."
+            if fmt == "markdown"
+            else "Format as clear, friendly prose (no bullet points, no headers)."
+        )
+
+        template_instruction = (
+            f"\n\nUse this structure as a guide:\n{template}"
+            if template else ""
+        )
+
+        fields_str = "\n".join(
+            f"  {k}: {v}" for k, v in collected.items()
+        )
+
+        prompt = (
+            f"Generate a {goal_name} report for a user with these collected details:\n\n"
+            f"{fields_str}\n\n"
+            f"{format_instruction}"
+            f"{template_instruction}\n\n"
+            f"Reference the user's ACTUAL values throughout. "
+            f"Do NOT use generic placeholders. "
+            f"Language: {state.detected_language}."
+        )
+
+        try:
+            resp = await self._router.generate(
+                task       = TASK_OUTPUT,
+                messages   = [LLMMessage(role="user", content=prompt)],
+                system     = self._SYSTEM,
+                max_tokens  = 2048,
+                temperature = 0.5,
+            )
+            return resp.content.strip()
+        except Exception as e:
+            logger.error("output_generator LLM failed: %s", e)
+            return self._fallback_output(collected, goal_name)
+
+    @staticmethod
+    def _fallback_output(collected: Dict[str, Any], goal_name: str) -> str:
+        """Plain-text fallback when LLM is unavailable."""
+        lines = [f"# {goal_name} Summary\n"]
+        for field, value in collected.items():
+            label = field.replace("_", " ").title()
+            lines.append(f"**{label}**: {value}")
+        return "\n".join(lines)

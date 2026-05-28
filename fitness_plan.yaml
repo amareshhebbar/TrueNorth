@@ -1,0 +1,118 @@
+id: fitness_plan
+name: "Fitness Plan Builder"
+version: "1.0"
+
+persona:
+  name: "Alex"
+  tone: "friendly and encouraging"
+  language: "en"
+
+budget:
+  max_cost_usd: 0.50
+
+fields:
+  - name: name
+    type: text
+    required: true
+    description: "User's first name"
+    question: "Hi! I'm Alex, your fitness coach. What's your first name?"
+
+  - name: age
+    type: integer
+    required: true
+    description: "User's age in years"
+    question: "Great to meet you, {name}! How old are you?"
+    min: 16
+    max: 100
+
+  - name: weight_kg
+    type: number
+    required: true
+    description: "Current weight in kilograms"
+    question: "What's your current weight? (in kg)"
+    min: 30
+    max: 300
+
+  - name: height_cm
+    type: number
+    required: true
+    description: "Height in centimetres"
+    question: "And your height? (in cm)"
+    min: 100
+    max: 250
+
+  - name: primary_goal
+    type: text
+    required: true
+    description: "Primary fitness goal"
+    question: "What's your main fitness goal? (e.g. lose weight, build muscle, run a 5K, improve stamina)"
+    allowed_values:
+      - lose weight
+      - build muscle
+      - run 5k
+      - improve stamina
+      - general fitness
+      - flexibility
+
+  - name: activity_level
+    type: text
+    required: true
+    description: "Current activity level"
+    question: "How active are you right now? Are you mostly sedentary, lightly active, moderately active, or very active?"
+    allowed_values:
+      - sedentary
+      - lightly active
+      - moderately active
+      - very active
+
+  - name: workout_days_per_week
+    type: integer
+    required: true
+    description: "How many days per week available for working out"
+    question: "How many days a week can you commit to working out?"
+    min: 1
+    max: 7
+
+  - name: workout_duration_minutes
+    type: integer
+    required: true
+    description: "How long each session (minutes)"
+    question: "How long can you spend per session — 30 minutes, 45, an hour?"
+    min: 15
+    max: 180
+
+  - name: equipment_access
+    type: text
+    required: true
+    description: "What equipment / gym access do you have"
+    question: "Do you have access to a gym, or are you working out at home? Any equipment?"
+
+  - name: injuries_or_limitations
+    type: text
+    required: false
+    description: "Any injuries or physical limitations"
+    question: "Any injuries or physical issues I should know about — knees, back, anything like that?"
+
+  - name: diet_preference
+    type: text
+    required: false
+    description: "Dietary preference or restriction"
+    question: "Last one — any dietary preferences or restrictions? (vegetarian, vegan, no restrictions, etc.)"
+
+output:
+  format: markdown
+  template: |
+    # Your Personalised Fitness Plan — {name}
+
+    ## Your Profile
+    - **Age**: {age} years
+    - **Weight**: {weight_kg} kg | **Height**: {height_cm} cm
+    - **Goal**: {primary_goal}
+    - **Activity Level**: {activity_level}
+
+    ## Your Weekly Schedule
+    {workout_days_per_week} days/week × {workout_duration_minutes} min/session
+    Equipment: {equipment_access}
+
+    ## Your Plan
+    Based on your profile, here is your personalised 4-week plan...

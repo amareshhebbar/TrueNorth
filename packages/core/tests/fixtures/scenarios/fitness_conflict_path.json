@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "goal_id":     "fitness_plan",
+    "description": "Conflict path — user contradicts their age mid-conversation",
+    "version":     "1.0"
+  },
+  "turns": [
+    "Priya",
+    "25",
+    "65",
+    "163",
+    "I actually meant I'm 35, not 25",
+    "lose weight",
+    "lightly active",
+    "3",
+    "30",
+    "gym only",
+    "bad knee",
+    "no restrictions"
+  ],
+  "expected": {
+    "conflict_expected": true,
+    "conflict_field":    "age",
+    "passed":            true
+  }
+}

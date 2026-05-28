@@ -1,163 +1,270 @@
 """
-Decide what the agent should say next.
-Picks the next field to ask about, generates a natural question.
-Adapts based on emotion state, conversation quality, and config.
+truenorth/core/conversation_planner.py
+
+Given a Reasoner decision, generates the actual agent response text.
+This is the only module that writes the words the user reads.
+
+Responsibilities:
+  - Phrase questions naturally (not robotic)
+  - Adapt tone to detected emotion (empathetic when frustrated)
+  - Adapt language to detected locale (respond in Hindi if user writes Hindi)
+  - Handle conflict resolution requests gracefully
+  - Acknowledge context before asking next question
+  - Keep responses to ONE question at a time (strict)
 """
 
 from __future__ import annotations
+
+import logging
+from typing import Optional, TYPE_CHECKING
+
+from truenorth.core.reasoner import ReasonerAction, ReasonerDecision
 from truenorth.core.graph_state import GraphState
-from truenorth.core.yaml_loader import GoalConfig, FieldConfig
-from truenorth.llm.router import LLMRouter
 
-SYSTEM_TEMPLATE = """You are {persona}.
+if TYPE_CHECKING:
+    from truenorth.llm.router import LLMRouter
 
-Your job: collect specific information from the user through natural conversation.
-Rules:
-- Ask ONE question at a time (maximum 2 if very related)
-- Be conversational, not clinical
-- Never say "field" or "data" — just ask naturally
-- Adapt your tone to the user's emotional state
-- If user seems frustrated: shorter, kinder questions
-- If all required data is collected: say you have everything and are generating their plan
-- Language: respond in the same language the user is writing in"""
+logger = logging.getLogger(__name__)
 
-PLANNING_PROMPT = """
-Collected so far:
-{collected}
 
-Still need (required):
-{missing_required}
-
-Still need (optional, ask if conversation is going well):
-{missing_optional}
-
-User's current emotion: {emotion} (confidence: {emotion_confidence:.0%})
-Conversation quality score: {quality:.0%}
-
-Last user message: "{last_message}"
-
-Conversation history (last 3 turns):
-{history}
-
-Instructions:
-1. Decide the NEXT field to ask about (from missing_required first)
-2. Generate a natural, conversational question to collect it
-3. If emotion is frustrated/anxious: acknowledge their feeling first (1 sentence)
-4. If all required fields are collected: return a completion message
-
-Respond in JSON:
-{{
-  "next_field": "<field_name or null if complete>",
-  "message": "<your response to the user>",
-  "is_complete": false,
-  "reasoning": "<brief>"
-}}
-"""
-
+# ---------------------------------------------------------------------------
+# ConversationPlanner
+# ---------------------------------------------------------------------------
 
 class ConversationPlanner:
-    def __init__(self, router: LLMRouter):
-        self.router = router
+    """
+    Generates the next agent response given a ReasonerDecision.
 
-    async def plan_next_turn(self, state: GraphState,
-                              config: GoalConfig) -> tuple[str, str | None]:
+    Usage:
+        planner = ConversationPlanner(router=llm_router)
+        response = await planner.plan(decision=decision, state=state)
+    """
+
+    _SYSTEM_TEMPLATE = """\
+You are {name}, a {tone} conversational AI assistant.
+Your goal: collect information from the user through natural conversation.
+
+Rules you MUST follow:
+1. Ask EXACTLY ONE question per response. Never two.
+2. Keep responses SHORT — 1-3 sentences maximum.
+3. Acknowledge what the user just said before asking the next question (when relevant).
+4. Never use jargon. Speak like a real person.
+5. If the user seems frustrated, acknowledge it and offer to help differently.
+6. Respond in the same language the user is writing in.
+7. Do not prefix with "Sure!" or "Great!" every time — vary your phrasing.
+"""
+
+    def __init__(self, router: Optional["LLMRouter"] = None):
+        self._router = router
+
+    async def plan(
+        self,
+        decision: ReasonerDecision,
+        state:    GraphState,
+    ) -> str:
         """
-        Returns (agent_message, next_field_name_or_None).
+        Generate the agent's next response.
+
+        Args:
+            decision: What the Reasoner decided to do next
+            state:    Current session state
+
+        Returns:
+            String — the agent's response to send to the user
         """
-        if state.is_ready_for_output:
-            return await self._generate_completion_message(state, config), None
+        action = decision.action
 
-        # Check escalation triggers
-        if self._should_escalate(state, config):
-            return await self._generate_escalation_message(config), "__escalate__"
+        # Route to the appropriate response generator
+        if action == ReasonerAction.ASK_FIELD:
+            return await self._ask_field(decision, state)
 
-        history = "\n".join(
-            f"{t.role.upper()}: {t.content}"
-            for t in state.conversation[-3:]
+        if action == ReasonerAction.ASK_OPTIONAL:
+            return await self._ask_field(decision, state, is_optional=True)
+
+        if action == ReasonerAction.CLARIFY:
+            return await self._clarify(decision, state)
+
+        if action == ReasonerAction.RESOLVE_CONFLICT:
+            return self._resolve_conflict(decision, state)
+
+        if action == ReasonerAction.HANDLE_EMOTION:
+            return await self._handle_emotion(state)
+
+        if action == ReasonerAction.GENERATE_OUTPUT:
+            return "I have all the information I need. Let me prepare your report..."
+
+        if action == ReasonerAction.BUDGET_EXCEEDED:
+            return (
+                "I'm sorry, but we've reached the session limit. "
+                "I'll save your progress — you can resume later with the session ID."
+            )
+
+        if action == ReasonerAction.END:
+            return "Thank you for completing this. Your information has been recorded."
+
+        # Fallback
+        return await self._ask_field(decision, state)
+
+    # ------------------------------------------------------------------
+    # Response generators
+    # ------------------------------------------------------------------
+
+    async def _ask_field(
+        self,
+        decision:    ReasonerDecision,
+        state:       GraphState,
+        is_optional: bool = False,
+    ) -> str:
+        field_name = decision.target_field
+        if not field_name:
+            return "Can you tell me a bit more?"
+
+        field_cfg  = state.fields_config.get(field_name, {})
+        question   = field_cfg.get("question") or self._default_question(field_name, field_cfg)
+        follow_up  = field_cfg.get("follow_up_hint", "")
+
+        if self._router is None or not state.turn_history:
+            return question
+
+        return await self._llm_rephrase(
+            question    = question,
+            state       = state,
+            is_optional = is_optional,
+            follow_up   = follow_up,
         )
 
-        last_message = ""
-        if state.conversation:
-            user_turns = [t for t in state.conversation if t.role == "user"]
-            if user_turns:
-                last_message = user_turns[-1].content
+    async def _clarify(self, decision: ReasonerDecision, state: GraphState) -> str:
+        field_name  = decision.target_field or ""
+        field_cfg   = state.fields_config.get(field_name, {})
+        last_val    = decision.metadata.get("last_extraction", {}).get("value", "")
+        question    = field_cfg.get("question", f"What is your {field_name.replace('_',' ')}?")
 
-        persona = self._get_persona(config)
-        system = SYSTEM_TEMPLATE.format(persona=persona)
+        if self._router is None:
+            return f"I didn't quite get that — {question}"
 
-        collected_text = "\n".join(
-            f"  {k}: {v.value} (confidence: {v.confidence:.0%})"
-            for k, v in state.profile.items()
-        ) or "  (nothing yet)"
+        prompt = (
+            f"The user gave an unclear answer about '{field_name}'. "
+            f"The extracted value was {last_val!r}, but confidence was low. "
+            f"Write a gentle one-sentence clarification request that restates the question: "
+            f"'{question}'. Do NOT ask anything else."
+        )
+        return await self._llm_short(prompt, state)
 
-        prompt = PLANNING_PROMPT.format(
-            collected=collected_text,
-            missing_required=", ".join(state.missing_required) or "none",
-            missing_optional=", ".join(state.missing_optional) or "none",
-            emotion=state.emotion_state,
-            emotion_confidence=state.emotion_confidence,
-            quality=state.conversation_quality_score,
-            last_message=last_message,
-            history=history or "(first turn)",
+    def _resolve_conflict(self, decision: ReasonerDecision, state: GraphState) -> str:
+        conflict = decision.metadata.get("conflict", {})
+        field    = conflict.get("field", "")
+        old_val  = conflict.get("old_value", "")
+        new_val  = conflict.get("new_value", "")
+        label    = state.fields_config.get(field, {}).get("label", field.replace("_", " "))
+
+        return (
+            f"I noticed a discrepancy — earlier you mentioned {label} as {old_val!r}, "
+            f"but now it seems like {new_val!r}. Which one is correct?"
+        )
+
+    async def _handle_emotion(self, state: GraphState) -> str:
+        emotion = state.current_emotion or {}
+        label   = emotion.get("label", "frustrated")
+
+        if self._router is None:
+            acks = {
+                "frustrated": "I understand this can feel tedious. Let me know if you'd like to take a break.",
+                "distressed":  "I can hear that you're going through a lot. Take your time.",
+                "confused":    "No worries — let me explain that differently.",
+                "anxious":     "It's okay to take your time. There's no rush here.",
+            }
+            return acks.get(label, "I understand. Let me know how I can help better.")
+
+        prompt = (
+            f"The user appears {label}. Write a short (1-2 sentence) empathetic response "
+            f"that acknowledges their feelings and gently offers to continue or take a break. "
+            f"Do NOT ask a question. Do NOT be overly effusive."
+        )
+        return await self._llm_short(prompt, state)
+
+    # ------------------------------------------------------------------
+    # LLM helpers
+    # ------------------------------------------------------------------
+
+    async def _llm_rephrase(
+        self,
+        question:    str,
+        state:       GraphState,
+        is_optional: bool = False,
+        follow_up:   str = "",
+    ) -> str:
+        """Ask LLM to rephrase a YAML question into natural conversational language."""
+        from truenorth.llm.base import Message as LLMMessage
+        from truenorth.llm.router import TASK_CONVERSE
+
+        persona = state.persona
+        system  = self._SYSTEM_TEMPLATE.format(
+            name = persona.get("name", "TrueNorth"),
+            tone = persona.get("tone", "friendly"),
+        )
+
+        last_user_msg = state.user_messages[-1] if state.user_messages else ""
+        recent_exchange = ""
+        if state.turn_history:
+            recent = state.turn_history[-4:]
+            recent_exchange = "\n".join(
+                f"{t['role'].upper()}: {t['content']}" for t in recent
+            )
+
+        optional_note = " (this question is optional — the user can skip it)" if is_optional else ""
+        follow_note   = f" Hint: {follow_up}" if follow_up else ""
+
+        prompt = (
+            f"Recent conversation:\n{recent_exchange}\n\n"
+            f"Now ask this question in a natural, conversational way{optional_note}:\n"
+            f"{question!r}{follow_note}\n\n"
+            f"Write ONLY the response. Do not explain what you're doing. "
+            f"Language: {state.detected_language}."
         )
 
         try:
-            data, _ = await self.router.complete_json(
-                task="conversation", prompt=prompt, system=system,
-                temperature=0.7, max_tokens=400
+            resp = await self._router.generate(
+                task      = TASK_CONVERSE,
+                messages  = [LLMMessage(role="user", content=prompt)],
+                system    = system,
+                max_tokens = 120,
+                temperature = 0.8,
             )
-            message = data.get("message", "Could you tell me more?")
-            next_field = data.get("next_field")
-
-            if data.get("is_complete"):
-                return message, None
-
-            return message, next_field
+            return resp.content.strip()
         except Exception as e:
-            return "Could you tell me a bit more about yourself?", state.missing_required[0] if state.missing_required else None
+            logger.warning("conversation_planner LLM failed: %s — using raw question", e)
+            return question
 
-    def _should_escalate(self, state: GraphState, config: GoalConfig) -> bool:
-        triggers = config.escalation.get("triggers", [])
-        for trigger in triggers:
-            condition = trigger.get("condition", "")
-            if "distressed" in condition and state.emotion_state == "distressed":
-                return True
-            if "consecutive_confusion" in condition:
-                confusion_turns = sum(
-                    1 for t in state.conversation[-6:]
-                    if t.role == "user" and len(t.content) < 10
-                )
-                threshold = int(condition.split(">=")[-1].strip()) if ">=" in condition else 3
-                if confusion_turns >= threshold:
-                    return True
-        return False
+    async def _llm_short(self, prompt: str, state: GraphState) -> str:
+        """Send a short prompt, return the LLM response."""
+        from truenorth.llm.base import Message as LLMMessage
+        from truenorth.llm.router import TASK_CONVERSE
 
-    def _get_persona(self, config: GoalConfig) -> str:
-        return getattr(config.persona, 'base', 'a helpful assistant')
-
-    async def _generate_completion_message(self, state: GraphState,
-                                            config: GoalConfig) -> str:
-        system = SYSTEM_TEMPLATE.format(persona=self._get_persona(config))
-        profile_summary = ", ".join(
-            f"{k}={v.value}" for k, v in list(state.profile.items())[:6]
+        persona = state.persona
+        system  = self._SYSTEM_TEMPLATE.format(
+            name = persona.get("name", "TrueNorth"),
+            tone = persona.get("tone", "friendly"),
         )
-        prompt = f"""
-The user has provided all required information: {profile_summary}
-Generate a brief, warm message telling them you have everything you need
-and are now generating their personalized plan. Be encouraging. 1-2 sentences.
-Respond ONLY with the message text, no JSON.
-"""
-        resp = await self.router.complete(
-            task="conversation", prompt=prompt, system=system,
-            temperature=0.7, max_tokens=150
-        )
-        return resp.content.strip()
+        try:
+            resp = await self._router.generate(
+                task       = TASK_CONVERSE,
+                messages   = [LLMMessage(role="user", content=prompt)],
+                system     = system,
+                max_tokens  = 80,
+                temperature = 0.7,
+            )
+            return resp.content.strip()
+        except Exception as e:
+            logger.warning("conversation_planner short LLM failed: %s", e)
+            return "Could you clarify that for me?"
 
-    async def _generate_escalation_message(self, config: GoalConfig) -> str:
-        triggers = config.escalation.get("triggers", [])
-        for t in triggers:
-            if "distressed" in t.get("condition", ""):
-                return t.get("escalation_message",
-                    "I want to make sure you get the right support. "
-                    "Let me connect you with someone who can help.")
-        return "Let me connect you with a human advisor who can better assist you."
+    @staticmethod
+    def _default_question(field_name: str, field_cfg: dict) -> str:
+        label = field_cfg.get("label", field_name.replace("_", " ").title())
+        ftype = field_cfg.get("type", "text")
+
+        if ftype == "boolean":
+            return f"Would you say {label}? (yes or no)"
+        if ftype in ("integer", "number"):
+            return f"What is your {label}?"
+        return f"Can you tell me your {label}?"

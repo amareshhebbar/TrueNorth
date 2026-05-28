@@ -1,0 +1,33 @@
+id: minimal_test
+name: "Minimal Test Goal"
+version: "1.0"
+
+persona:
+  name: "TestBot"
+  tone: "neutral"
+
+fields:
+  - name: name
+    type: text
+    required: true
+    question: "What is your name?"
+
+  - name: age
+    type: integer
+    required: true
+    question: "How old are you?"
+    min: 1
+    max: 120
+
+  - name: goal
+    type: text
+    required: true
+    question: "What is your goal?"
+
+  - name: notes
+    type: text
+    required: false
+    question: "Any additional notes?"
+
+output:
+  format: json
