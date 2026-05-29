@@ -1,6 +1,4 @@
 """
-truenorth/core/engine.py
-
 TrueNorthEngine — the main pipeline orchestrator.
 
 Every user message flows through these stages in order:
@@ -39,7 +37,7 @@ from truenorth.core.field_extractor import FieldExtractor
 from truenorth.core.conversation_planner import ConversationPlanner
 from truenorth.intelligence.emotion_detector import EmotionDetector
 from truenorth.intelligence.confidence_scorer import ConfidenceScorer
-from truenorth.intelligence.conflict_detector import ConflictDetector
+from truenorth.intelligence.conflict_detector import ConflictDetector, ConflictStore, ConflictType
 from truenorth.intelligence.conversation_quality import ConversationQualityMonitor
 from truenorth.intelligence.language_detector import LanguageDetector
 from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
@@ -278,11 +276,15 @@ class TrueNorthEngine:
 
             # ── Stage 5: Conflict detection ──────────────────────────────
             new_values = extraction.as_map()
+            # Build turn_map for conflict detector (tracks when each field was collected)
+            _turn_map = getattr(self.state, "_field_turn_map", {})
             conflicts  = self._conflict.check(
-                new_extractions = new_values,
-                collected       = self.state.collected_fields,
-                fields_config   = self.state.fields_config,
-                current_turn    = self.state.current_turn,
+                new_extractions   = new_values,
+                collected         = self.state.collected_fields,
+                fields_config     = self.state.fields_config,
+                current_turn      = self.state.current_turn,
+                turn_map          = _turn_map,
+                field_confidences = self.state.field_confidences,
             )
             for c in conflicts:
                 self.state.active_conflicts.append(c.to_dict())
@@ -290,9 +292,14 @@ class TrueNorthEngine:
             # ── Stage 6: State update ─────────────────────────────────────
             # Only update fields that have no active conflict
             conflict_fields = {c.get("field") for c in self.state.active_conflicts if not c.get("resolved")}
+            # Maintain turn_map: tracks which turn each field was first collected
+            if not hasattr(self.state, "_field_turn_map"):
+                self.state._field_turn_map = {}
             for ef in extraction.fields:
                 if ef.name not in conflict_fields:
                     self.state.set_field(ef.name, ef.value, ef.confidence)
+                    if ef.name not in self.state._field_turn_map:
+                        self.state._field_turn_map[ef.name] = self.state.current_turn
             self.state.last_extraction = (
                 extraction.fields[0].to_dict() if extraction.fields else None
             )

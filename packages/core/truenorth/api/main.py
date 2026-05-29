@@ -10,7 +10,6 @@ from truenorth.storage.postgres import PostgresStore
 from truenorth.storage.redis import RedisStore
 
 
-# Global singletons (set during lifespan)
 db_store: PostgresStore | None = None
 redis_store: RedisStore | None = None
 
@@ -51,14 +50,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register routes
     from truenorth.api.routes import sessions, messages, analytics, health
     app.include_router(health.router, tags=["health"])
     app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
     app.include_router(messages.router, prefix="/sessions", tags=["messages"])
     app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 
-    # WebSocket
     from truenorth.api import websocket
     app.include_router(websocket.router, tags=["websocket"])
 

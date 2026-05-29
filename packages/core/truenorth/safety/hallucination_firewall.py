@@ -1,5 +1,4 @@
 """
-truenorth/safety/hallucination_firewall.py
 
 HallucinationFirewall — the single biggest differentiator from LangChain/CrewAI.
 
@@ -106,8 +105,8 @@ class VerifiedClaim:
     """A RawClaim with its verification result attached."""
     raw:           RawClaim
     verdict:       ClaimVerdict
-    traced_field:  Optional[str]    # which collected field this traces to
-    expected_val:  Optional[Any]    # what the field actually says
+    traced_field:  Optional[str]    
+    expected_val:  Optional[Any]    
     found_val:     Optional[str]    # what the claim says
     confidence:    float            # 0.0–1.0 confidence in this verdict
     reason:        str              # human-readable explanation
@@ -202,32 +201,24 @@ class ClaimExtractor:
 
     This is purely rule-based — fast, zero LLM calls.
     """
-
-    # Patterns that suggest a sentence is making a factual claim about the user
     _FIELD_CLAIM_SIGNALS = re.compile(
         r"\b(your|you are|you weigh|you have|you're|based on your|"
         r"at \d+|aged \d+|age of \d+|weight of \d+|height of \d+|"
         r"you said|you mentioned|per your|according to your)\b",
         re.IGNORECASE,
     )
-
-    # Patterns that suggest a sentence is generic advice
     _GENERIC_SIGNALS = re.compile(
         r"\b(should|recommend|suggest|consider|try|aim for|make sure|"
         r"important to|remember to|keep in mind|generally|typically|"
         r"most people|studies show|research suggests|it is important)\b",
         re.IGNORECASE,
     )
-
-    # Derived calculation signals
     _DERIVED_SIGNALS = re.compile(
         r"\b(bmi|body mass index|tdee|bmr|basal metabolic|"
         r"calculated|based on these|therefore your|"
         r"this gives|which means your|equates to)\b",
         re.IGNORECASE,
     )
-
-    # Numeric value extractor (captures numbers with optional units)
     _NUMBER_RE = re.compile(
         r"(\d+(?:\.\d+)?)\s*"
         r"(kg|lbs?|lb|cm|m|ft|inches?|in|years?|days?|weeks?|months?|"
@@ -276,11 +267,9 @@ class ClaimExtractor:
 
     def _split_sentences(self, text: str) -> List[str]:
         """Split on sentence boundaries, preserving meaningful units."""
-        # First split on clear sentence-enders
         parts = re.split(r"(?<=[.!?])\s+(?=[A-Z\-*#])", text)
         result = []
         for part in parts:
-            # Also split on bullet points / numbered lists
             sub = re.split(r"\n[-*•]\s+|\n\d+\.\s+", part)
             result.extend(s.strip() for s in sub if s.strip())
         return result if result else [text]
@@ -293,7 +282,6 @@ class ClaimExtractor:
             return ClaimType.FIELD_REFERENCE
         if self._GENERIC_SIGNALS.search(sentence):
             return ClaimType.GENERIC_ADVICE
-        # Contains numbers → probably making a factual claim
         if self._NUMBER_RE.search(sentence):
             return ClaimType.FIELD_REFERENCE
         return ClaimType.GENERIC_ADVICE
@@ -313,23 +301,17 @@ class ClaimExtractor:
         refs = []
         for field_name, cfg in fields_config.items():
             label  = cfg.get("label", field_name.replace("_", " ")).lower()
-            # All meaningful tokens (> 3 chars) in the field name or label
             name_tokens  = [t for t in field_name.replace("_", " ").lower().split() if len(t) > 3]
             label_tokens = [t for t in label.split() if len(t) > 3]
             all_tokens   = list(set(name_tokens + label_tokens))
-
-            # Exact field name in sentence
             if field_name.lower() in sentence_lower:
                 refs.append(field_name)
                 continue
-
-            # Full label in sentence
             if label and label in sentence_lower:
                 refs.append(field_name)
                 continue
 
             # ALL meaningful tokens of the field name/label appear in the sentence
-            # (e.g. "workout duration" matches "workout_duration_minutes")
             if all_tokens and all(t in sentence_lower for t in all_tokens):
                 refs.append(field_name)
                 continue
@@ -367,10 +349,7 @@ class ClaimVerifier:
       - The claim confidence from Stage A is below SUPERVISOR_THRESHOLD
     """
 
-    # If rule-based confidence is below this, call the LLM supervisor
     SUPERVISOR_THRESHOLD: float = 0.55
-
-    # Mirror of ClaimExtractor pattern — detects sentences making claims about the user
     _FIELD_CLAIM_SIGNALS = re.compile(
         r"\b(your|you are|you weigh|you have|you\'re|based on your|"
         r"you can|you plan|you work|you train|you will|"
@@ -379,10 +358,8 @@ class ClaimVerifier:
         re.IGNORECASE,
     )
 
-    # Numeric tolerance: 2% difference is acceptable (rounding, unit conversion)
     NUMERIC_TOLERANCE: float = 0.02
 
-    # How far a claim's number can be from the field value before it's a hallucination
     HALLUCINATION_TOLERANCE: float = 0.08   # 8% deviation = hallucination
 
     def __init__(self, router: Optional["LLMRouter"] = None):
@@ -454,7 +431,6 @@ class ClaimVerifier:
           6. Text fields: check if expected value string appears in claim
         """
 
-        # Generic advice — always passes
         if claim.claim_type == ClaimType.GENERIC_ADVICE:
             return VerifiedClaim(
                 raw=claim, verdict=ClaimVerdict.GENERIC_PASS,
@@ -462,11 +438,9 @@ class ClaimVerifier:
                 confidence=0.95, reason="Generic advice — no field value to verify",
             )
 
-        # Derived claim — check math if possible, else pass with medium confidence
         if claim.claim_type == ClaimType.DERIVED:
             return self._verify_derived(claim, collected_fields, fields_config)
 
-        # No values to check at all → generic pass
         if not claim.field_refs and not claim.values_seen:
             return VerifiedClaim(
                 raw=claim, verdict=ClaimVerdict.GENERIC_PASS,
@@ -474,7 +448,6 @@ class ClaimVerifier:
                 confidence=0.75, reason="No specific field value referenced",
             )
 
-        # Build lookup of all numeric collected fields
         numeric_fields: Dict[str, float] = {}
         for fn, fv in collected_fields.items():
             ftype = fields_config.get(fn, {}).get("type", "text")
@@ -521,7 +494,7 @@ class ClaimVerifier:
     def _best_numeric_match(
         self,
         claim:           RawClaim,
-        numeric_fields:  Dict[str, float],    # field_name → expected float
+        numeric_fields:  Dict[str, float],  
         fields_config:   Dict[str, dict],
         priority_fields: List[str],           # fields explicitly named in claim
     ) -> Optional["VerifiedClaim"]:
@@ -534,7 +507,7 @@ class ClaimVerifier:
         if not claim.values_seen or not numeric_fields:
             return None
 
-        worst_result: Optional[VerifiedClaim] = None   # track most suspicious finding
+        worst_result: Optional[VerifiedClaim] = None   
 
         for val_str in claim.values_seen:
             # Parse the number (strip units)
@@ -544,8 +517,6 @@ class ClaimVerifier:
             except (ValueError, TypeError):
                 continue
 
-            # Find the field this number is MOST LIKELY from:
-            # Priority: explicitly referenced fields first, then by closest value
             candidate_fields = list(priority_fields) + [
                 fn for fn in numeric_fields if fn not in priority_fields
             ]
@@ -558,7 +529,6 @@ class ClaimVerifier:
                 expected = numeric_fields[fn]
                 diff = abs(found_num - expected) / max(abs(expected), 1e-9)
                 if diff <= self.NUMERIC_TOLERANCE:
-                    # Exact match — verified for this specific value
                     r = VerifiedClaim(
                         raw=claim, verdict=ClaimVerdict.VERIFIED,
                         traced_field=fn,
@@ -566,10 +536,9 @@ class ClaimVerifier:
                         confidence=0.97,
                         reason=f"{found_num} matches field '{fn}'={expected}",
                     )
-                    # Don't return — continue checking other values in the sentence
                     if worst_result is None or _verdict_severity(r.verdict) > _verdict_severity(worst_result.verdict):
                         worst_result = r
-                    break   # this value is verified against a priority field
+                    break  
 
             # Check all numeric fields — find closest match
             best_diff  = float("inf")
@@ -607,7 +576,6 @@ class ClaimVerifier:
             else:
                 # This number doesn't match any collected field closely.
                 # Only BLOCK if the claim clearly references a specific field value
-                # (has explicit field refs OR has "your" pronoun pattern)
                 if claim.field_refs or self._FIELD_CLAIM_SIGNALS.search(claim.text):
                     r = VerifiedClaim(
                         raw=claim, verdict=ClaimVerdict.BLOCKED,
@@ -620,7 +588,6 @@ class ClaimVerifier:
                         ),
                     )
 
-            # Track the worst (most suspicious) result
             if r is not None:
                 if worst_result is None:
                     worst_result = r
@@ -641,11 +608,9 @@ class ClaimVerifier:
         field_cfg     = fields_config.get(field_name, {})
         ftype         = field_cfg.get("type", "text")
 
-        # Numeric fields: check if any extracted number matches
         if ftype in ("integer", "number", "float"):
             return self._match_numeric(claim, field_name, collected_val)
 
-        # Text / categorical fields: check if value string appears in claim
         return self._match_text(claim, field_name, collected_val)
 
     def _match_numeric(
@@ -666,7 +631,6 @@ class ClaimVerifier:
 
         for val_str in claim.values_seen:
             try:
-                # Strip units from extracted value
                 num_str = re.sub(r"[a-zA-Z%]", "", val_str).strip()
                 found_num = float(num_str)
             except (ValueError, TypeError):
@@ -694,7 +658,6 @@ class ClaimVerifier:
                     ),
                 )
             else:
-                # Large discrepancy — likely hallucination
                 return VerifiedClaim(
                     raw=claim, verdict=ClaimVerdict.BLOCKED,
                     traced_field=field_name,
@@ -707,7 +670,6 @@ class ClaimVerifier:
                     ),
                 )
 
-        # Field referenced but no numeric value in claim to check
         return VerifiedClaim(
             raw=claim, verdict=ClaimVerdict.LOW_CONFIDENCE,
             traced_field=field_name,
@@ -742,7 +704,6 @@ class ClaimVerifier:
                 reason=f"Value {expected!r} found verbatim for field '{field_name}'",
             )
 
-        # Check word-by-word for partial match (handles paraphrasing)
         words     = set(expected_str.split())
         in_claim  = sum(1 for w in words if w in claim_lower and len(w) > 3)
         if words and in_claim / len(words) > 0.5:
@@ -774,7 +735,6 @@ class ClaimVerifier:
         """
         claim_lower = claim.text.lower()
 
-        # BMI check
         if "bmi" in claim_lower or "body mass index" in claim_lower:
             weight = collected_fields.get("weight_kg")
             height = collected_fields.get("height_cm")
@@ -809,7 +769,6 @@ class ClaimVerifier:
                     except (ValueError, TypeError):
                         continue
 
-        # For other derived values — pass with medium confidence (can't verify formula)
         return VerifiedClaim(
             raw=claim, verdict=ClaimVerdict.DERIVED_PASS,
             traced_field=None, expected_val=None, found_val=None,
@@ -949,7 +908,6 @@ class OutputSanitiser:
         """Remove BLOCKED claims and fix obvious hallucinations."""
         output = original_output
 
-        # Collect blocked claims in reverse order (preserve string positions)
         blocked = [
             c for c in verified_claims
             if c.verdict == ClaimVerdict.BLOCKED
@@ -1014,7 +972,6 @@ class HallucinationFirewall:
             return fallback_output(collected_fields)
     """
 
-    # Number of BLOCKED claims before the whole output is rejected
     BLOCK_THRESHOLD: int = 1
 
     def __init__(
@@ -1062,7 +1019,6 @@ class HallucinationFirewall:
             session_id, len(output), len(collected_fields),
         )
 
-        # Handle empty / short outputs
         if not output or not output.strip():
             return self._pass_result(output, [], session_id, 0, False)
 
@@ -1075,12 +1031,10 @@ class HallucinationFirewall:
         if not claims:
             return self._pass_result(output, [], session_id, 0, False)
 
-        # Stage 2: Verify all claims
         verified, supervisor_used = await self._verifier.verify_all(
             claims, collected_fields, fields_config, session_id
         )
 
-        # Stage 3: Sanitise output (remove/replace blocked claims)
         blocked_claims  = [c for c in verified if c.verdict == ClaimVerdict.BLOCKED]
         flagged_claims  = [c for c in verified if c.verdict == ClaimVerdict.LOW_CONFIDENCE]
         verified_claims = [
@@ -1115,7 +1069,6 @@ class HallucinationFirewall:
 
         latency_ms = int((time.perf_counter() - t0) * 1000)
 
-        # Build audit log
         audit_log = self._build_audit_log(
             session_id, verdict, verified, collected_fields, latency_ms
         )
@@ -1156,7 +1109,6 @@ class HallucinationFirewall:
         Less strict than full check — only blocks definite hallucinations.
         Returns the safe response text.
         """
-        # Only check sentences that make specific field claims
         result = await self.check(
             output           = agent_response,
             collected_fields = collected_fields,

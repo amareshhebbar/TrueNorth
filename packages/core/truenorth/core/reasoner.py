@@ -1,5 +1,4 @@
 """
-truenorth/core/reasoner.py
 
 Turn-level decision engine. Given the current graph state, the reasoner decides:
   - Which field to target next
@@ -44,8 +43,8 @@ class ReasonerAction(str, Enum):
 @dataclass
 class ReasonerDecision:
     action: ReasonerAction
-    target_field: Optional[str] = None      
-    reason: str = ""                        
+    target_field: Optional[str] = None       # field name to ask about (if action == ASK_*)
+    reason: str = ""                         # human-readable explanation (for logs/tracing)
     metadata: dict = field(default_factory=dict)
 
     def __repr__(self) -> str:
@@ -71,8 +70,10 @@ class Reasoner:
       8. End
     """
 
+    # Confidence below this threshold triggers a clarification ask
     CLARIFY_THRESHOLD: float = 0.45
 
+    # Emotion scores above this trigger empathy handling
     DISTRESS_THRESHOLD: float = 0.70
 
     def __init__(self, config: Optional[dict] = None):
@@ -102,22 +103,27 @@ class Reasoner:
                 reason="Cost budget exceeded for this session",
             )
 
+        # 2. Emotion / distress
         emotion_decision = self._check_emotion(state)
         if emotion_decision:
             return emotion_decision
 
+        # 3. Unresolved conflicts
         conflict_decision = self._check_conflicts(state)
         if conflict_decision:
             return conflict_decision
 
+        # 4. Required fields — find the next one
         required_decision = self._next_required_field(state)
         if required_decision:
             return required_decision
 
+        # 5. Clarification on last low-confidence extraction
         clarify_decision = self._check_clarification(state)
         if clarify_decision:
             return clarify_decision
 
+        # 6. All required collected — generate output
         if self._all_required_collected(state):
             # Optionally ask a few optional fields first
             optional_decision = self._next_optional_field(state)
@@ -172,55 +178,41 @@ class Reasoner:
         )
 
     def _next_required_field(self, state: "GraphState") -> Optional[ReasonerDecision]:
+        from truenorth.core.field_tree import FieldTree
         fields_config: dict = getattr(state, "fields_config", {})
         collected: dict = getattr(state, "collected_fields", {})
         skipped: set = getattr(state, "skipped_fields", set())
 
-        for field_name, field_cfg in fields_config.items():
-            if not field_cfg.get("required", False):
-                continue
-            if field_name in collected:
-                continue
-            if field_name in skipped:
-                continue
-            if not self._field_condition_met(field_name, field_cfg, collected):
-                continue
-
+        ft = FieldTree(fields_config)
+        next_field = ft.next_required(collected, skipped)
+        if next_field:
             return ReasonerDecision(
                 action=ReasonerAction.ASK_FIELD,
-                target_field=field_name,
-                reason=f"Required field '{field_name}' not yet collected",
+                target_field=next_field,
+                reason=f"Required field '{next_field}' not yet collected",
             )
         return None
 
     def _next_optional_field(self, state: "GraphState") -> Optional[ReasonerDecision]:
+        from truenorth.core.field_tree import FieldTree
         fields_config: dict = getattr(state, "fields_config", {})
         collected: dict = getattr(state, "collected_fields", {})
         skipped: set = getattr(state, "skipped_fields", set())
         asked_optional: set = getattr(state, "asked_optional_fields", set())
 
         max_optional = self.config.get("max_optional_fields", 3)
-        optional_asked = len(asked_optional)
-
-        if optional_asked >= max_optional:
-            return None
-
-        for field_name, field_cfg in fields_config.items():
-            if field_cfg.get("required", False):
-                continue
-            if field_name in collected:
-                continue
-            if field_name in skipped:
-                continue
-            if field_name in asked_optional:
-                continue
-            if not self._field_condition_met(field_name, field_cfg, collected):
-                continue
-
+        ft = FieldTree(fields_config)
+        next_field = ft.next_optional(
+            collected_fields = collected,
+            skipped_fields   = skipped,
+            asked_optional   = asked_optional,
+            max_optional     = max_optional,
+        )
+        if next_field:
             return ReasonerDecision(
                 action=ReasonerAction.ASK_OPTIONAL,
-                target_field=field_name,
-                reason=f"Optional field '{field_name}' not yet collected",
+                target_field=next_field,
+                reason=f"Optional field '{next_field}' not yet collected",
             )
         return None
 
@@ -240,22 +232,21 @@ class Reasoner:
         return None
 
     def _all_required_collected(self, state: "GraphState") -> bool:
+        from truenorth.core.field_tree import FieldTree
         fields_config: dict = getattr(state, "fields_config", {})
         collected: dict = getattr(state, "collected_fields", {})
-        for field_name, field_cfg in fields_config.items():
-            if not field_cfg.get("required", False):
-                continue
-            if field_name not in collected:
-                return False
-        return True
+        skipped: set = getattr(state, "skipped_fields", set())
+        ft = FieldTree(fields_config)
+        return ft.all_required_collected(collected)
 
     def _field_condition_met(self, field_name: str, field_cfg: dict, collected: dict) -> bool:
         """
         Evaluate if_true / if_value_is gates on a field.
         Returns True if the field should be asked (condition satisfied or no condition).
         """
-        if_true = field_cfg.get("if_true")            
-        if_value_is = field_cfg.get("if_value_is")   
+        if_true = field_cfg.get("if_true")            # ask only if another field is truthy
+        if_value_is = field_cfg.get("if_value_is")    # {field: X, value: Y} — ask if field==value
+
         if if_true:
             gate_val = collected.get(if_true)
             if not gate_val:

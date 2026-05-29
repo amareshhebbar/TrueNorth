@@ -113,7 +113,7 @@ class TestYAMLLoading:
         YAMLLoader.clear_cache()
         c1 = YAMLLoader.load(str(_MINI_GOAL))
         c2 = YAMLLoader.load(str(_MINI_GOAL))
-        assert c1 is c2     # same cached object
+        assert c1 is c2 
 
     def test_fields_have_required_defaults(self):
         config = YAMLLoader.load_from_string("""
