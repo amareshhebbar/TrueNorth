@@ -45,6 +45,7 @@ from truenorth.intelligence.language_detector import LanguageDetector
 from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
 from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.output.generator import OutputGenerator
+from truenorth.safety.hallucination_firewall import HallucinationFirewall
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,7 @@ class TrueNorthEngine:
         router=None,                      # LLMRouter — injected for testability
         session_manager: Optional[SessionManager] = None,
         cost_tracker:    Optional[CostTracker]    = None,
+        firewall:        Optional[HallucinationFirewall] = None,
         config:          Optional[dict]           = None,
     ):
         self._goal_config     = goal_config
@@ -117,8 +119,10 @@ class TrueNorthEngine:
         self._session_manager = session_manager
         self._cost_tracker    = cost_tracker or CostTracker()
 
+        # Build session ID
         session_id = session_id or str(uuid.uuid4())
 
+        # Initialise GraphState
         self.state = GraphState.from_goal_config(
             goal_config = goal_config,
             session_id  = session_id,
@@ -126,6 +130,7 @@ class TrueNorthEngine:
             tenant_id   = tenant_id,
         )
 
+        # Initialise pipeline components
         self._pii       = PIIDetector()
         self._lang      = LanguageDetector()
         self._extractor = FieldExtractor(router=router)
@@ -135,7 +140,13 @@ class TrueNorthEngine:
         self._quality   = ConversationQualityMonitor()
         self._reasoner  = Reasoner(config=self._config.get("reasoner", {}))
         self._planner   = ConversationPlanner(router=router)
-        self._output    = OutputGenerator(router=router)
+        # Build firewall — use provided instance or create from router
+        _firewall = firewall or (
+            HallucinationFirewall(router=router)
+            if router is not None else None
+        )
+        self._output    = OutputGenerator(router=router, firewall=_firewall)
+        self._firewall  = _firewall
 
         # Budget setup
         budget = goal_config.get("budget", {}).get("max_cost_usd")
@@ -208,7 +219,9 @@ class TrueNorthEngine:
         decision = self._reasoner.decide(self.state)
         response_text = await self._planner.plan(decision, self.state)
 
-        self.state.add_turn("assistant", response_text)
+        self.state.add_turn("assistant", response_text, metadata={
+            "target_field": decision.target_field,
+        })
         await self._save_state()
 
         return EngineResponse(
@@ -247,10 +260,16 @@ class TrueNorthEngine:
             self.state.is_romanized      = lang_result.is_romanized
 
             # ── Stage 3: Field extraction ────────────────────────────────
+            # Pass the last target_field so rule-based fallback knows which field was asked
+            _last_target = (
+                self.state.turn_history[-1].get("target_field")
+                if self.state.turn_history else None
+            )
             extraction = await self._extractor.extract(
                 user_message  = safe_text,
                 fields_config = self.state.fields_config,
                 context       = self.state.collected_fields,
+                target_field  = _last_target,
             )
 
             # ── Stage 4: Emotion detection ───────────────────────────────
@@ -328,7 +347,10 @@ class TrueNorthEngine:
             session_cost = self._cost_tracker.get_session_cost(self.state.session_id)
             self.state.total_cost_usd = session_cost.total_cost_usd
 
-            self.state.add_turn("assistant", response_text)
+            # Add assistant turn to history (with target_field for extractor lookup)
+            self.state.add_turn("assistant", response_text, metadata={
+                "target_field": decision.target_field,
+            })
             await self._save_state()
 
             latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -448,6 +470,7 @@ class TrueNorthEngine:
             response_text = await self._planner.plan(decision, self.state)
             yield response_text
 
+        # Final metadata sentinel
         import json
         self.state.add_turn("assistant", response_text)
         await self._save_state()

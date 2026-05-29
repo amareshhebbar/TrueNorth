@@ -19,6 +19,7 @@ import re
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from truenorth.core.graph_state import GraphState
+from truenorth.safety.hallucination_firewall import HallucinationFirewall, FirewallVerdict
 
 if TYPE_CHECKING:
     from truenorth.llm.router import LLMRouter
@@ -41,8 +42,13 @@ based ONLY on the information collected. Do not invent or assume any facts
 not explicitly provided. Reference the user's actual values, not placeholders.
 """
 
-    def __init__(self, router: Optional["LLMRouter"] = None):
-        self._router = router
+    def __init__(
+        self,
+        router:   Optional["LLMRouter"] = None,
+        firewall: Optional["HallucinationFirewall"] = None,
+    ):
+        self._router   = router
+        self._firewall = firewall
 
     async def generate(self, state: GraphState) -> Dict[str, Any]:
         """
@@ -73,16 +79,34 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         else:
             content = await self._llm_output(collected, state, goal_name, template, fmt)
 
+        # ── Hallucination firewall ───────────────────────────────────────────
+        firewall_result = None
+        if self._firewall is not None and isinstance(content, str) and content:
+            firewall_result = await self._firewall.check(
+                output           = content,
+                collected_fields = collected,
+                fields_config    = state.fields_config,
+                session_id       = state.session_id,
+            )
+            if firewall_result.verdict == FirewallVerdict.BLOCKED:
+                logger.warning(
+                    "output_generator: hallucination firewall BLOCKED output "
+                    "session=%s blocked=%d",
+                    state.session_id, firewall_result.blocked_count,
+                )
+            content = firewall_result.safe_output
+
         result = {
-            "format":  fmt,
-            "content": content,
-            "fields":  {k: v for k, v in collected.items()},
+            "format":   fmt,
+            "content":  content,
+            "fields":   {k: v for k, v in collected.items()},
             "session_id": state.session_id,
             "goal_id":    state.goal_id,
             "metadata": {
                 "total_turns":   state.current_turn,
                 "total_cost":    round(state.total_cost_usd, 6),
                 "completion_pct": state.completion_pct,
+                "firewall": firewall_result.to_dict() if firewall_result else None,
             },
         }
 
@@ -115,6 +139,7 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         for field_name, value in collected.items():
             result = result.replace(f"{{{field_name}}}", str(value))
 
+        # Check for unfilled placeholders
         unfilled = re.findall(r"\{(\w+)\}", result)
         if unfilled:
             logger.warning(
