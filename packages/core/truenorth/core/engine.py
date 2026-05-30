@@ -1,6 +1,4 @@
 """
-TrueNorthEngine — the main pipeline orchestrator.
-
 Every user message flows through these stages in order:
   1. PII scan          — redact sensitive data before any LLM sees it
   2. Language detect   — detect + track language; auto-switch response language
@@ -13,11 +11,6 @@ Every user message flows through these stages in order:
   9. Plan response     — generate natural language response (ConversationPlanner)
   10. Cost tracking    — record token usage + enforce budget cap
   11. Session save     — persist state to storage
-
-Usage:
-    engine = await TrueNorthEngine.from_yaml("examples/goals/fitness_plan.yaml")
-    response = await engine.process_message("I'm 28 years old and want to lose weight")
-    print(response.text)
 """
 
 from __future__ import annotations
@@ -43,6 +36,8 @@ from truenorth.intelligence.language_detector import LanguageDetector
 from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
 from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.output.generator import OutputGenerator
+from truenorth.mcp.registry     import MCPRegistry
+from truenorth.mcp.tool_executor import ToolExecutor
 from truenorth.safety.hallucination_firewall import HallucinationFirewall
 
 logger = logging.getLogger(__name__)
@@ -55,7 +50,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EngineResponse:
     """Returned by process_message() after each conversation turn."""
-    text:          str                    
+    text:          str                     # agent message to show the user
     session_id:    str
     turn:          int
     action:        str                     # what the reasoner decided
@@ -109,6 +104,7 @@ class TrueNorthEngine:
         session_manager: Optional[SessionManager] = None,
         cost_tracker:    Optional[CostTracker]    = None,
         firewall:        Optional[HallucinationFirewall] = None,
+        mcp_registry:    Optional[MCPRegistry]    = None,
         config:          Optional[dict]           = None,
     ):
         self._goal_config     = goal_config
@@ -135,7 +131,6 @@ class TrueNorthEngine:
         self._quality   = ConversationQualityMonitor()
         self._reasoner  = Reasoner(config=self._config.get("reasoner", {}))
         self._planner   = ConversationPlanner(router=router)
-        # Build firewall — use provided instance or create from router
         _firewall = firewall or (
             HallucinationFirewall(router=router)
             if router is not None else None
@@ -150,9 +145,22 @@ class TrueNorthEngine:
             firewall = _firewall,
             tracer   = _tracer,
         )
+
+        _mcp_servers = goal_config.get("mcp_servers", [])
+        _registry    = mcp_registry or MCPRegistry()
+        if _mcp_servers:
+            for srv in _mcp_servers:
+                if srv.get("builtin"):
+                    _registry.register_builtins(server_name=srv["name"])
+                elif srv.get("url"):
+                    _registry.register_server_config(srv)
+        self._mcp_registry    = _registry
+        self._tool_executor   = (
+            ToolExecutor(registry=_registry)
+            if (_mcp_servers or mcp_registry) else None
+        )
         self._firewall  = _firewall
 
-        # Budget setup
         budget = goal_config.get("budget", {}).get("max_cost_usd")
         if budget:
             self._cost_tracker.set_budget(session_id, float(budget))
@@ -219,7 +227,6 @@ class TrueNorthEngine:
         Start the conversation — returns the first agent message.
         Call this once when a session begins, before any user input.
         """
-        # First turn: reasoner immediately asks the first required field
         decision = self._reasoner.decide(self.state)
         response_text = await self._planner.plan(decision, self.state)
 
@@ -254,7 +261,7 @@ class TrueNorthEngine:
         try:
             # ── Stage 1: PII scan ────────────────────────────────────────
             pii_result = self._pii.scan(user_message)
-            safe_text  = pii_result.redacted
+            safe_text  = pii_result.redacted  
 
             # ── Stage 2: Language detection ──────────────────────────────
             lang_result = self._lang.detect_from_history(
@@ -355,6 +362,16 @@ class TrueNorthEngine:
             # ── Stage 12: Record cost ────────────────────────────────────
             session_cost = self._cost_tracker.get_session_cost(self.state.session_id)
             self.state.total_cost_usd = session_cost.total_cost_usd
+
+            # ── Stage 13: MCP tool execution ─────────────────────────────────
+            if self._tool_executor and response_text:
+                response_text, tool_logs = await self._tool_executor.run(
+                    response_text = response_text,
+                    state         = self.state,
+                )
+                if not hasattr(self.state, "tool_call_log"):
+                    self.state.tool_call_log = []
+                self.state.tool_call_log.extend([t.to_dict() for t in tool_logs])
 
             self.state.add_turn("assistant", response_text, metadata={
                 "target_field": decision.target_field,

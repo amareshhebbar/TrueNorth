@@ -1,10 +1,6 @@
 """
 Loads goal YAML files, validates them against the JSON Schema,
 supports inheritance (extends:) and environment variable substitution.
-
-Usage:
-    config = YAMLLoader.load("examples/goals/fitness_plan.yaml")
-    # → fully validated dict ready for GraphState.from_goal_config()
 """
 
 from __future__ import annotations
@@ -43,19 +39,6 @@ class YAMLLoader:
 
     @classmethod
     def load(cls, path: Union[str, Path], use_cache: bool = True) -> dict:
-        """
-        Load a goal YAML file and return the validated config dict.
-
-        Args:
-            path:      Path to the .yaml file (absolute or relative to cwd)
-            use_cache: Return cached version if already loaded (default True)
-
-        Returns:
-            dict — fully resolved goal configuration
-
-        Raises:
-            YAMLLoaderError: if file not found, invalid YAML, or schema fails critically
-        """
         path = Path(path).resolve()
         cache_key = str(path)
 
@@ -166,7 +149,6 @@ class YAMLLoader:
             import jsonschema
             schema_path = _SCHEMA_PATH
             if not schema_path.exists():
-                # Try relative to package dir
                 schema_path = Path(__file__).parent.parent / "specs" / "yaml-schema" / "goal.schema.json"
             if not schema_path.exists():
                 logger.debug("yaml_loader: no schema file found, skipping validation")
@@ -198,11 +180,23 @@ class YAMLLoader:
             normalised.append(f)
         config["fields"] = normalised
 
-        # Ensure top-level keys exist
         config.setdefault("id", Path(config.get("name", "unknown")).stem)
         config.setdefault("persona", {"name": "TrueNorth", "tone": "friendly"})
         config.setdefault("output", {"format": "text", "template": ""})
         config.setdefault("budget", {})
+
+        raw_mcp = config.get("mcp_servers", [])
+        normalised_mcp = []
+        for server in raw_mcp:
+            if isinstance(server, str):
+                # shorthand: "web_search" → {name: web_search, builtin: true}
+                normalised_mcp.append({"name": server, "builtin": True})
+            elif isinstance(server, dict):
+                if "name" not in server:
+                    server["name"] = server.get("url", "unnamed").split("/")[-1]
+                server.setdefault("builtin", False)
+                normalised_mcp.append(server)
+        config["mcp_servers"] = normalised_mcp
 
         return config
 
