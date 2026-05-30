@@ -92,9 +92,24 @@ class BaseAgent(ABC):
       - Tool-calling research agents
       - Output generation agents
       - Validation / quality agents
+
+    Minimal implementation:
+
+        class MyAgent(BaseAgent):
+            agent_id     = "my_agent"
+            role         = AgentRole.CUSTOM
+            capabilities = {"extract", "classify"}
+
+            async def handle(self, message: AgentMessage) -> AgentResponse:
+                # do the work
+                return AgentResponse(
+                    message_id = message.message_id,
+                    agent_id   = self.agent_id,
+                    status     = TaskStatus.COMPLETED,
+                    result     = {"answer": "42"},
+                )
     """
 
-    # Subclass must set these
     agent_id:     str      = "base_agent"
     role:         AgentRole = AgentRole.CUSTOM
     capabilities: Set[str] = set()   

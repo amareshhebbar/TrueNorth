@@ -52,9 +52,9 @@ class ExecutionStep:
     """One step in an orchestration plan."""
     task:        str
     payload:     Dict[str, Any]
-    agent_id:    Optional[str] = None  
+    agent_id:    Optional[str] = None   
     priority:    Priority = Priority.NORMAL
-    depends_on:  List[str] = field(default_factory=list)  
+    depends_on:  List[str] = field(default_factory=list) 
 
     def to_dict(self) -> dict:
         return {
@@ -73,7 +73,7 @@ class OrchestrationResult:
     steps_ok:      int
     steps_failed:  int
     results:       List[AgentResponse]
-    merged:        Dict[str, Any]      
+    merged:        Dict[str, Any]       
     latency_ms:    int
     plan:          List[ExecutionStep]
 
@@ -172,7 +172,7 @@ class AgentOrchestrator:
         session_id: str         = "",
         turn:       int         = 0,
         priority:   Priority    = Priority.NORMAL,
-        agent_id:   Optional[str] = None,   
+        agent_id:   Optional[str] = None,    
         timeout_s:  Optional[float] = None,
     ) -> AgentResponse:
         """
@@ -214,6 +214,7 @@ class AgentOrchestrator:
 
         message.recipient = agent.agent_id
         response = await agent.execute(message)
+
         if (
             self._supervisor is not None
             and priority in (Priority.HIGH, Priority.CRITICAL)
@@ -318,6 +319,7 @@ class AgentOrchestrator:
         context:   Dict[str, Any]      = {}
 
         for i, step in enumerate(steps):
+            # Inject accumulated context into this step's payload
             enriched_payload = {**step.payload, "__prior_results": context}
             resp = await self.run_task(
                 task       = step.task,
@@ -368,6 +370,7 @@ class AgentOrchestrator:
         """
         if agent_id and agent_id in self._agents:
             return self._agents[agent_id]
+
         candidates = [
             a for a in self._agents.values()
             if a.is_ready() and a.can_handle(message)
@@ -376,6 +379,7 @@ class AgentOrchestrator:
         if not candidates:
             return self._default
 
+        # Score: success_rate (higher is better) × recency bonus
         def _score(agent: BaseAgent) -> float:
             m = agent._metrics
             return m.success_rate - (m.avg_latency_ms / 100_000)
