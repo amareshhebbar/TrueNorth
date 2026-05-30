@@ -1,3 +1,21 @@
+"""
+Multi-model LLM router — production-grade.
+
+    ✓ Fallback chain — primary → secondary → emergency (per task)
+    ✓ Retry with exponential backoff — transient errors auto-retried
+    ✓ Budget guard — hard USD cap per request, per session
+    ✓ Health checks — providers probed on startup + on failure
+    ✓ Latency tracking — p50/p95/p99 per model for auto-failover
+    ✓ Circuit breaker — failing provider skipped after N errors
+    ✓ Provider detection extended — Cohere, Together, Groq, Mistral
+    ✓ YAML goal config integration — llm: section overrides routing
+    ✓ from_env() reads all 5 routing task overrides
+    ✓ from_config() reads full routing + fallbacks + provider config
+    ✓ get_stats() — per-model call counts, errors, avg latency
+    ✓ All existing generate() / generate_stream() signatures preserved
+    ✓ Works for any sector: healthcare, HR, legal, finance, fitness, etc.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -12,27 +30,29 @@ from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
 
 logger = logging.getLogger(__name__)
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Task type constants  (import these everywhere — never use raw strings)
+# ─────────────────────────────────────────────────────────────────────────────
+
 TASK_EXTRACT  = "extract"     # field extraction from user message
 TASK_CONVERSE = "converse"    # mid-conversation agent response
 TASK_OUTPUT   = "output"      # final report / structured output generation
 TASK_CLASSIFY = "classify"    # single-label classification (emotion, language)
 TASK_EMBED    = "embed"       # text embedding (semantic search, vector store)
-TASK_VERIFY   = "verify"      # hallucination firewall supervisor calls
+TASK_VERIFY   = "verify"      # hallucination firewall supervisor calls — always cloud
 TASK_OTHER    = "other"       # catch-all
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Default routing table
 #  Rule: cheapest model that meets quality bar for each task.
-#  Override via env vars or goal YAML `llm:` section.
 # ─────────────────────────────────────────────────────────────────────────────
 
 _DEFAULT_ROUTING: Dict[str, str] = {
-    TASK_EXTRACT:  "gemini-1.5-flash",         # cheap, fast, JSON-friendly
-    TASK_CONVERSE: "claude-haiku-4-5-20251001", # empathetic, natural language
-    TASK_OUTPUT:   "claude-sonnet-4-20250514",  # highest quality final report
-    TASK_CLASSIFY: "gemini-1.5-flash",          # fast single-label calls
-    TASK_VERIFY:   "claude-sonnet-4-20250514",  # safety-critical: best model
+    TASK_EXTRACT:  "gemini-1.5-flash",        
+    TASK_CONVERSE: "claude-haiku-4-5-20251001", 
+    TASK_OUTPUT:   "claude-sonnet-4-20250514",  
+    TASK_CLASSIFY: "gemini-1.5-flash",         
+    TASK_VERIFY:   "claude-sonnet-4-20250514",  
     TASK_OTHER:    "claude-haiku-4-5-20251001",
 }
 
@@ -50,7 +70,11 @@ _MODEL_PROVIDER: Dict[str, str] = {
     "gpt":            "openai",
     "o1":             "openai",
     "o3":             "openai",
+    "gemini-nano":    "mobile",     
     "gemini":         "gemini",
+    "apple":          "mobile",  
+    "mobile":         "mobile",      
+    "on-device":      "mobile",     
     "ollama":         "local",
     "local":          "local",
     "llama":          "local",
@@ -64,10 +88,13 @@ _MODEL_PROVIDER: Dict[str, str] = {
     "groq":           "groq",
 }
 
+# Max retries per request
 _DEFAULT_MAX_RETRIES: int = 2
 
+# Circuit breaker: provider skipped after this many consecutive errors
 _CIRCUIT_BREAKER_THRESHOLD: int = 5
 
+# Backoff delays (seconds) between retries
 _RETRY_DELAYS: List[float] = [0.5, 1.5, 3.0]
 
 
@@ -319,6 +346,7 @@ class LLMRouter:
         for candidate_model in candidates:
             stats = self._get_stats(candidate_model)
 
+            # Skip circuit-broken providers
             if stats.circuit_open:
                 logger.warning("router: skipping circuit-open model=%s", candidate_model)
                 continue
@@ -384,7 +412,7 @@ class LLMRouter:
                     **kwargs,
                 ):
                     yield chunk
-                return   # success — stop trying candidates
+                return  
             except Exception as e:
                 stats.record_error(str(e))
                 logger.warning(
@@ -610,6 +638,10 @@ class LLMRouter:
             from truenorth.llm.local_llm import LocalLLMClient
             return LocalLLMClient(config=model_config)
 
+        if provider == "mobile":
+            from truenorth.llm.mobile_llm import MobileLLMClient
+            return MobileLLMClient(config=model_config)
+
         if provider == "cohere":
             from truenorth.llm.openai_client import OpenAIClient
             model_config["base_url"] = "https://api.cohere.com/compatibility/v1"
@@ -640,7 +672,6 @@ class LLMRouter:
         messages:   List[Message],
         max_tokens: int,
     ) -> float:
-        """Rough cost estimate before making the call (for budget guard)."""
         model     = self._routing.get(task, self._routing[TASK_OTHER])
         in_tokens = sum(len(m.content) // 4 for m in messages)
         return self._compute_cost(model, in_tokens, max_tokens)
