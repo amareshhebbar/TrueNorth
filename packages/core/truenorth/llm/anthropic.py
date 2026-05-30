@@ -1,5 +1,3 @@
-"""Anthropic Claude client."""
-
 from __future__ import annotations
 import anthropic
 from truenorth.llm.base import BaseLLMClient, LLMResponse

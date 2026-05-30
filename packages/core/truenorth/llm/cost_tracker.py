@@ -81,7 +81,6 @@ class CallRecord:
 
 @dataclass
 class SessionCost:
-    """Accumulated cost for one session."""
     session_id:         str
     total_input_tokens:  int   = 0
     total_output_tokens: int   = 0

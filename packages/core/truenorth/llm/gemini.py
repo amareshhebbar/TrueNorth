@@ -1,5 +1,3 @@
-"""Google Gemini client."""
-
 from __future__ import annotations
 import google.generativeai as genai
 from truenorth.llm.base import BaseLLMClient, LLMResponse

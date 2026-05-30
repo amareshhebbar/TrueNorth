@@ -1,6 +1,4 @@
 """
-truenorth/core/yaml_loader.py
-
 Loads goal YAML files, validates them against the JSON Schema,
 supports inheritance (extends:) and environment variable substitution.
 

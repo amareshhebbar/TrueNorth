@@ -1,6 +1,4 @@
 """
-truenorth/llm/local_llm.py
-
 Local LLM client — connects to Ollama (or any OpenAI-compatible local server).
 
 Supports:

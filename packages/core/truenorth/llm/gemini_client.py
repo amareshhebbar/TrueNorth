@@ -1,9 +1,3 @@
-"""
-truenorth/llm/gemini_client.py
-
-Google Gemini provider (Gemini Flash for extraction, Gemini Pro for reasoning).
-"""
-
 from __future__ import annotations
 
 import logging

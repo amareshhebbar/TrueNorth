@@ -1,10 +1,3 @@
-"""
-truenorth/llm/anthropic_client.py
-
-Anthropic Claude provider. Uses the official anthropic Python SDK.
-SDK is imported lazily so the package imports even when anthropic is not installed.
-"""
-
 from __future__ import annotations
 
 import logging

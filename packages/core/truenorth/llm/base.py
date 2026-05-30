@@ -1,5 +1,4 @@
 """
-truenorth/llm/base.py
 
 Abstract base class that every LLM provider adapter must implement.
 The router dispatches calls to concrete subclasses (Anthropic, OpenAI, Gemini, Local).

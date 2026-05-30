@@ -1,10 +1,3 @@
-"""
-truenorth/llm/openai_client.py
-
-OpenAI provider (GPT-4o, GPT-4o-mini, etc.).
-Also works for any OpenAI-compatible endpoint (Groq, Together, local Ollama with OpenAI compat).
-"""
-
 from __future__ import annotations
 
 import logging

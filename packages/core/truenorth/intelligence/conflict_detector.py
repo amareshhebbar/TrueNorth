@@ -651,27 +651,21 @@ class ConflictDetector:
                     ConflictType.BOOLEAN_FLIP, ConflictSeverity.HIGH,
                     turn_old, turn_new, evidence)
 
-        # Numeric — try numeric comparison first, fall through to unit check on parse failure
         if ftype in ("number", "integer", "float", "int"):
             num_result = self._check_numeric(field_name, old_val, new_val, field_cfg,
                                              turn_old, turn_new, evidence)
             if num_result is not None:
                 return num_result
-            # Numeric parse failed (e.g. "65 kg" vs "100 lbs") — fall through to unit check
-
-        # Unit mismatch (weight/height in different units, or numeric parse failed)
         um = self._check_unit_mismatch(field_name, old_val, new_val, field_cfg,
                                        turn_old, turn_new, evidence)
         if um:
             return um
 
-        # Range violation
         rv = self._check_range(field_name, new_val, field_cfg, old_val,
                                turn_old, turn_new, evidence)
         if rv:
             return rv
 
-        # Categorical
         allowed = field_cfg.get("allowed_values") or field_cfg.get("enum", [])
         if allowed:
             al = [str(v).lower() for v in allowed]
@@ -680,7 +674,6 @@ class ConflictDetector:
                     ConflictType.CATEGORICAL_FLIP, ConflictSeverity.HIGH,
                     turn_old, turn_new, evidence)
 
-        # Text
         if ftype == "text":
             sev, ctype = self._text_conflict_severity(old_str, new_str)
             if sev:

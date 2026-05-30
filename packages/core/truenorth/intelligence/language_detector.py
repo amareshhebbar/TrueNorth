@@ -1,6 +1,4 @@
 """
-truenorth/intelligence/language_detector.py
-
 Fast language detection for TrueNorth conversations. Handles Indian languages
 as first-class targets (Hindi, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati)
 plus common global languages.

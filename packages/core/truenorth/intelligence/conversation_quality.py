@@ -1,6 +1,4 @@
 """
-truenorth/intelligence/conversation_quality.py
-
 Monitors conversation quality in real time. Produces a ConversationQualityReport
 after every turn. The engine uses this to decide whether to adapt its strategy.
 

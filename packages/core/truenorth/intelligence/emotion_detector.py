@@ -1,6 +1,4 @@
 """
-truenorth/intelligence/emotion_detector.py
-
 Classifies the emotional state of the user's message.
 Uses a two-stage approach:
   1. Fast heuristic rules (regex + word lists) — < 1ms, runs always
@@ -167,14 +165,12 @@ class EmotionDetector:
         signals: list[str] = []
         scores: dict[str, float] = {}
 
-        # Check disengagement first (short filler answers)
         if _DISENGAGEMENT_SIGNS.match(text.strip()):
             return EmotionResult(
                 label=Emotion.DISENGAGED, score=0.65,
                 is_negative=False, raw_signals=["short_filler"],
             )
 
-        # Check each emotion pattern
         for emotion, pattern in _PATTERNS.items():
             matches = list(pattern.finditer(text))
             if matches:
@@ -204,7 +200,6 @@ class EmotionDetector:
     # ------------------------------------------------------------------
 
     async def _llm_classify(self, text: str) -> Optional[EmotionResult]:
-        """Ask Gemini Flash to classify emotion. Returns None on any error."""
         from truenorth.llm.base import Message
         from truenorth.llm.router import TASK_CLASSIFY
 

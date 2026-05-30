@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EngineResponse:
     """Returned by process_message() after each conversation turn."""
-    text:          str                     # agent message to show the user
+    text:          str                    
     session_id:    str
     turn:          int
     action:        str                     # what the reasoner decided
@@ -117,10 +117,7 @@ class TrueNorthEngine:
         self._session_manager = session_manager
         self._cost_tracker    = cost_tracker or CostTracker()
 
-        # Build session ID
         session_id = session_id or str(uuid.uuid4())
-
-        # Initialise GraphState
         self.state = GraphState.from_goal_config(
             goal_config = goal_config,
             session_id  = session_id,
@@ -143,7 +140,16 @@ class TrueNorthEngine:
             HallucinationFirewall(router=router)
             if router is not None else None
         )
-        self._output    = OutputGenerator(router=router, firewall=_firewall)
+        try:
+            from truenorth.output.source_tracer import SourceTracer as _ST
+            _tracer = _ST()
+        except ImportError:
+            _tracer = None
+        self._output    = OutputGenerator(
+            router   = router,
+            firewall = _firewall,
+            tracer   = _tracer,
+        )
         self._firewall  = _firewall
 
         # Budget setup
@@ -248,7 +254,7 @@ class TrueNorthEngine:
         try:
             # ── Stage 1: PII scan ────────────────────────────────────────
             pii_result = self._pii.scan(user_message)
-            safe_text  = pii_result.redacted  # use redacted text for all LLM calls
+            safe_text  = pii_result.redacted
 
             # ── Stage 2: Language detection ──────────────────────────────
             lang_result = self._lang.detect_from_history(
@@ -258,7 +264,6 @@ class TrueNorthEngine:
             self.state.is_romanized      = lang_result.is_romanized
 
             # ── Stage 3: Field extraction ────────────────────────────────
-            # Pass the last target_field so rule-based fallback knows which field was asked
             _last_target = (
                 self.state.turn_history[-1].get("target_field")
                 if self.state.turn_history else None
@@ -276,7 +281,6 @@ class TrueNorthEngine:
 
             # ── Stage 5: Conflict detection ──────────────────────────────
             new_values = extraction.as_map()
-            # Build turn_map for conflict detector (tracks when each field was collected)
             _turn_map = getattr(self.state, "_field_turn_map", {})
             conflicts  = self._conflict.check(
                 new_extractions   = new_values,
@@ -290,9 +294,7 @@ class TrueNorthEngine:
                 self.state.active_conflicts.append(c.to_dict())
 
             # ── Stage 6: State update ─────────────────────────────────────
-            # Only update fields that have no active conflict
             conflict_fields = {c.get("field") for c in self.state.active_conflicts if not c.get("resolved")}
-            # Maintain turn_map: tracks which turn each field was first collected
             if not hasattr(self.state, "_field_turn_map"):
                 self.state._field_turn_map = {}
             for ef in extraction.fields:
@@ -354,7 +356,6 @@ class TrueNorthEngine:
             session_cost = self._cost_tracker.get_session_cost(self.state.session_id)
             self.state.total_cost_usd = session_cost.total_cost_usd
 
-            # Add assistant turn to history (with target_field for extractor lookup)
             self.state.add_turn("assistant", response_text, metadata={
                 "target_field": decision.target_field,
             })
@@ -430,7 +431,6 @@ class TrueNorthEngine:
                 else:
                     print(chunk, end="", flush=True)  # text token
         """
-        # Run the full extraction + reasoning pipeline (non-streaming)
         start_time = time.perf_counter()
         self.state.current_turn += 1
         self.state.current_input = user_message
@@ -454,7 +454,6 @@ class TrueNorthEngine:
         self.state.add_turn("user", user_message)
         decision = self._reasoner.decide(self.state)
 
-        # Stream the response
         if self._router and decision.action not in (
             ReasonerAction.GENERATE_OUTPUT, ReasonerAction.BUDGET_EXCEEDED
         ):
@@ -477,7 +476,6 @@ class TrueNorthEngine:
             response_text = await self._planner.plan(decision, self.state)
             yield response_text
 
-        # Final metadata sentinel
         import json
         self.state.add_turn("assistant", response_text)
         await self._save_state()

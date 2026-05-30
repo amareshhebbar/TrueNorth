@@ -1,5 +1,3 @@
-"""OpenAI client."""
-
 from __future__ import annotations
 from openai import AsyncOpenAI
 from truenorth.llm.base import BaseLLMClient, LLMResponse

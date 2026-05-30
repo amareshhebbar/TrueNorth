@@ -1,29 +1,8 @@
 """
-
 Per-field confidence scoring. Every extracted value gets a 0.0–1.0 score
 composed from 8 independent factors. The Reasoner uses this score to decide
 whether to accept a value, ask for confirmation, or flag it.
 
-Factors (8 total):
-  1. extraction_confidence  — LLM's own certainty at extraction time      (25%)
-  2. type_validation        — does the value pass regex / range checks     (15%)
-  3. source_quality         — how much context surrounded the extraction   (15%)
-  4. user_confirmation      — did the user explicitly confirm the value    (15%)
-  5. conflict_history       — has this field ever been in a conflict       (10%)
-  6. consistency            — does the value agree with related fields     (10%)
-  7. extraction_method      — direct quote > LLM inference > rule-based   ( 5%)
-  8. temporal_stability     — consistent across multiple extractions       ( 5%)
-
-Compared to v1 (5 factors, fixed weights):
-  + conflict_history now tracks past conflicts, not just current
-  + consistency cross-checks related fields (age vs work experience)
-  + extraction_method distinguishes quote / inference / rule-based
-  + temporal_stability rewards fields confirmed consistently over turns
-  + range validation added for numeric fields with min/max
-  + allowed_values validation added for categorical fields
-  + score_all now accepts full session history for temporal scoring
-  + confidence_band() classifies score into HIGH/MEDIUM/LOW/UNCONFIDENT
-  + session_health() returns a ConfidenceReport for the whole session
 """
 
 from __future__ import annotations
@@ -153,8 +132,7 @@ def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
         if not match:
             issues.append(f"Value {v!r} fails {ftype} format validation")
     else:
-        type_score = 0.65  # text / unknown — no regex to apply
-
+        type_score = 0.65  
     # ── Range validation (integer / number) ───────────────────────────────
     if ftype in ("integer", "int", "number", "float"):
         try:
@@ -261,28 +239,6 @@ class ConfidenceScorer:
       MEDIUM      0.60–0.79 — accept, note in output
       LOW         0.40–0.59 — ask for confirmation next turn
       UNCONFIDENT < 0.40  — re-ask immediately
-
-    Usage (single field):
-        scorer = ConfidenceScorer()
-        cs = scorer.score(
-            field                = "age",
-            value                = 28,
-            field_config         = {"type": "integer", "min": 1, "max": 120},
-            extraction_confidence = 0.90,
-            source_text          = "I am 28 years old",
-            method               = ExtractionMethod.LLM_EXTRACT,
-        )
-        print(cs.band)   # HIGH
-
-    Usage (all fields):
-        report = scorer.session_health(
-            session_id       = "sess-123",
-            collected_fields = state.collected_fields,
-            fields_config    = state.fields_config,
-            required_fields  = list(state.required_fields.keys()),
-            extraction_meta  = {...},
-            history          = state.turn_history,
-        )
     """
 
     # Score thresholds for confidence bands

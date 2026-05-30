@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from truenorth.core.graph_state import GraphState
 from truenorth.safety.hallucination_firewall import HallucinationFirewall, FirewallVerdict
+from truenorth.output.source_tracer import SourceTracer, SourceMap
 
 if TYPE_CHECKING:
     from truenorth.llm.router import LLMRouter
@@ -46,9 +47,11 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         self,
         router:   Optional["LLMRouter"] = None,
         firewall: Optional["HallucinationFirewall"] = None,
+        tracer:   Optional["SourceTracer"] = None,
     ):
         self._router   = router
         self._firewall = firewall
+        self._tracer   = tracer or SourceTracer()
 
     async def generate(self, state: GraphState) -> Dict[str, Any]:
         """
@@ -96,6 +99,26 @@ not explicitly provided. Reference the user's actual values, not placeholders.
                 )
             content = firewall_result.safe_output
 
+        # ── Source tracing ──────────────────────────────────────────────────────
+        source_map = None
+        if isinstance(content, str) and content and self._tracer is not None:
+            source_map = self._tracer.trace(
+                output            = content,
+                collected_fields  = collected,
+                field_confidences = state.field_confidences,
+                fields_config     = state.fields_config,
+                turn_history      = state.turn_history,
+                session_id        = state.session_id,
+                goal_id           = state.goal_id,
+                field_turn_map    = getattr(state, "_field_turn_map", None),
+            )
+            logger.info(
+                "output_generator: source_trace session=%s completeness=%s traced=%.0f%%",
+                state.session_id,
+                source_map.completeness.value,
+                source_map.traced_pct * 100,
+            )
+
         result = {
             "format":   fmt,
             "content":  content,
@@ -106,7 +129,8 @@ not explicitly provided. Reference the user's actual values, not placeholders.
                 "total_turns":   state.current_turn,
                 "total_cost":    round(state.total_cost_usd, 6),
                 "completion_pct": state.completion_pct,
-                "firewall": firewall_result.to_dict() if firewall_result else None,
+                "firewall":      firewall_result.to_dict() if firewall_result else None,
+                "source_trace":  source_map.to_dict() if source_map else None,
             },
         }
 
