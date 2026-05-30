@@ -37,6 +37,7 @@ from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
 from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.output.generator import OutputGenerator
 from truenorth.mcp.registry     import MCPRegistry
+from truenorth.agents.orchestrator import AgentOrchestrator
 from truenorth.mcp.tool_executor import ToolExecutor
 from truenorth.safety.hallucination_firewall import HallucinationFirewall
 
@@ -100,11 +101,12 @@ class TrueNorthEngine:
         session_id:      Optional[str]     = None,
         user_id:         Optional[str]     = None,
         tenant_id:       Optional[str]     = None,
-        router=None,                      # LLMRouter — injected for testability
+        router=None,                     
         session_manager: Optional[SessionManager] = None,
         cost_tracker:    Optional[CostTracker]    = None,
         firewall:        Optional[HallucinationFirewall] = None,
         mcp_registry:    Optional[MCPRegistry]    = None,
+        orchestrator:    Optional[AgentOrchestrator] = None,
         config:          Optional[dict]           = None,
     ):
         self._goal_config     = goal_config
@@ -112,16 +114,14 @@ class TrueNorthEngine:
         self._router          = router
         self._session_manager = session_manager
         self._cost_tracker    = cost_tracker or CostTracker()
-
         session_id = session_id or str(uuid.uuid4())
+
         self.state = GraphState.from_goal_config(
             goal_config = goal_config,
             session_id  = session_id,
             user_id     = user_id,
             tenant_id   = tenant_id,
         )
-
-        # Initialise pipeline components
         self._pii       = PIIDetector()
         self._lang      = LanguageDetector()
         self._extractor = FieldExtractor(router=router)
@@ -146,6 +146,7 @@ class TrueNorthEngine:
             tracer   = _tracer,
         )
 
+        # MCP / tool execution — built from goal YAML mcp_servers block
         _mcp_servers = goal_config.get("mcp_servers", [])
         _registry    = mcp_registry or MCPRegistry()
         if _mcp_servers:
@@ -159,8 +160,10 @@ class TrueNorthEngine:
             ToolExecutor(registry=_registry)
             if (_mcp_servers or mcp_registry) else None
         )
-        self._firewall  = _firewall
+        self._firewall     = _firewall
+        self._orchestrator = orchestrator   # optional multi-agent orchestrator
 
+        # Budget setup
         budget = goal_config.get("budget", {}).get("max_cost_usd")
         if budget:
             self._cost_tracker.set_budget(session_id, float(budget))
@@ -185,9 +188,6 @@ class TrueNorthEngine:
     ) -> "TrueNorthEngine":
         """
         Create an engine from a goal YAML file.
-
-        Example:
-            engine = await TrueNorthEngine.from_yaml("examples/goals/fitness_plan.yaml")
         """
         config = YAMLLoader.load(yaml_path)
         return cls(goal_config=config, session_id=session_id, **kwargs)
@@ -373,6 +373,7 @@ class TrueNorthEngine:
                     self.state.tool_call_log = []
                 self.state.tool_call_log.extend([t.to_dict() for t in tool_logs])
 
+            # Add assistant turn to history (with target_field for extractor lookup)
             self.state.add_turn("assistant", response_text, metadata={
                 "target_field": decision.target_field,
             })
