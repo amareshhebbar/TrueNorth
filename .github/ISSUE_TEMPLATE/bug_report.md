@@ -7,62 +7,63 @@ assignees: amareshhebbar
 
 ---
 
-name: "Bug Report"
+---
+name: "🐛 Bug Report"
 about: Report a reproducible bug to help us improve TrueNorth.
 title: "[BUG]: "
 labels: ["bug", "needs-triage"]
 assignees: ''
 ---
 
-### Prerequisites
-*Please check the following before submitting to save everyone time:*
-- [ ] I have searched the [existing issues](https://github.com/amareshhebbar/truenorth/issues) and confirmed this is not a duplicate.
-- [ ] I have read the documentation and confirmed this is a bug, not a configuration error.
-- [ ] I am running the latest version of TrueNorth.
+> ⚠️ **Thank you for helping us improve TrueNorth!**  
+> Please complete the checklist below before submitting so we can help you faster.
+
+- [ ] 🔍 I have searched the [existing issues](https://github.com/amareshhebbar/truenorth/issues) and confirmed this is not a duplicate.
+- [ ] 📖 I have read the documentation and confirmed this is a bug, not a configuration error.
+- [ ] 🚀 I am running the latest version of TrueNorth.
 
 ---
 
-### Describe the bug
+## 🐛 Bug Details
+
+**Describe the bug:**
 <!-- Provide a clear and concise description of what the bug is. -->
 
 
-### 🔄 Steps to Reproduce
-<!-- Please provide the exact steps to reproduce the behavior: -->
-1. Run command '...'
-2. Perform action '....'
+**Steps to Reproduce:**
+<!-- Please provide the exact steps to reproduce the behavior. -->
+1. Run command `...`
+2. Perform action `...`
 3. See error
 
-### 🎯 Expected behavior
+---
+
+## ⚖️ Behavior
+
+**🎯 Expected behavior:**
 <!-- A clear and concise description of what you expected to happen. -->
 
 
-### 🛑 Actual behavior
+**🛑 Actual behavior:**
 <!-- What actually happened? -->
 
 
 ---
 
-### Error Logs / Stack Trace
-<!-- If applicable, paste your logs below. The <details> tags will keep the issue clean. -->
+## 💻 Environment & Logs
+
+**Environment Information:**
+- **OS:** <!-- e.g., macOS 14, Ubuntu 22.04, Windows 11 -->
+- **TrueNorth Version:** <!-- e.g., v1.2.0 -->
+- **Browser/Runtime:** <!-- if applicable -->
+
 <details>
-<summary>Click to expand logs</summary>
+<summary><b>📂 Click to expand Error Logs / Stack Trace</b></summary>
+<br>
 
 ```text
-# Paste error logs, terminal output, or stack traces here
-
-
-```
-
----
-
-###  Environment
-
-* **OS:** [e.g., macOS 14, Ubuntu 22.04, Windows 11]
-* **TrueNorth Version:** [e.g., v1.2.0]
-* **Environment:** [e.g., Local, Docker, CI/CD]
-* **Browser (if applicable):** [e.g., Chrome 120]
-
-### Screenshots
+# Paste error logs, terminal output, or stack traces here. 
+# Please do not paste screenshots of text-based logs!
 
 ### Additional context
 
