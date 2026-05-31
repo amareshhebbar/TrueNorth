@@ -741,6 +741,6 @@ The core framework is and will remain open source. A hosted cloud offering (True
 ---
 
 <p align="center">
-  Built in India. Designed for the world.<br/>
-  <sub>Made with conviction by <a href="https://github.com/gvamaresh">@gvamaresh</a></sub>
+  Stop writing conversation logic. Start declaring outcomes.<br/>
+  <sub>Built by <a href="https://github.com/amareshhebbar">@amareshhebbar</a></sub>
 </p>
