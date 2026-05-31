@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/tests-1%2C258%20passing-brightgreen?style=flat-square" alt="Tests">
   <img src="https://img.shields.io/badge/lines-25%2C506-informational?style=flat-square" alt="Lines">
 </p>
-
+</div>
 ---
 
 ## What is TrueNorth?
