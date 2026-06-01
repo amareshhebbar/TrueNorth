@@ -1,10 +1,12 @@
-```
-████████╗██████╗ ██╗   ██╗███████╗███╗   ██╗ ██████╗ ██████╗ ████████╗██╗  ██╗
-╚══██╔══╝██╔══██╗██║   ██║██╔════╝████╗  ██║██╔═══██╗██╔══██╗╚══██╔══╝██║  ██║
-   ██║   ██████╔╝██║   ██║█████╗  ██╔██╗ ██║██║   ██║██████╔╝   ██║   ███████║
-   ██║   ██╔══██╗██║   ██║██╔══╝  ██║╚██╗██║██║   ██║██╔══██╗   ██║   ██╔══██║
-   ██║   ██║  ██║╚██████╔╝███████╗██║ ╚████║╚██████╔╝██║  ██║   ██║   ██║  ██║
-   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+<div align="center">
+   
+```text
+████████╗██████╗ ██╗   ██╗███████╗  ███╗   ██╗ ██████╗ ██████╗ ████████╗██╗  ██╗
+╚══██╔══╝██╔══██╗██║   ██║██╔════╝  ████╗  ██║██╔═══██╗██╔══██╗╚══██╔══╝██║  ██║
+   ██║   ██████╔╝██║   ██║█████╗    ██╔██╗ ██║██║   ██║██████╔╝   ██║   ███████║
+   ██║   ██╔══██╗██║   ██║██╔══╝    ██║╚██╗██║██║   ██║██╔══██╗   ██║   ██╔══██║
+   ██║   ██║  ██║╚██████╔╝███████╗  ██║ ╚████║╚██████╔╝██║  ██║   ██║   ██║  ██║
+   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
 ```
 
 <p align="center">
@@ -21,6 +23,8 @@
   <img src="https://img.shields.io/badge/tests-1%2C258%20passing-brightgreen?style=flat-square" alt="Tests">
   <img src="https://img.shields.io/badge/lines-25%2C506-informational?style=flat-square" alt="Lines">
 </p>
+</div>
+
 
 ---
 
@@ -737,6 +741,6 @@ The core framework is and will remain open source. A hosted cloud offering (True
 ---
 
 <p align="center">
-  Built in India. Designed for the world.<br/>
-  <sub>Made with conviction by <a href="https://github.com/gvamaresh">@gvamaresh</a></sub>
+  Stop writing conversation logic. Start declaring outcomes.<br/>
+  <sub>Built by <a href="https://github.com/amareshhebbar">@amareshhebbar</a></sub>
 </p>
