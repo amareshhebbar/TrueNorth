@@ -158,3 +158,5 @@ class _Timer:
     @property
     def ms(self) -> int:
         return getattr(self, "elapsed_ms", 0)
+
+BaseLLMClient = LLMBase

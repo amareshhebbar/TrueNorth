@@ -3,7 +3,7 @@ name = "truenorth"
 version = "0.1.0"
 description = "TrueNorth — framework for building AI agents that work for real humans"
 authors = ["TrueNorth Team"]
-readme = "README.md"
+package-mode = false
 packages = [{include = "truenorth"}]
 
 [tool.poetry.dependencies]

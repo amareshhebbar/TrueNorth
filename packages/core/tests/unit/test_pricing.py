@@ -33,7 +33,8 @@ from truenorth.llm.pricing import (
     list_models,
     cheapest_for_task,
 )
-from truenorth.cli.main import cli
+# from truenorth.cli.main import cli
+from cli.main import cli
 
 
 # ─────────────────────────────────────────────────────────────────────────────

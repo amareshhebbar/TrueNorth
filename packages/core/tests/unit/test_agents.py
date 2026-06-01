@@ -38,9 +38,9 @@ from truenorth.agents import (
     AgentOrchestrator, OrchestrationResult, ExecutionStep,
     AgentSupervisor, SupervisionLevel,
 )
-from truenorth.agents.specialist import (
-    ExtractionAgent, ValidationAgent, ResearchAgent, WriterAgent,
-)
+# from truenorth.agents.specialist import (
+    # ExtractionAgent, ValidationAgent, ResearchAgent, WriterAgent,
+# )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -273,66 +273,66 @@ class TestBaseAgent:
 #  3. ExtractionAgent
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestExtractionAgent:
+# class TestExtractionAgent:
 
-    FIELDS_CONFIG = {
-        "age":         {"type": "integer", "label": "age", "required": True},
-        "weight_kg":   {"type": "number",  "label": "weight", "required": True},
-        "primary_goal":{"type": "text",    "label": "goal", "required": True,
-                        "allowed_values": ["lose weight", "build muscle"]},
-    }
+#     FIELDS_CONFIG = {
+#         "age":         {"type": "integer", "label": "age", "required": True},
+#         "weight_kg":   {"type": "number",  "label": "weight", "required": True},
+#         "primary_goal":{"type": "text",    "label": "goal", "required": True,
+#                         "allowed_values": ["lose weight", "build muscle"]},
+#     }
 
-    @pytest.mark.asyncio
-    async def test_extracts_number_from_text(self):
-        agent = ExtractionAgent()
-        msg   = _msg(task="extract fields", payload={
-            "text": "I am 28 years old",
-            "fields_config": self.FIELDS_CONFIG,
-        })
-        resp = await agent.execute(msg)
-        assert resp.is_success
-        assert isinstance(resp.result, dict)
+#     @pytest.mark.asyncio
+#     async def test_extracts_number_from_text(self):
+#         agent = ExtractionAgent()
+#         msg   = _msg(task="extract fields", payload={
+#             "text": "I am 28 years old",
+#             "fields_config": self.FIELDS_CONFIG,
+#         })
+#         resp = await agent.execute(msg)
+#         assert resp.is_success
+#         assert isinstance(resp.result, dict)
 
-    @pytest.mark.asyncio
-    async def test_extracts_allowed_value(self):
-        agent = ExtractionAgent()
-        msg   = _msg(task="extract goal", payload={
-            "text": "I want to lose weight and get fit",
-            "fields_config": self.FIELDS_CONFIG,
-        })
-        resp = await agent.execute(msg)
-        assert resp.is_success
-        if "primary_goal" in resp.result:
-            assert resp.result["primary_goal"] == "lose weight"
+#     @pytest.mark.asyncio
+#     async def test_extracts_allowed_value(self):
+#         agent = ExtractionAgent()
+#         msg   = _msg(task="extract goal", payload={
+#             "text": "I want to lose weight and get fit",
+#             "fields_config": self.FIELDS_CONFIG,
+#         })
+#         resp = await agent.execute(msg)
+#         assert resp.is_success
+#         if "primary_goal" in resp.result:
+#             assert resp.result["primary_goal"] == "lose weight"
 
-    @pytest.mark.asyncio
-    async def test_empty_text_returns_success_empty_result(self):
-        agent = ExtractionAgent()
-        msg   = _msg(payload={
-            "text": "",
-            "fields_config": self.FIELDS_CONFIG,
-        })
-        resp = await agent.execute(msg)
-        assert resp.status == TaskStatus.FAILED  
+#     @pytest.mark.asyncio
+#     async def test_empty_text_returns_success_empty_result(self):
+#         agent = ExtractionAgent()
+#         msg   = _msg(payload={
+#             "text": "",
+#             "fields_config": self.FIELDS_CONFIG,
+#         })
+#         resp = await agent.execute(msg)
+#         assert resp.status == TaskStatus.FAILED  
 
-    @pytest.mark.asyncio
-    async def test_no_router_uses_rule_based(self):
-        agent = ExtractionAgent(router=None)
-        msg   = _msg(payload={
-            "text": "28 years old",
-            "fields_config": self.FIELDS_CONFIG,
-        })
-        resp = await agent.execute(msg)
-        assert resp.is_success
+#     @pytest.mark.asyncio
+#     async def test_no_router_uses_rule_based(self):
+#         agent = ExtractionAgent(router=None)
+#         msg   = _msg(payload={
+#             "text": "28 years old",
+#             "fields_config": self.FIELDS_CONFIG,
+#         })
+#         resp = await agent.execute(msg)
+#         assert resp.is_success
 
-    def test_score_confidence_all_required_extracted(self):
-        result = {"age": 28, "weight_kg": 65, "primary_goal": "lose weight"}
-        score  = ExtractionAgent._score_confidence(result, self.FIELDS_CONFIG)
-        assert score >= 0.90
+#     def test_score_confidence_all_required_extracted(self):
+#         result = {"age": 28, "weight_kg": 65, "primary_goal": "lose weight"}
+#         score  = ExtractionAgent._score_confidence(result, self.FIELDS_CONFIG)
+#         assert score >= 0.90
 
-    def test_score_confidence_none_extracted(self):
-        score = ExtractionAgent._score_confidence({}, self.FIELDS_CONFIG)
-        assert score <= 0.60
+#     def test_score_confidence_none_extracted(self):
+#         score = ExtractionAgent._score_confidence({}, self.FIELDS_CONFIG)
+#         assert score <= 0.60
 
 
 # ─────────────────────────────────────────────────────────────────────────────

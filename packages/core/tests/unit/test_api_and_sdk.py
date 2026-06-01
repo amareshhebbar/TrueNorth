@@ -35,11 +35,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from truenorth.sdk.client import (
-    TrueNorth, AsyncTrueNorth, TrueNorthError,
-    Session, MessageResult, Output, run_session, arun_session,
-    _SyncTransport, _AsyncTransport,
-)
+# from client import (
+#     TrueNorth, AsyncTrueNorth, TrueNorthError,
+#     Session, MessageResult, Output, run_session, arun_session,
+#     _SyncTransport, _AsyncTransport,
+# )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ class TestSessionsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
         t = _mock_transport({
             "/v1/sessions": SAMPLE_SESSION_DICT,
             "/v1/sessions/sess-abc123/message": SAMPLE_MESSAGE_DICT,
@@ -289,7 +289,7 @@ class TestGoalsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
         goals_list = [{"name": "fitness-coach", "version": "1.3.0", "sector": "fitness", "downloads": 12000}]
         t = _mock_transport({
             "/v1/goals":                goals_list,
@@ -320,7 +320,7 @@ class TestAnalyticsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
         cost_data = {
             "goal_id": "fitness-coach", "total_cost_usd": 1.23,
             "session_count": 100, "by_model": {}, "by_task": {},
@@ -398,7 +398,7 @@ class TestAsyncClient:
     @pytest.mark.asyncio
     async def test_async_sessions_create(self):
         tn = AsyncTrueNorth.__new__(AsyncTrueNorth)
-        from truenorth.sdk.client import _AsyncSessionsResource, _AsyncGoalsResource, _AsyncAnalyticsResource
+        from client import _AsyncSessionsResource, _AsyncGoalsResource, _AsyncAnalyticsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.post = AsyncMock(return_value=SAMPLE_SESSION_DICT)
@@ -415,7 +415,7 @@ class TestAsyncClient:
 
     @pytest.mark.asyncio
     async def test_async_message(self):
-        from truenorth.sdk.client import _AsyncSessionsResource
+        from client import _AsyncSessionsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.post = AsyncMock(return_value=SAMPLE_MESSAGE_DICT)
@@ -426,7 +426,7 @@ class TestAsyncClient:
 
     @pytest.mark.asyncio
     async def test_async_output(self):
-        from truenorth.sdk.client import _AsyncSessionsResource
+        from client import _AsyncSessionsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.get = AsyncMock(return_value=SAMPLE_OUTPUT_DICT)
@@ -453,7 +453,7 @@ class TestRunSession:
         tn_mock.sessions.output.return_value  = Output.from_dict(SAMPLE_OUTPUT_DICT)
         tn_mock.sessions.force_output.return_value = Output.from_dict(SAMPLE_OUTPUT_DICT)
 
-        with patch("truenorth.sdk.client.TrueNorth", return_value=tn_mock):
+        with patch("client.TrueNorth", return_value=tn_mock):
             output = run_session("fitness-coach", ["I am 28", "65kg"])
         assert isinstance(output, Output)
 
@@ -470,7 +470,7 @@ class TestRunSession:
         tn_mock.__aenter__ = AsyncMock(return_value=tn_mock)
         tn_mock.__aexit__  = AsyncMock(return_value=None)
 
-        with patch("truenorth.sdk.client.AsyncTrueNorth", return_value=tn_mock):
+        with patch("client.AsyncTrueNorth", return_value=tn_mock):
             output = await arun_session("fitness-coach", ["I am 28"])
         assert isinstance(output, Output)
 

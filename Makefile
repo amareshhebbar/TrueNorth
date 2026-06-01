@@ -19,7 +19,8 @@ CYAN  := \033[36m
 DIM   := \033[2m
 
 .PHONY: help install dev stop chat dry-run validate cost \
-        test test-unit test-integration \
+        test test-unit test-integration test-all \
+        test-node test-go test-rust test-expo \
         migrate migrate-create format lint typecheck \
         clean docker-build
 
@@ -45,9 +46,13 @@ help:
 	@printf "  make logs                      tail all service logs\n"
 	@echo ""
 	@printf "$(CYAN)TESTING$(RESET)\n"
-	@printf "  make test                      run all tests\n"
-	@printf "  make test-unit                 run unit tests only\n"
-	@printf "  make test-integration          run integration tests only\n"
+	@printf "  make test-all                  run ALL tests (Python + Node + Go + Rust)\n"
+	@printf "  make test                      run Python tests only\n"
+	@printf "  make test-unit                 run Python unit tests only\n"
+	@printf "  make test-integration          run Python integration tests only\n"
+	@printf "  make test-node                 TypeScript type-check (sdk-node)\n"
+	@printf "  make test-go                   Go build + vet (sdk-go)\n"
+	@printf "  make test-rust                 Rust cargo check (sdk-rust)\n"
 	@echo ""
 	@printf "$(CYAN)DATABASE$(RESET)\n"
 	@printf "  make migrate                   run pending Alembic migrations\n"
@@ -59,25 +64,40 @@ help:
 	@printf "  make typecheck                 type-check with mypy\n"
 	@echo ""
 	@printf "$(CYAN)SETUP$(RESET)\n"
-	@printf "  make install                   install all dependencies\n"
+	@printf "  make install                   install ALL dependencies (Python + Node + Go + Rust)\n"
 	@printf "  make clean                     remove build artifacts\n"
 	@echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Setup
+#  Setup — installs everything
 # ─────────────────────────────────────────────────────────────────────────────
 install:
 	@printf "$(BOLD)Installing dependencies...$(RESET)\n"
+	@echo ""
+
+	@printf "$(CYAN)▶  Python$(RESET)\n"
 	@cd $(CORE_DIR) && pip install poetry --quiet && poetry install
-	@cd packages/sdk-node && npm install --silent 2>/dev/null || true
-	@printf "$(GREEN)Done.$(RESET)\n"
+	@printf "   $(GREEN)✅  Python ready$(RESET)\n"
+
+	@printf "$(CYAN)▶  Node SDK$(RESET)\n"
+	@cd packages/sdk-node && npm install --silent
+	@printf "   $(GREEN)✅  Node SDK ready$(RESET)\n"
+
+	@printf "$(CYAN)▶  Go SDK$(RESET)\n"
+	@cd packages/sdk-go && go mod tidy
+	@printf "   $(GREEN)✅  Go SDK ready$(RESET)\n"
+
+	@printf "$(CYAN)▶  Rust SDK$(RESET)\n"
+	@cd packages/sdk-rust && cargo fetch --quiet
+	@printf "   $(GREEN)✅  Rust SDK ready$(RESET)\n"
+
+	@echo ""
+	@printf "$(GREEN)$(BOLD)All dependencies installed.$(RESET)\n"
+	@echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  CONVERSATION COMMANDS — the ones that matter most
+#  CONVERSATION COMMANDS
 # ─────────────────────────────────────────────────────────────────────────────
-
-## Interactive chat — mock LLM by default (free, no API key needed)
-## Use LIVE=1 for real LLM:  make chat LIVE=1
 chat:
 	@if [ -f .env ]; then export $$(grep -v '^#' .env | xargs) 2>/dev/null; fi; \
 	MOCK_FLAG="--mock"; \
@@ -86,8 +106,6 @@ chat:
 		--goal $(GOAL) \
 		$$MOCK_FLAG
 
-## Automated dry-run — no human input, auto-answers all fields
-## Runs MOCK by default (free). Use LIVE=1 for real LLM.
 dry-run:
 	@SCENARIO_FLAG=""; \
 	if [ -n "$(SCENARIO)" ]; then SCENARIO_FLAG="--scenario $(SCENARIO)"; fi; \
@@ -99,11 +117,9 @@ dry-run:
 		$$SCENARIO_FLAG \
 		--verbose
 
-## Validate a goal YAML
 validate:
 	@cd $(CORE_DIR) && PYTHONPATH=. python cli/main.py validate --goal $(GOAL)
 
-## Show cost for a session
 cost:
 	@cd $(CORE_DIR) && PYTHONPATH=. python cli/main.py cost --session-id $(SESSION_ID)
 
@@ -124,14 +140,89 @@ logs:
 # ─────────────────────────────────────────────────────────────────────────────
 #  Testing
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Run every SDK in one command
+test-all:
+	@echo ""
+	@printf "$(BOLD)╔══════════════════════════════════════════╗$(RESET)\n"
+	@printf "$(BOLD)║     TrueNorth — Full Test Suite          ║$(RESET)\n"
+	@printf "$(BOLD)╚══════════════════════════════════════════╝$(RESET)\n"
+	@echo ""
+	@$(MAKE) --no-print-directory test
+	@$(MAKE) --no-print-directory test-node
+	@$(MAKE) --no-print-directory test-go
+	@$(MAKE) --no-print-directory test-rust
+	@echo ""
+	@printf "$(GREEN)$(BOLD)✅  All suites passed$(RESET)\n"
+	@echo ""
+
+# Python — full suite
 test:
-	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/ -v --tb=short
+	@printf "$(CYAN)▶  Python — pytest$(RESET)\n"
+	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/ \
+		--asyncio-mode=auto \
+		-q \
+		--tb=short \
+		--no-header \
+		-p no:warnings \
+	&& printf "   $(GREEN)✅  Python tests passed$(RESET)\n" \
+	|| (printf "   \033[31m❌  Python tests FAILED$(RESET)\n" && exit 1)
 
+# Python — unit only (fast)
 test-unit:
-	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/unit/ -v --tb=short
+	@printf "$(CYAN)▶  Python unit tests$(RESET)\n"
+	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/unit/ \
+		--asyncio-mode=auto \
+		-q \
+		--tb=short \
+		--no-header \
+		-p no:warnings
 
+# Python — integration only
 test-integration:
-	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/integration/ -v --tb=short
+	@printf "$(CYAN)▶  Python integration tests$(RESET)\n"
+	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/integration/ \
+		--asyncio-mode=auto \
+		-v \
+		--tb=short
+
+# Node SDK — TypeScript type check
+test-node:
+	@printf "$(CYAN)▶  Node SDK — TypeScript$(RESET)\n"
+	@cd packages/sdk-node && npx tsc --noEmit \
+	&& printf "   $(GREEN)✅  TypeScript types valid$(RESET)\n" \
+	|| (printf "   \033[31m❌  TypeScript errors found$(RESET)\n" && exit 1)
+
+# Expo SDK — TypeScript type check
+test-expo:
+	@printf "$(CYAN)▶  Expo SDK — TypeScript$(RESET)\n"
+	@cd packages/sdk-expo && npx tsc --noEmit \
+	&& printf "   $(GREEN)✅  Expo types valid$(RESET)\n" \
+	|| (printf "   \033[31m❌  Expo TypeScript errors$(RESET)\n" && exit 1)
+
+# Go SDK — build + vet
+test-go:
+	@printf "$(CYAN)▶  Go SDK — build + vet$(RESET)\n"
+	@cd packages/sdk-go && go build ./... && go vet ./... \
+	&& printf "   $(GREEN)✅  Go SDK builds cleanly$(RESET)\n" \
+	|| (printf "   \033[31m❌  Go SDK FAILED$(RESET)\n" && exit 1)
+
+# Rust SDK — compile check (fast, no integration tests)
+test-rust:
+	@printf "$(CYAN)▶  Rust SDK — cargo check$(RESET)\n"
+	@cd packages/sdk-rust && cargo check --quiet \
+	&& printf "   $(GREEN)✅  Rust SDK compiles$(RESET)\n" \
+	|| (printf "   \033[31m❌  Rust SDK FAILED$(RESET)\n" && exit 1)
+
+# Python with coverage report
+test-coverage:
+	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/unit/ \
+		--asyncio-mode=auto \
+		--cov=truenorth \
+		--cov-report=term-missing \
+		--cov-report=html \
+		-q \
+	&& echo "Coverage report → packages/core/htmlcov/index.html"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Database
