@@ -238,7 +238,7 @@ GEMINI_API_KEY=AIza...
 GROQ_API_KEY=gsk_...
 
 # ── Routing defaults ──────────────────────────────────────────────────────
-TRUENORTH_MODEL_EXTRACT=gemini-1.5-flash
+TRUENORTH_MODEL_EXTRACT=gemini-3.5-flash
 TRUENORTH_MODEL_CONVERSE=claude-haiku-4-5-20251001
 TRUENORTH_MODEL_OUTPUT=claude-sonnet-4-20250514
 TRUENORTH_MODEL_VERIFY=claude-sonnet-4-20250514
