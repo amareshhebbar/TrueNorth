@@ -532,8 +532,8 @@ class TestRouterIntegration:
         assert LLMRouter._detect_provider("on-device")  == "mobile"
 
     def test_gemini_flash_still_cloud(self):
-        # gemini-1.5-flash → not gemini-nano → cloud gemini
-        assert LLMRouter._detect_provider("gemini-1.5-flash") == "gemini"
+        # gemini-3.5-flash → not gemini-nano → cloud gemini
+        assert LLMRouter._detect_provider("gemini-3.5-flash") == "gemini"
 
     def test_router_builds_mobile_client(self):
         """Router._build_client should instantiate MobileLLMClient for mobile."""
@@ -552,7 +552,7 @@ class TestRouterIntegration:
         mobile_mock = MockLLMClient(default='{"extractions":[{"name":"age","value":28}]}')
         router = LLMRouter(
             routing={TASK_EXTRACT: "apple/on-device-3b"},
-            fallbacks={TASK_EXTRACT: ["gemini-1.5-flash"]},
+            fallbacks={TASK_EXTRACT: ["gemini-3.5-flash"]},
             max_retries=0,
         )
         router.register_client("apple/on-device-3b", mobile_mock)
@@ -581,11 +581,11 @@ class TestFallbackToCloud:
 
         router = LLMRouter(
             routing={TASK_EXTRACT: "apple/on-device-3b"},
-            fallbacks={TASK_EXTRACT: ["gemini-1.5-flash"]},
+            fallbacks={TASK_EXTRACT: ["gemini-3.5-flash"]},
             max_retries=0,
         )
         router.register_client("apple/on-device-3b", _FailingMobile())
-        router.register_client("gemini-1.5-flash",  cloud_mock)
+        router.register_client("gemini-3.5-flash",  cloud_mock)
 
         resp = await router.generate(TASK_EXTRACT, [Message(role="user", content="hi")])
         assert resp.content == "from cloud"
@@ -600,11 +600,11 @@ class TestFallbackToCloud:
 
         router = LLMRouter(
             routing={TASK_EXTRACT: "apple/on-device-3b"},
-            fallbacks={TASK_EXTRACT: ["gemini-1.5-flash"]},
+            fallbacks={TASK_EXTRACT: ["gemini-3.5-flash"]},
             max_retries=0,
         )
         router.register_client("apple/on-device-3b", _FailingMobile())
-        router.register_client("gemini-1.5-flash",  cloud_mock)
+        router.register_client("gemini-3.5-flash",  cloud_mock)
         await router.generate(TASK_EXTRACT, [Message(role="user", content="hi")])
         stats = router.get_stats()
         assert stats["apple/on-device-3b"]["error_count"] >= 1
@@ -665,8 +665,8 @@ class TestPrivacySensitiveRouting:
                 "verify":   "claude-sonnet-4-20250514",
             },
             "fallbacks": {
-                "extract":  ["gemini-1.5-flash"],
-                "classify": ["gemini-1.5-flash"],
+                "extract":  ["gemini-3.5-flash"],
+                "classify": ["gemini-3.5-flash"],
             },
         }
         router = LLMRouter.from_config(yaml_llm_section)
@@ -674,4 +674,4 @@ class TestPrivacySensitiveRouting:
         assert rt["extract"]  == "apple/on-device-3b"
         assert rt["classify"] == "gemini-nano"
         assert rt["output"]   == "claude-sonnet-4-20250514"
-        assert router.fallback_table()["extract"] == ["gemini-1.5-flash"]
+        assert router.fallback_table()["extract"] == ["gemini-3.5-flash"]

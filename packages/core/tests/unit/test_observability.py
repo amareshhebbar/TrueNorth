@@ -73,9 +73,9 @@ def _populated_tracer(
     for t in range(1, turns + 1):
         trace = tracer.turn_start(session_id, goal_id, t)
         tracer.record_user_input(session_id, goal_id, t, f"turn {t} input", language="en")
-        tracer.record_extraction(session_id, goal_id, t, f"field_{t}", f"val_{t}", 0.90, True, "gemini-1.5-flash")
+        tracer.record_extraction(session_id, goal_id, t, f"field_{t}", f"val_{t}", 0.90, True, "gemini-3.5-flash")
         tracer.record_emotion(session_id, goal_id, t, "neutral", 0.0, 0.2)
-        tracer.record_llm_call(session_id, goal_id, t, "gemini-1.5-flash", "extract", 100, 50, 0.0001, 300)
+        tracer.record_llm_call(session_id, goal_id, t, "gemini-3.5-flash", "extract", 100, 50, 0.0001, 300)
         tracer.record_hallucination(session_id, goal_id, t, "CLEAN", 3, 0, "some output")
         tracer.record_response(session_id, goal_id, t, "OK response", 320)
         tracer.turn_end(session_id, t, "OK response")
@@ -399,9 +399,9 @@ class TestTracerRecord:
         tracer, sink = _tracer_with_memory()
         tracer.session_start("s1", "g1")
         trace = tracer.turn_start("s1", "g1", 1)
-        tracer.record_llm_call("s1", "g1", 1, "gemini-1.5-flash", "extract", 200, 80, 0.0001, 300)
+        tracer.record_llm_call("s1", "g1", 1, "gemini-3.5-flash", "extract", 200, 80, 0.0001, 300)
         assert len(trace.llm_calls) == 1
-        assert trace.llm_calls[0]["model"] == "gemini-1.5-flash"
+        assert trace.llm_calls[0]["model"] == "gemini-3.5-flash"
 
     def test_record_hallucination(self):
         tracer, sink = _tracer_with_memory()
@@ -527,7 +527,7 @@ class TestHealthMonitorReport:
                 trace = tracer.turn_start(sid, "fitness_plan", t)
                 tracer.record_user_input(sid, "fitness_plan", t, f"msg {t}")
                 tracer.record_extraction(sid, "fitness_plan", t, f"field_{t}", f"val_{t}", 0.90, True)
-                tracer.record_llm_call(sid, "fitness_plan", t, "gemini-1.5-flash", "extract", 100, 50, 0.0001, 300)
+                tracer.record_llm_call(sid, "fitness_plan", t, "gemini-3.5-flash", "extract", 100, 50, 0.0001, 300)
                 tracer.turn_end(sid, t, "response")
             tracer.session_end(sid)
             sess = tracer.get_session(sid)
@@ -861,7 +861,7 @@ class TestCostDashboardSummary:
     def test_by_model_populated(self):
         dash    = self._dashboard()
         summary = dash.goal_cost_summary("fitness", period_days=1)
-        assert "gemini-1.5-flash" in summary.by_model
+        assert "gemini-3.5-flash" in summary.by_model
 
     def test_by_task_populated(self):
         dash    = self._dashboard()
@@ -885,7 +885,7 @@ class TestCostDashboardDetail:
     def test_session_detail_with_cost_tracker(self):
         from truenorth.llm.cost_tracker import CostTracker
         ct = CostTracker()
-        ct.record("s1", "gemini-1.5-flash", "extract", 100, 50, turn=1, goal_id="fitness")
+        ct.record("s1", "gemini-3.5-flash", "extract", 100, 50, turn=1, goal_id="fitness")
         dash = CostDashboard(cost_tracker=ct)
         d    = dash.session_cost_detail("s1")
         assert d["session_id"]    == "s1"
@@ -940,7 +940,7 @@ class TestCostDashboardModels:
         dash    = CostDashboard(tracer=tracer)
         models  = dash.model_comparison("g1", period_days=1)
         names   = [m["model"] for m in models]
-        assert "gemini-1.5-flash" in names
+        assert "gemini-3.5-flash" in names
 
     def test_model_comparison_sorted_by_cost(self):
         tracer = _populated_tracer(goal_id="g1", session_id="s1")
