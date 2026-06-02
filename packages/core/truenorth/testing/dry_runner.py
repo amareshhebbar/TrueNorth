@@ -379,7 +379,7 @@ class DryRunner:
             )
             router = LLMRouter()
             for model in [
-                "gemini-1.5-flash",
+                "gemini-3.5-flash",
                 "claude-haiku-4-5-20251001",
                 "claude-sonnet-4-20250514",
             ]:

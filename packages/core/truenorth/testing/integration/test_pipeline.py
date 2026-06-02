@@ -66,7 +66,7 @@ def make_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
         default="Understood. And next — ",
     )
     router = LLMRouter()
-    for model in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+    for model in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
         router.register_client(model, mock)
     return router
 
@@ -558,7 +558,7 @@ class TestCostPipeline:
     def test_gemini_flash_cheapest(self):
         ct    = CostTracker()
         haiku = ct.estimate("claude-haiku-4-5-20251001", 1000, 500)
-        flash = ct.estimate("gemini-1.5-flash",           1000, 500)
+        flash = ct.estimate("gemini-3.5-flash",           1000, 500)
         assert flash < haiku   # Gemini Flash should be cheaper than Claude Haiku
 
     def test_budget_enforced_across_turns(self, router):
@@ -571,13 +571,13 @@ class TestCostPipeline:
 
     def test_aggregate_goal_cost(self):
         ct = CostTracker()
-        ct.record("s1", "gemini-1.5-flash", "extract",  200, 100, 50)
+        ct.record("s1", "gemini-3.5-flash", "extract",  200, 100, 50)
         ct.record("s1", "claude-haiku-4-5-20251001",    "converse", 100, 80,  200)
-        ct.record("s2", "gemini-1.5-flash", "extract",  150, 90,  45)
+        ct.record("s2", "gemini-3.5-flash", "extract",  150, 90,  45)
         agg = ct.aggregate_goal_cost(["s1", "s2"])
         assert agg["session_count"] == 2
         assert agg["total_cost_usd"] > 0
-        assert "gemini-1.5-flash"          in agg["by_model"]
+        assert "gemini-3.5-flash"          in agg["by_model"]
         assert "claude-haiku-4-5-20251001" in agg["by_model"]
 
     @pytest.mark.asyncio
