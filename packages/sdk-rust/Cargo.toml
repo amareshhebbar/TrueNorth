@@ -1,6 +1,6 @@
 [package]
 name    = "truenorth"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["TrueNorth AI <founders@truenorth.ai>"]
 description = "Official Rust SDK for TrueNorth AI agent API"

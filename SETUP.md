@@ -79,7 +79,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 # Verify
 curl http://localhost:8000/health
-# {"status": "ok", "version": "0.1.0"}
+# {"status": "ok", "version": "0.1.1"}
 
 # Check logs
 docker compose logs -f truenorth-api

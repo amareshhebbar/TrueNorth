@@ -38,31 +38,63 @@ jobs:
         ports:
           - 6379:6379
 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install poetry
-      - run: poetry install
-      - run: poetry run ruff check .
-      - run: poetry run mypy truenorth --ignore-missing-imports
-      - run: poetry run pytest tests/unit -v
     env:
       DATABASE_URL: postgresql+asyncpg://truenorth:truenorth@localhost:5432/truenorth_test
       REDIS_URL: redis://localhost:6379/0
 
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install
+          
+      - name: Run checks and tests
+        run: |
+          poetry run ruff check .
+          poetry run mypy truenorth --ignore-missing-imports
+          poetry run pytest tests/unit -v
+
   node:
     name: Node SDK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/sdk-node
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      
+      # Upgraded to Node 22 to remove GitHub deprecation warnings
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - run: npm install
-      - run: npm run build
-      - run: npm test
+          node-version: "22"
+          
+      - name: Run Node checks
+        run: make test-node
+
+  go:
+    name: Go SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          
+      - name: Run Go checks
+        run: make test-go
+
+  rust:
+    name: Rust SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Rust checks
+        run: make test-rust

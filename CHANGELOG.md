@@ -20,7 +20,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.1.0] — 2025-06
+## [0.1.1] — 2025-06
 
 ### Added — Phase 0-4: Foundation + Intelligence + LLM + MCP + Multi-Agent
 

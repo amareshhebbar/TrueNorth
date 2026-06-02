@@ -5,7 +5,7 @@ router = APIRouter()
 
 @router.get("/health")
 async def health():
-    return {"service": "truenorth", "status": "ok", "version": "0.1.0"}
+    return {"service": "truenorth", "status": "ok", "version": "0.1.1"}
 
 @router.get("/ready")
 async def ready():

@@ -38,7 +38,7 @@ _INIT_TIMEOUT      = 15.0   # seconds for handshake
 
 _CLIENT_INFO = {
     "name":    "truenorth",
-    "version": "0.1.0",
+    "version": "0.1.1",
 }
 _CLIENT_CAPABILITIES = {
     "roots":   {"listChanged": False},

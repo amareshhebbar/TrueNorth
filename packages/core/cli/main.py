@@ -32,7 +32,7 @@ except ImportError:
 
 _console = Console() if _RICH else None
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

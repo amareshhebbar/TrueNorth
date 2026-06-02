@@ -9,23 +9,23 @@
    ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
 ```
 
-<p align="center">
-  <strong>Define your AI agent in YAML. TrueNorth runs the conversation.</strong><br/>
-  <sub>Field extraction · Hallucination firewall · Multi-agent · Reminders · DPDP/GDPR · WhatsApp-native</sub>
-</p>
+<div align="center">
+  <p>
+    <strong>Define your AI agent in YAML. TrueNorth runs the conversation.</strong><br/>
+    <sub>Field extraction · Hallucination firewall · Multi-agent · Reminders · DPDP/GDPR · WhatsApp-native</sub>
+  </p>
 
-<p align="center">
-  <a href="https://github.com/amareshhebbar/truenorth/actions"><img src="https://img.shields.io/github/actions/workflow/status/amareshhebbar/truenorth/ci.yml?branch=main&label=tests&style=flat-square" alt="CI"></a>
-  
-  <a href="https://github.com/amareshhebbar/truenorth/blob/main/LICENSE"><img src="https://img.shields.io/github/license/amareshhebbar/truenorth?style=flat-square&color=blue" alt="License"></a>
-  
-  <img src="https://img.shields.io/badge/tests-1%2C282%20passing-brightgreen?style=flat-square" alt="Tests">
-  <img src="https://img.shields.io/github/repo-size/amareshhebbar/truenorth?style=flat-square&label=repo%20size" alt="Repo Size">
-</p>
+  <p>
+    <a href="https://pypi.org/project/truenorth-framework/"><img src="https://img.shields.io/pypi/v/truenorth-framework?style=flat-square&color=0d6efd&logo=python&logoColor=white" alt="PyPI Version"></a>
+    <a href="https://www.npmjs.com/package/truenorth"><img src="https://img.shields.io/npm/v/truenorth?style=flat-square&color=CB3837&logo=npm&logoColor=white" alt="NPM Version"></a>
+    <a href="https://www.npmjs.com/package/truenorth-framework-expo"><img src="https://img.shields.io/npm/v/truenorth-framework-expo?style=flat-square&color=000020&logo=expo&logoColor=white" alt="Expo Version"></a>
+    <a href="https://pkg.go.dev/github.com/amareshhebbar/truenorth"><img src="https://img.shields.io/badge/go-reference-007d9c?style=flat-square&logo=go&logoColor=white" alt="Go Reference"></a>
+    <br/>
+    <img src="https://img.shields.io/badge/tests-1%2C282%20passing-brightgreen?style=flat-square" alt="Tests">
+    <img src="https://img.shields.io/github/repo-size/amareshhebbar/truenorth?style=flat-square&label=repo%20size" alt="Repo Size">
+    <a href="https://github.com/amareshhebbar/truenorth/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0 License"></a>
+  </p>
 </div>
-
-
----
 
 ## What is TrueNorth?
 
