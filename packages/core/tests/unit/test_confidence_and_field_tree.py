@@ -1,7 +1,4 @@
-"""
-tests/unit/test_confidence_and_field_tree.py
-
-Task 7 tests — confidence scorer hardening + conditional field trees.
+"""confidence scorer hardening + conditional field trees.
 
 Classes:
   1.  TypeValidation       — all type validators, range checks, allowed_values

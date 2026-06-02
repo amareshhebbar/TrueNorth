@@ -338,7 +338,6 @@ class TestCliPricing:
         runner = CliRunner()
         result = runner.invoke(cli, ["pricing"])
         assert result.exit_code == 0
-        # Should show model names
         assert "claude" in result.output or "gpt" in result.output
 
     def test_pricing_filter_anthropic(self):

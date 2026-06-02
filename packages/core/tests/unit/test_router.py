@@ -1,6 +1,4 @@
 """
-Task 10 — hardened LLMRouter tests.
-
 Classes:
   1.  RoutingTable        — default routing, env overrides, YAML config
   2.  FallbackChain       — primary fails → secondary → emergency
