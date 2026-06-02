@@ -31,7 +31,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import pytest
 
@@ -49,7 +49,6 @@ from truenorth.llm.cost_tracker import (
     TASK_EXTRACT,
     TASK_CONVERSE,
     TASK_OUTPUT,
-    TASK_CLASSIFY,
     TASK_VERIFY,
     _compute_cost,
 )

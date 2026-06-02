@@ -1,0 +1,20 @@
+{
+  "packages": {
+    "packages/core": {
+      "release-type": "python",
+      "package-name": "truenorth-framework"
+    },
+    "packages/sdk-node": {
+      "release-type": "node",
+      "package-name": "truenorth"
+    },
+    "packages/sdk-expo": {
+      "release-type": "node",
+      "package-name": "truenorth-framework-expo"
+    },
+    "packages/sdk-go": {
+      "release-type": "go",
+      "package-name": "github.com/amareshhebbar/truenorth"
+    }
+  }
+}

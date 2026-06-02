@@ -17,11 +17,9 @@ Classes:
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from pathlib import Path
-from typing import AsyncIterator, List, Optional
-from unittest.mock import AsyncMock, MagicMock
+from typing import List
 
 import pytest
 
@@ -29,7 +27,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from truenorth.llm.router import (
     LLMRouter,
-    RouterError,
     BudgetExceededError,
     AllProvidersFailedError,
     ModelStats,
@@ -40,9 +37,8 @@ from truenorth.llm.router import (
     TASK_VERIFY,
     TASK_OTHER,
     _DEFAULT_ROUTING,
-    _DEFAULT_FALLBACKS,
 )
-from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
+from truenorth.llm.base import LLMBase, LLMResponse, Message
 from truenorth.testing.mock_llm import MockLLMClient
 
 

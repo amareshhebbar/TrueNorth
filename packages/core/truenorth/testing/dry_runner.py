@@ -22,7 +22,6 @@ Usage (Python):
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
@@ -360,7 +359,8 @@ class DryRunner:
 
     async def _build_engine(self):
         """Build the engine — mock LLM for dry-run, real for live mode."""
-        import sys, os
+        import sys
+        import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
         from truenorth.core.engine import TrueNorthEngine

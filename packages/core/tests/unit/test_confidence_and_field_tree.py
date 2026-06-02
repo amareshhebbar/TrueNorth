@@ -705,7 +705,8 @@ class TestReasonerWithFieldTree:
 
     def _make_state(self, fields_config, collected=None):
         from truenorth.core.yaml_loader import YAMLLoader
-        import yaml, tempfile, os
+        import tempfile
+        import os
         goal = {
             "id": "test",
             "fields": [

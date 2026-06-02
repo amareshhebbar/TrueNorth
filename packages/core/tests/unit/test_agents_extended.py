@@ -22,12 +22,10 @@ Classes:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -45,7 +43,7 @@ from truenorth.agents.langgraph_bridge import (
     StateAdapter, TrueNorthNode, LangGraphAgent,
 )
 from truenorth.agents.messages import (
-    AgentMessage, AgentResponse, AgentRole, TaskStatus, Priority,
+    AgentMessage, AgentRole, TaskStatus,
 )
 from truenorth.agents.base import BaseAgent
 

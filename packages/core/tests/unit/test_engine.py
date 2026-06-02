@@ -11,11 +11,8 @@ Run:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import pytest
 from pathlib import Path
-from typing import List
 
 # ── Add package root to path ───────────────────────────────────────────────
 import sys
@@ -23,16 +20,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from truenorth.core.engine        import TrueNorthEngine, EngineResponse
 from truenorth.core.graph_state   import GraphState
-from truenorth.core.reasoner      import Reasoner, ReasonerAction
-from truenorth.core.yaml_loader   import YAMLLoader
-from truenorth.core.field_extractor import FieldExtractor
 from truenorth.intelligence.emotion_detector   import EmotionDetector, Emotion
 from truenorth.intelligence.conflict_detector  import ConflictDetector, ConflictType
 from truenorth.intelligence.confidence_scorer  import ConfidenceScorer
 from truenorth.intelligence.language_detector  import LanguageDetector
 from truenorth.intelligence.conversation_quality import ConversationQualityMonitor
 from truenorth.llm.cost_tracker   import CostTracker, BudgetExceededError
-from truenorth.llm.router         import LLMRouter, TASK_CONVERSE, TASK_EXTRACT
+from truenorth.llm.router         import LLMRouter
 from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.testing.mock_llm   import MockLLMClient
 

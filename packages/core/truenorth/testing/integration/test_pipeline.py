@@ -26,7 +26,6 @@ What this covers (10 test classes, 32 tests):
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -36,10 +35,9 @@ import pytest
 _CORE = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_CORE))
 
-from truenorth.core.engine          import TrueNorthEngine, EngineResponse
+from truenorth.core.engine          import TrueNorthEngine
 from truenorth.core.graph_state     import GraphState
 from truenorth.core.yaml_loader     import YAMLLoader
-from truenorth.core.reasoner        import ReasonerAction
 from truenorth.intelligence.conflict_detector  import ConflictType
 from truenorth.intelligence.language_detector  import LanguageDetector
 from truenorth.llm.router           import LLMRouter

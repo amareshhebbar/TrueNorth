@@ -39,7 +39,6 @@ from truenorth.intelligence.conflict_detector import (
     _aliases_match,
     _try_parse_with_unit,
     _should_auto_resolve,
-    _boolean_flip,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -28,12 +28,11 @@ Classes:
 
 from __future__ import annotations
 
-import asyncio
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 import pytest
 
@@ -53,7 +52,7 @@ from truenorth.cloud.self_host_config import (
     SelfHostConfig, DeployProfile, cli_init,
 )
 from truenorth.marketplace.goal_registry import (
-    GoalRegistry, GoalPackage,
+    GoalRegistry,
 )
 
 
@@ -63,7 +62,7 @@ from truenorth.marketplace.goal_registry import (
 
 def _cost_tracker_stub(session_budget: Optional[float] = None, spent: float = 0.0):
     """Minimal CostTracker-compatible stub."""
-    from truenorth.llm.cost_tracker import CostTracker, SessionCost
+    from truenorth.llm.cost_tracker import CostTracker
     ct = CostTracker()
     if session_budget is not None:
         ct.set_budget("sess-1", session_budget)

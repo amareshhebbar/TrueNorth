@@ -23,12 +23,9 @@ Classes:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -515,7 +512,6 @@ class TestFastAPISessions:
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
         # from truenorth.api.deps  import init_deps
-        from truenorth.marketplace.goal_registry import GoalRegistry
         # init_deps(goal_registry=GoalRegistry())
         return TestClient(app, raise_server_exceptions=False)
 
@@ -557,7 +553,6 @@ class TestFastAPIGoals:
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
         # from truenorth.api.deps  import init_deps
-        from truenorth.marketplace.goal_registry import GoalRegistry
         # init_deps(goal_registry=GoalRegistry())
         return TestClient(app)
 
@@ -605,7 +600,6 @@ class TestFastAPIAnalytics:
         from truenorth.observability.cost_dashboard import CostDashboard
         from truenorth.observability.tracer         import TrueNorthTracer
         from truenorth.observability.health_monitor import HealthMonitor
-        from truenorth.observability.ab_engine      import ABRegistry
         tracer = TrueNorthTracer()
         dash   = CostDashboard(tracer=tracer)
         mon    = HealthMonitor(tracer=tracer)

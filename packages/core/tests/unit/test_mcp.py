@@ -22,12 +22,8 @@ Classes:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
-import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,7 +35,7 @@ from truenorth.mcp.types import (
     Tool, ToolCall, ToolResult, ToolResultStatus,
 )
 from truenorth.mcp.registry import RegisteredTool
-from truenorth.mcp.tool_executor import ToolExecutionLog, _validate_arguments
+from truenorth.mcp.tool_executor import _validate_arguments
 
 
 # ─────────────────────────────────────────────────────────────────────────────

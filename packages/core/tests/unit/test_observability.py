@@ -32,9 +32,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 import pytest
 
@@ -47,8 +45,7 @@ from truenorth.observability import (
     TrueNorthTracer, TurnTrace, SessionTrace,
     MemorySink, StdoutSink, CallbackSink,
     HealthMonitor, GoalHealthReport,
-    ABEngine, ABRegistry, ABVariant, ABStatus, ABResult,
-    CostDashboard, CostSummary,
+    ABEngine, ABRegistry, ABVariant, ABStatus, CostDashboard, CostSummary,
 )
 from truenorth.observability.log_categories import make_event
 

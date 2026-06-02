@@ -25,14 +25,12 @@ Classes:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any, Optional
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -40,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from truenorth.scheduler.reminder_engine import (
     FollowUpRule, ScheduledReminder, ReminderEngine,
-    ReminderStatus, TriggerType,
+    ReminderStatus,
 )
 from truenorth.scheduler.delivery import (
     DeliveryResult, DeliveryChannel, ConsoleAdapter, MultiChannelDelivery,
@@ -49,7 +47,7 @@ from truenorth.memory.long_term      import LongTermMemory, UserFact
 # from truenorth.memory.session_resume import SessionResume, ResumeResult
 # from truenorth.memory.vector_store   import VectorStore, SemanticSearchResult
 from truenorth.compliance.dpdp import (
-    DPDPManager, ConsentRecord, ConsentStatus, DataPrincipalRight,
+    DPDPManager, ConsentStatus, DataPrincipalRight,
 )
 # from truenorth.compliance.dpdp import (
 #     GDPRManager, GDPRConsentRecord, GDPRLegalBasis, DataSubjectRight,

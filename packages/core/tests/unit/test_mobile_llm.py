@@ -22,8 +22,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import AsyncIterator, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import List, Optional
 
 import pytest
 
@@ -40,11 +39,7 @@ from truenorth.llm.base import LLMResponse, Message
 from truenorth.llm.router import (
     LLMRouter,
     TASK_EXTRACT,
-    TASK_CONVERSE,
     TASK_OUTPUT,
-    TASK_CLASSIFY,
-    TASK_VERIFY,
-    _DEFAULT_ROUTING,
 )
 from truenorth.testing.mock_llm import MockLLMClient
 

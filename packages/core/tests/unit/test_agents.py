@@ -25,7 +25,6 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 import pytest
 
@@ -33,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from truenorth.agents import (
     AgentMessage, AgentResponse, AgentRole, SupervisorVerdict,
-    MessageType, TaskStatus, Priority,
+    TaskStatus, Priority,
     BaseAgent, AgentMetrics,
     AgentOrchestrator, OrchestrationResult, ExecutionStep,
     AgentSupervisor, SupervisionLevel,

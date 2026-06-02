@@ -35,7 +35,6 @@ from truenorth.output.source_tracer import (
     SentenceParser,
     FieldMatcher,
     TurnResolver,
-    FieldSource,
     TracedSentence,
     SourceMap,
     TraceCompleteness,
