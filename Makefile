@@ -1,7 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-#  TrueNorth Makefile
-#  Usage: make <target>
-# ─────────────────────────────────────────────────────────────────────────────
 
 SHELL       := /bin/bash
 CORE_DIR    := packages/core
@@ -18,6 +14,20 @@ GREEN := \033[32m
 CYAN  := \033[36m
 DIM   := \033[2m
 
+
+define PRINT_LOGO
+	@echo ""
+	@printf "$(CYAN)"
+	@echo "████████╗██████╗ ██╗   ██╗███████╗  ███╗   ██╗ ██████╗ ██████╗ ████████╗██╗  ██╗"
+	@echo "╚══██╔══╝██╔══██╗██║   ██║██╔════╝  ████╗  ██║██╔═══██╗██╔══██╗╚══██╔══╝██║  ██║"
+	@echo "   ██║   ██████╔╝██║   ██║█████╗    ██╔██╗ ██║██║   ██║██████╔╝   ██║   ███████║"
+	@echo "   ██║   ██╔══██╗██║   ██║██╔══╝    ██║╚██╗██║██║   ██║██╔══██╗   ██║   ██╔══██║"
+	@echo "   ██║   ██║  ██║╚██████╔╝███████╗  ██║ ╚████║╚██████╔╝██║  ██║   ██║   ██║  ██║"
+	@echo "   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝"
+	@printf "$(RESET)\n"
+endef
+
+
 .PHONY: help install dev stop chat dry-run validate cost \
         test test-unit test-integration test-all \
         test-node test-go test-rust test-expo \
@@ -29,6 +39,7 @@ DIM   := \033[2m
 # ─────────────────────────────────────────────────────────────────────────────
 help:
 	@echo ""
+	$(call PRINT_LOGO)
 	@printf "$(BOLD)TrueNorth — AI Agent Framework$(RESET)\n"
 	@echo ""
 	@printf "$(CYAN)CONVERSATION$(RESET)\n"
@@ -144,9 +155,7 @@ logs:
 # Run every SDK in one command
 test-all:
 	@echo ""
-	@printf "$(BOLD)╔══════════════════════════════════════════╗$(RESET)\n"
-	@printf "$(BOLD)║     TrueNorth — Full Test Suite          ║$(RESET)\n"
-	@printf "$(BOLD)╚══════════════════════════════════════════╝$(RESET)\n"
+	$(call PRINT_LOGO)
 	@echo ""
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory test-node
@@ -168,7 +177,6 @@ test:
 	&& printf "   $(GREEN)✅  Python tests passed$(RESET)\n" \
 	|| (printf "   \033[31m❌  Python tests FAILED$(RESET)\n" && exit 1)
 
-# Python — unit only (fast)
 test-unit:
 	@printf "$(CYAN)▶  Python unit tests$(RESET)\n"
 	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/unit/ \
@@ -178,7 +186,6 @@ test-unit:
 		--no-header \
 		-p no:warnings
 
-# Python — integration only
 test-integration:
 	@printf "$(CYAN)▶  Python integration tests$(RESET)\n"
 	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/integration/ \
@@ -186,35 +193,30 @@ test-integration:
 		-v \
 		--tb=short
 
-# Node SDK — TypeScript type check
 test-node:
 	@printf "$(CYAN)▶  Node SDK — TypeScript$(RESET)\n"
 	@cd packages/sdk-node && npm install --silent && npm run typecheck \
 	&& printf "   $(GREEN)✅  TypeScript types valid$(RESET)\n" \
 	|| (printf "   \033[31m❌  TypeScript errors found$(RESET)\n" && exit 1)
 
-# Expo SDK — TypeScript type check
 test-expo:
 	@printf "$(CYAN)▶  Expo SDK — TypeScript$(RESET)\n"
 	@cd packages/sdk-expo && npm install --silent && npx tsc --noEmit \
 	&& printf "   $(GREEN)✅  Expo types valid$(RESET)\n" \
 	|| (printf "   \033[31m❌  Expo TypeScript errors$(RESET)\n" && exit 1)
 
-# Go SDK — build + vet
 test-go:
 	@printf "$(CYAN)▶  Go SDK — build + vet$(RESET)\n"
 	@cd packages/sdk-go && go mod tidy && go build ./... && go vet ./... \
 	&& printf "   $(GREEN)✅  Go SDK builds cleanly$(RESET)\n" \
 	|| (printf "   \033[31m❌  Go SDK FAILED$(RESET)\n" && exit 1)
 
-# Rust SDK — compile check (fast, no integration tests)
 test-rust:
 	@printf "$(CYAN)▶  Rust SDK — cargo check$(RESET)\n"
 	@cd packages/sdk-rust && cargo check --quiet \
 	&& printf "   $(GREEN)✅  Rust SDK compiles$(RESET)\n" \
 	|| (printf "   \033[31m❌  Rust SDK FAILED$(RESET)\n" && exit 1)
 
-# Python with coverage report
 test-coverage:
 	@cd $(CORE_DIR) && PYTHONPATH=. poetry run pytest tests/unit/ \
 		--asyncio-mode=auto \

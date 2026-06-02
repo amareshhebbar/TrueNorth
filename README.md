@@ -15,13 +15,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/truenorth-ai/truenorth/actions"><img src="https://img.shields.io/github/actions/workflow/status/truenorth-ai/truenorth/ci.yml?branch=main&label=tests&style=flat-square" alt="CI"></a>
-  <a href="https://pypi.org/project/truenorth/"><img src="https://img.shields.io/pypi/v/truenorth?style=flat-square&color=0d6efd" alt="PyPI"></a>
-  <a href="https://pypi.org/project/truenorth/"><img src="https://img.shields.io/pypi/pyversions/truenorth?style=flat-square" alt="Python"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://discord.gg/truenorth"><img src="https://img.shields.io/discord/1234567890?label=discord&style=flat-square&color=5865f2" alt="Discord"></a>
-  <img src="https://img.shields.io/badge/tests-1%2C258%20passing-brightgreen?style=flat-square" alt="Tests">
-  <img src="https://img.shields.io/badge/lines-25%2C506-informational?style=flat-square" alt="Lines">
+  <a href="https://github.com/amareshhebbar/truenorth/actions"><img src="https://img.shields.io/github/actions/workflow/status/amareshhebbar/truenorth/ci.yml?branch=main&label=tests&style=flat-square" alt="CI"></a>
+  
+  <a href="https://github.com/amareshhebbar/truenorth/blob/main/LICENSE"><img src="https://img.shields.io/github/license/amareshhebbar/truenorth?style=flat-square&color=blue" alt="License"></a>
+  
+  <img src="https://img.shields.io/badge/tests-1%2C282%20passing-brightgreen?style=flat-square" alt="Tests">
+  <img src="https://img.shields.io/github/repo-size/amareshhebbar/truenorth?style=flat-square&label=repo%20size" alt="Repo Size">
 </p>
 </div>
 
@@ -33,6 +32,41 @@
 TrueNorth is an **open-source AI agent framework** built around one idea: describe your goal in YAML, and TrueNorth handles the entire structured conversation — extraction, validation, emotion, memory, compliance, and output generation.
 
 You don't write conversation logic. You declare the outcome you want.
+
+
+## Quick Start & Commands
+
+TrueNorth uses a unified `Makefile` to manage dependencies, servers, testing, and CLI tools across Python, Node.js, Go, and Rust.
+
+Run `make help` at any time to see this list in your terminal.
+
+### Setup & Run
+
+* **`make install`** - Installs all dependencies across all 4 languages.
+* **`make dev`** - Starts the FastAPI server, Postgres, and Redis via Docker Compose.
+* **`make stop`** - Stops all running Docker services.
+
+### Chat & CLI
+
+* **`make chat`** - Starts an interactive terminal chat (uses a free mock LLM by default).
+* **`make chat GOAL=medical_intake LIVE=1`** - Chats with a specific agent using real LLM API keys.
+* **`make dry-run`** - Runs an automated, non-interactive simulation of an agent.
+* **`make validate GOAL=fitness_plan`** - Validates your agent's YAML schema.
+
+### Testing
+
+* **`make test-all`** - Runs the entire test suite (1,280+ tests across Python, Node.js, Go, and Rust).
+* **`make test`** - Runs only the Python test suite.
+* **`make test-unit`** / **`make test-integration`** - Runs specific Python test scopes.
+* **`make test-node`**, **`make test-go`**, **`make test-rust`** - Runs language-specific SDK checks.
+
+### Code Quality & Database
+
+* **`make format`** / **`make lint`** / **`make typecheck`** - Runs Ruff and MyPy on the Python core.
+* **`make migrate`** - Applies pending Alembic database migrations.
+
+---
+
 
 ```yaml
 # fitness_plan.yaml
