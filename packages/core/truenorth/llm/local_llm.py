@@ -4,7 +4,7 @@ Local LLM client — connects to Ollama (or any OpenAI-compatible local server).
 Supports:
   - Ollama  : ollama serve  → http://localhost:11434
   - llama.cpp server        → http://localhost:8080
-  - LM Studio               → http://localhost:1234/v1
+  - LM Studio               → http://localhost:1234
   - Any OpenAI-compat API   → set base_url in config
 
 Zero cloud cost. Works fully offline. Ideal for:
@@ -30,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 _PROVIDER_DEFAULTS = {
     "ollama":        ("http://localhost:11434",  "/api/chat"),
-    "llamacpp":      ("http://localhost:8080",   "/v1/chat/completions"),
-    "lmstudio":      ("http://localhost:1234",   "/v1/chat/completions"),
-    "openai_compat": ("http://localhost:8000",   "/v1/chat/completions"),
+    "llamacpp":      ("http://localhost:8080",   "/chat/completions"),
+    "lmstudio":      ("http://localhost:1234",   "/chat/completions"),
+    "openai_compat": ("http://localhost:8000",   "/chat/completions"),
 }
 
 
@@ -212,7 +212,7 @@ class LocalLLMClient(LLMBase):
         payload = self._openai_payload(messages, system, max_tokens, temperature, stream=False)
         with _Timer() as t:
             try:
-                resp = await client.post("/v1/chat/completions", json=payload)
+                resp = await client.post("/chat/completions", json=payload)
                 resp.raise_for_status()
                 data = resp.json()
             except Exception as e:
@@ -242,7 +242,7 @@ class LocalLLMClient(LLMBase):
         client  = self._get_client()
         payload = self._openai_payload(messages, system, max_tokens, temperature, stream=True)
         try:
-            async with client.stream("POST", "/v1/chat/completions", json=payload) as resp:
+            async with client.stream("POST", "/chat/completions", json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     if not line or line == "data: [DONE]":
@@ -292,7 +292,7 @@ class LocalLLMClient(LLMBase):
             if self._provider == "ollama":
                 resp = await client.get("/api/tags")
             else:
-                resp = await client.get("/v1/models")
+                resp = await client.get("/models")
             return resp.status_code == 200
         except Exception:
             return False

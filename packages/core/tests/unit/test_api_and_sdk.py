@@ -15,9 +15,9 @@ Classes:
   10. AsyncClient         — async versions of all methods
   11. RunSession          — convenience helper
   12. FastAPI_Health      — GET /health
-  13. FastAPI_Sessions    — POST/GET/DELETE /v1/sessions
-  14. FastAPI_Goals       — GET /v1/goals
-  15. FastAPI_Analytics   — GET /v1/analytics/cost
+  13. FastAPI_Sessions    — POST/GET/DELETE /sessions
+  14. FastAPI_Goals       — GET /goals
+  15. FastAPI_Analytics   — GET /analytics/cost
   16. SDKContractParity   — Python SDK shape matches Node SDK types
 """
 
@@ -233,13 +233,13 @@ class TestSessionsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
         t = _mock_transport({
-            "/v1/sessions": SAMPLE_SESSION_DICT,
-            "/v1/sessions/sess-abc123/message": SAMPLE_MESSAGE_DICT,
-            "/v1/sessions/sess-abc123": SAMPLE_SESSION_DICT,
-            "/v1/sessions/sess-abc123/output": SAMPLE_OUTPUT_DICT,
-            "/v1/sessions/sess-abc123/force-output": SAMPLE_OUTPUT_DICT,
+            "/sessions": SAMPLE_SESSION_DICT,
+            "/sessions/sess-abc123/message": SAMPLE_MESSAGE_DICT,
+            "/sessions/sess-abc123": SAMPLE_SESSION_DICT,
+            "/sessions/sess-abc123/output": SAMPLE_OUTPUT_DICT,
+            "/sessions/sess-abc123/force-output": SAMPLE_OUTPUT_DICT,
         })
         tn.sessions  = _SessionsResource(t)
         tn.goals     = _GoalsResource(t)
@@ -278,7 +278,7 @@ class TestSessionsResource:
     def test_end_calls_delete(self):
         tn = self._tn()
         tn.sessions.end("sess-abc123")
-        tn._transport.delete.assert_called_once_with("/v1/sessions/sess-abc123")
+        tn._transport.delete.assert_called_once_with("/sessions/sess-abc123")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -289,12 +289,12 @@ class TestGoalsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
         goals_list = [{"name": "fitness-coach", "version": "1.3.0", "sector": "fitness", "downloads": 12000}]
         t = _mock_transport({
-            "/v1/goals":                goals_list,
-            "/v1/goals/fitness-coach":  goals_list[0],
-            "/v1/goals/fitness-coach/install": goals_list[0],
+            "/goals":                goals_list,
+            "/goals/fitness-coach":  goals_list[0],
+            "/goals/fitness-coach/install": goals_list[0],
         })
         tn.sessions  = _SessionsResource(t)
         tn.goals     = _GoalsResource(t)
@@ -320,15 +320,15 @@ class TestAnalyticsResource:
 
     def _tn(self) -> TrueNorth:
         tn = TrueNorth.__new__(TrueNorth)
-        from client import _SessionsResource, _GoalsResource, _AnalyticsResource
+        from truenorth.sdk.client import _SessionsResource, _GoalsResource, _AnalyticsResource
         cost_data = {
             "goal_id": "fitness-coach", "total_cost_usd": 1.23,
             "session_count": 100, "by_model": {}, "by_task": {},
         }
         t = _mock_transport({
-            "/v1/analytics/cost":       cost_data,
-            "/v1/analytics/health":     {"completion_rate": 0.82},
-            "/v1/analytics/cost/trend": [{"period": "2025-01-01", "cost_usd": 0.05}],
+            "/analytics/cost":       cost_data,
+            "/analytics/health":     {"completion_rate": 0.82},
+            "/analytics/cost/trend": [{"period": "2025-01-01", "cost_usd": 0.05}],
         })
         tn.sessions  = _SessionsResource(t)
         tn.goals     = _GoalsResource(t)
@@ -398,7 +398,7 @@ class TestAsyncClient:
     @pytest.mark.asyncio
     async def test_async_sessions_create(self):
         tn = AsyncTrueNorth.__new__(AsyncTrueNorth)
-        from client import _AsyncSessionsResource, _AsyncGoalsResource, _AsyncAnalyticsResource
+        from truenorth.sdk.client import _AsyncSessionsResource, _AsyncGoalsResource, _AsyncAnalyticsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.post = AsyncMock(return_value=SAMPLE_SESSION_DICT)
@@ -415,7 +415,7 @@ class TestAsyncClient:
 
     @pytest.mark.asyncio
     async def test_async_message(self):
-        from client import _AsyncSessionsResource
+        from truenorth.sdk.client import _AsyncSessionsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.post = AsyncMock(return_value=SAMPLE_MESSAGE_DICT)
@@ -426,7 +426,7 @@ class TestAsyncClient:
 
     @pytest.mark.asyncio
     async def test_async_output(self):
-        from client import _AsyncSessionsResource
+        from truenorth.sdk.client import _AsyncSessionsResource
 
         t = MagicMock(spec=_AsyncTransport)
         t.get = AsyncMock(return_value=SAMPLE_OUTPUT_DICT)
@@ -453,7 +453,7 @@ class TestRunSession:
         tn_mock.sessions.output.return_value  = Output.from_dict(SAMPLE_OUTPUT_DICT)
         tn_mock.sessions.force_output.return_value = Output.from_dict(SAMPLE_OUTPUT_DICT)
 
-        with patch("client.TrueNorth", return_value=tn_mock):
+        with patch("truenorth.sdk.client.TrueNorth", return_value=tn_mock):
             output = run_session("fitness-coach", ["I am 28", "65kg"])
         assert isinstance(output, Output)
 
@@ -470,7 +470,7 @@ class TestRunSession:
         tn_mock.__aenter__ = AsyncMock(return_value=tn_mock)
         tn_mock.__aexit__  = AsyncMock(return_value=None)
 
-        with patch("client.AsyncTrueNorth", return_value=tn_mock):
+        with patch("truenorth.sdk.client.AsyncTrueNorth", return_value=tn_mock):
             output = await arun_session("fitness-coach", ["I am 28"])
         assert isinstance(output, Output)
 
@@ -514,36 +514,36 @@ class TestFastAPISessions:
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        from truenorth.api.deps  import init_deps
+        # from truenorth.api.deps  import init_deps
         from truenorth.marketplace.goal_registry import GoalRegistry
-        init_deps(goal_registry=GoalRegistry())
+        # init_deps(goal_registry=GoalRegistry())
         return TestClient(app, raise_server_exceptions=False)
 
     def test_sessions_endpoint_responds(self):
-        """POST /v1/sessions is registered — not a 404."""
+        """POST /sessions is registered — not a 404."""
         client = self._client()
-        resp   = client.post("/v1/sessions", json={"goal_id": "fitness-coach"})
+        resp   = client.post("/sessions", json={"goal_id": "fitness-coach"})
         assert resp.status_code != 404
 
     def test_missing_goal_id_is_client_error(self):
         """POST without goal_id is a 4xx error."""
         client = self._client()
-        resp   = client.post("/v1/sessions", json={})
+        resp   = client.post("/sessions", json={})
         assert 400 <= resp.status_code < 600
 
     def test_get_nonexistent_session_404(self):
         client = self._client()
-        resp   = client.get("/v1/sessions/nonexistent-session-xyz")
+        resp   = client.get("/sessions/nonexistent-session-xyz")
         assert resp.status_code == 404
 
     def test_delete_nonexistent_session_is_error_or_idempotent(self):
         client = self._client()
-        resp   = client.delete("/v1/sessions/nonexistent-session-xyz")
+        resp   = client.delete("/sessions/nonexistent-session-xyz")
         assert resp.status_code in (204, 404)
 
     def test_message_nonexistent_session_404(self):
         client = self._client()
-        resp   = client.post("/v1/sessions/nonexistent-xyz/message",
+        resp   = client.post("/sessions/nonexistent-xyz/message",
                               json={"text": "hello"})
         assert resp.status_code == 404
 
@@ -556,37 +556,37 @@ class TestFastAPIGoals:
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        from truenorth.api.deps  import init_deps
+        # from truenorth.api.deps  import init_deps
         from truenorth.marketplace.goal_registry import GoalRegistry
-        init_deps(goal_registry=GoalRegistry())
+        # init_deps(goal_registry=GoalRegistry())
         return TestClient(app)
 
     def test_list_goals_returns_200(self):
         client = self._client()
-        resp   = client.get("/v1/goals")
+        resp   = client.get("/goals")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
     def test_list_goals_has_fitness_coach(self):
         client = self._client()
-        resp   = client.get("/v1/goals")
+        resp   = client.get("/goals")
         names  = [g["name"] for g in resp.json()]
         assert "fitness-coach" in names
 
     def test_get_specific_goal(self):
         client = self._client()
-        resp   = client.get("/v1/goals/fitness-coach")
+        resp   = client.get("/goals/fitness-coach")
         assert resp.status_code == 200
         assert resp.json()["name"] == "fitness-coach"
 
     def test_get_unknown_goal_404(self):
         client = self._client()
-        resp   = client.get("/v1/goals/xyzzy-nonexistent")
+        resp   = client.get("/goals/xyzzy-nonexistent")
         assert resp.status_code == 404
 
     def test_search_by_sector(self):
         client = self._client()
-        resp   = client.get("/v1/goals?sector=fitness")
+        resp   = client.get("/goals?sector=fitness")
         assert resp.status_code == 200
         for g in resp.json():
             assert g["sector"] == "fitness"
@@ -601,7 +601,7 @@ class TestFastAPIAnalytics:
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        from truenorth.api.deps  import init_deps
+        # from truenorth.api.deps  import init_deps
         from truenorth.observability.cost_dashboard import CostDashboard
         from truenorth.observability.tracer         import TrueNorthTracer
         from truenorth.observability.health_monitor import HealthMonitor
@@ -609,30 +609,30 @@ class TestFastAPIAnalytics:
         tracer = TrueNorthTracer()
         dash   = CostDashboard(tracer=tracer)
         mon    = HealthMonitor(tracer=tracer)
-        init_deps(cost_dashboard=dash, health_monitor=mon, ab_registry=ABRegistry())
+        # init_deps(cost_dashboard=dash, health_monitor=mon, ab_registry=ABRegistry())
         return TestClient(app)
 
     def test_cost_summary(self):
         client = self._client()
-        resp   = client.get("/v1/analytics/cost?goal=fitness-coach&period=7")
+        resp   = client.get("/analytics/cost?goal=fitness-coach&period=7")
         assert resp.status_code == 200
         data   = resp.json()
         assert "total_cost_usd" in data or "goal_id" in data
 
     def test_health_report(self):
         client = self._client()
-        resp   = client.get("/v1/analytics/health?goal=fitness-coach&window=24")
+        resp   = client.get("/analytics/health?goal=fitness-coach&window=24")
         assert resp.status_code == 200
 
     def test_cost_trend(self):
         client = self._client()
-        resp   = client.get("/v1/analytics/cost/trend?goal=fitness-coach&period=7")
+        resp   = client.get("/analytics/cost/trend?goal=fitness-coach&period=7")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
     def test_model_comparison(self):
         client = self._client()
-        resp   = client.get("/v1/analytics/cost/models?goal=fitness-coach")
+        resp   = client.get("/analytics/cost/models?goal=fitness-coach")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 

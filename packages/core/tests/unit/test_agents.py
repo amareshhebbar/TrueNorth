@@ -42,6 +42,10 @@ from truenorth.agents import (
     # ExtractionAgent, ValidationAgent, ResearchAgent, WriterAgent,
 # )
 
+from truenorth.agents.specialist.extraction_agent import ExtractionAgent
+from truenorth.agents.specialist.validation_agent import ValidationAgent
+from truenorth.agents.specialist.research_agent import ResearchAgent
+from truenorth.agents.specialist.writer_agent import WriterAgent
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers

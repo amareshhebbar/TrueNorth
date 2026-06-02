@@ -110,7 +110,7 @@ class WhatsAppChannel:
         app.post("/webhook")(channel.handle_webhook)
     """
 
-    BASE_URL = "https://graph.facebook.com/v19.0"
+    BASE_URL = "https://graph.facebook.com9.0"
 
     def __init__(
         self,

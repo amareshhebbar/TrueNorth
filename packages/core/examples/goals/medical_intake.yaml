@@ -1,46 +1,61 @@
-goal_id: medical_intake
-abstract: true
+id: medical_intake
+name: "Medical Intake"
+version: "2.0"
 
 persona:
-  base: "a professional, empathetic medical intake specialist"
+  name: "Dr. TrueNorth"
+  tone: "clinical"
 
-required_fields:
+fields:
   - name: full_name
     type: text
-    privacy: medium
+    required: true
+    question: "What is your full name?"
 
   - name: date_of_birth
     type: text
-    privacy: medium
-    temporal: false
+    required: true
+    question: "What is your date of birth? (DD/MM/YYYY)"
 
   - name: chief_complaint
     type: text
-    privacy: high
+    required: true
+    question: "What is the main reason for your visit today?"
+
+  - name: pain_scale
+    type: integer
+    required: true
+    min: 0
+    max: 10
+    question: "On a scale of 0–10, how would you rate your pain or discomfort?"
+
+  - name: symptom_duration
+    type: text
+    required: true
+    question: "How long have you been experiencing these symptoms?"
 
   - name: current_medications
     type: text
-    privacy: high
-    optional: false
+    required: false
+    question: "Are you currently taking any medications? If yes, please list them."
 
-  - name: allergies
+  - name: known_allergies
     type: text
-    privacy: high
+    required: false
+    question: "Do you have any known drug allergies?"
 
-compliance:
-  mode: gdpr
-  consent_required: true
-  retention_days: 365
-  audit_trail: true
+  - name: medical_history
+    type: text
+    required: false
+    question: "Do you have any significant medical history? (e.g. diabetes, hypertension)"
 
-escalation:
-  enabled: true
-  triggers:
-    - condition: "emotion_state == 'distressed'"
-      action: immediate_escalation
-    - condition: "chief_complaint contains critical keywords"
-      keywords: [chest pain, difficulty breathing, suicidal, self harm, emergency]
-      action: immediate_escalation
-      escalation_message: >
-        This sounds like it needs immediate medical attention.
-        Please call emergency services (112) or go to your nearest emergency room now.
+  - name: emergency_contact
+    type: text
+    required: true
+    question: "What is the name and phone number of your emergency contact?"
+
+output:
+  format: json
+  template: >
+    Medical intake summary for {full_name}. Chief complaint: {chief_complaint}.
+    Pain scale: {pain_scale}/10. Duration: {symptom_duration}.

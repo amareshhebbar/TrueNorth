@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from truenorth.storage.models import Base, Session as SessionModel
-from truenorth.core.graph_state import GraphState, FieldValue
+from truenorth.core.graph_state import GraphState
 
 
 class PostgresStore:

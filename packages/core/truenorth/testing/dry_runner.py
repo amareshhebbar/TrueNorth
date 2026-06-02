@@ -201,7 +201,7 @@ class DryRunner:
         # 1. {"turns": [{"user": "..."}]}
         # 2. {"answers": {"field_name": "value"}}
         if "turns" in data:
-            return {"turns": [t.get("user", "") for t in data["turns"]]}
+            return {"turns": [t.get("user", "") if isinstance(t, dict) else t for t in data["turns"]]}
         if "answers" in data:
             return {"answers": data["answers"]}
         return data

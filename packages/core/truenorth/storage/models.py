@@ -57,5 +57,5 @@ class AuditLog(Base):
     event_type: Mapped[str] = mapped_column(String(100))  # field_set, llm_call, session_created
     field_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     value_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256, never raw
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    log_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

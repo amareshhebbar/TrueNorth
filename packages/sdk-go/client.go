@@ -23,20 +23,20 @@ func (s *SessionsClient) Create(ctx context.Context, goalID string, opts *Create
 		if opts.SeedFields != nil { body["seed_fields"] = opts.SeedFields }
 	}
 	var out Session
-	return &out, s.t.post(ctx, "/v1/sessions", body, &out)
+	return &out, s.t.post(ctx, "/sessions", body, &out)
 }
 
 // Message sends a user message to the session and returns the agent response
 func (s *SessionsClient) Message(ctx context.Context, sessionID, text string) (*MessageResult, error) {
 	var out MessageResult
-	return &out, s.t.post(ctx, "/v1/sessions/"+sessionID+"/message",
+	return &out, s.t.post(ctx, "/sessions/"+sessionID+"/message",
 		map[string]string{"text": text}, &out)
 }
 
 // Get retrieves the current state of a session
 func (s *SessionsClient) Get(ctx context.Context, sessionID string) (*Session, error) {
 	var out Session
-	return &out, s.t.get(ctx, "/v1/sessions/"+sessionID, nil, &out)
+	return &out, s.t.get(ctx, "/sessions/"+sessionID, nil, &out)
 }
 
 // Output returns the final structured output
@@ -45,7 +45,7 @@ func (s *SessionsClient) Output(ctx context.Context, sessionID string) (*Output,
 		Output    *Output `json:"output"`
 		SessionID string  `json:"session_id"`
 	}
-	if err := s.t.get(ctx, "/v1/sessions/"+sessionID+"/output", nil, &wrapper); err != nil {
+	if err := s.t.get(ctx, "/sessions/"+sessionID+"/output", nil, &wrapper); err != nil {
 		return nil, err
 	}
 	if wrapper.Output == nil {
@@ -64,7 +64,7 @@ func (s *SessionsClient) ForceOutput(ctx context.Context, sessionID string) (*Ou
 		Output *Output `json:"output"`
 		Text   string  `json:"text"`
 	}
-	if err := s.t.post(ctx, "/v1/sessions/"+sessionID+"/force-output", nil, &wrapper); err != nil {
+	if err := s.t.post(ctx, "/sessions/"+sessionID+"/force-output", nil, &wrapper); err != nil {
 		return nil, err
 	}
 	return wrapper.Output, nil
@@ -72,7 +72,7 @@ func (s *SessionsClient) ForceOutput(ctx context.Context, sessionID string) (*Ou
 
 // End terminates and cleans up a session
 func (s *SessionsClient) End(ctx context.Context, sessionID string) error {
-	return s.t.delete(ctx, "/v1/sessions/"+sessionID)
+	return s.t.delete(ctx, "/sessions/"+sessionID)
 }
 
 type GoalsClient struct {
@@ -86,7 +86,7 @@ func (g *GoalsClient) List(ctx context.Context, query, sector string, limit int)
 	if sector != "" { params.Set("sector", sector)                 }
 	if limit   > 0  { params.Set("limit", strconv.Itoa(limit))     }
 	var out []Goal
-	return out, g.t.get(ctx, "/v1/goals", params, &out)
+	return out, g.t.get(ctx, "/goals", params, &out)
 }
 
 // Get returns full details for a specific goal version
@@ -96,7 +96,7 @@ func (g *GoalsClient) Get(ctx context.Context, name, version string) (*Goal, err
 	}
 	params := url.Values{"version": {version}}
 	var out Goal
-	return &out, g.t.get(ctx, "/v1/goals/"+name, params, &out)
+	return &out, g.t.get(ctx, "/goals/"+name, params, &out)
 }
 
 // Install downloads and installs a goal from the registry
@@ -105,7 +105,7 @@ func (g *GoalsClient) Install(ctx context.Context, name, version string) (*Goal,
 		version = "latest"
 	}
 	var out Goal
-	return &out, g.t.post(ctx, "/v1/goals/"+name+"/install",
+	return &out, g.t.post(ctx, "/goals/"+name+"/install",
 		map[string]string{"version": version}, &out)
 }
 
@@ -124,7 +124,7 @@ func (a *AnalyticsClient) Cost(ctx context.Context, goalID string, periodDays in
 		"period": {strconv.Itoa(periodDays)},
 	}
 	var out CostSummary
-	return &out, a.t.get(ctx, "/v1/analytics/cost", params, &out)
+	return &out, a.t.get(ctx, "/analytics/cost", params, &out)
 }
 
 // Health returns health metrics for a goal over the given window
@@ -137,5 +137,5 @@ func (a *AnalyticsClient) Health(ctx context.Context, goalID string, windowHours
 		"window": {strconv.Itoa(windowHours)},
 	}
 	var out GoalHealthReport
-	return &out, a.t.get(ctx, "/v1/analytics/health", params, &out)
+	return &out, a.t.get(ctx, "/analytics/health", params, &out)
 }

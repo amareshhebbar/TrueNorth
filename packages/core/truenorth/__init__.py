@@ -1,10 +1,8 @@
+
 """TrueNorth — Conversation-first AI agent framework."""
 
-__version__ = "0.1.0"
-__author__ = "Studio Ilios"
+__version__ = "10.4.5"
+__author__ = "Amaresh Hebbar"
 
-from truenorth.core.engine import TrueNorthEngine
-from truenorth.core.graph_state import GraphState
-
-# Removed FieldValue from both the import and the __all__ list
-__all__ = ["TrueNorthEngine", "GraphState"]
+# Remove the eager imports of TrueNorthEngine and GraphState here 
+# to prevent circular dependency loops during internal test discovery.

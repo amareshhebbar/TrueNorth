@@ -243,7 +243,7 @@ class SessionManager:
     async def get_status(self, session_id: str) -> Optional[str]:
         envelope = await self._get_envelope(session_id)
         return envelope.status if envelope else None
-
+    
     async def list_sessions(
         self,
         user_id:   Optional[str] = None,

@@ -62,26 +62,26 @@ _PLATFORM_DEFAULTS = {
     MobilePlatform.IOS: {
         "endpoint":    "http://127.0.0.1:49152",
         "model":       "apple/on-device-3b",
-        "health_path": "/v1/health",
-        "chat_path":   "/v1/chat/completions",
-        "models_path": "/v1/models",
-        "caps_path":   "/v1/capabilities",
+        "health_path": "/health",
+        "chat_path":   "/chat/completions",
+        "models_path": "/models",
+        "caps_path":   "/capabilities",
     },
     MobilePlatform.ANDROID: {
         "endpoint":    "http://127.0.0.1:49153",
         "model":       "gemini-nano",
-        "health_path": "/v1/health",
-        "chat_path":   "/v1/chat/completions",
-        "models_path": "/v1/models",
-        "caps_path":   "/v1/capabilities",
+        "health_path": "/health",
+        "chat_path":   "/chat/completions",
+        "models_path": "/models",
+        "caps_path":   "/capabilities",
     },
     MobilePlatform.GENERIC: {
         "endpoint":    "http://127.0.0.1:49154",
         "model":       "on-device",
-        "health_path": "/v1/health",
-        "chat_path":   "/v1/chat/completions",
-        "models_path": "/v1/models",
-        "caps_path":   "/v1/capabilities",
+        "health_path": "/health",
+        "chat_path":   "/chat/completions",
+        "models_path": "/models",
+        "caps_path":   "/capabilities",
     },
 }
 
@@ -94,7 +94,7 @@ MOBILE_PREFERRED_TASKS = {"extract", "classify", "embed"}
 
 @dataclass
 class DeviceCapabilities:
-    """Reported by the mobile SDK's /v1/capabilities endpoint."""
+    """Reported by the mobile SDK's /capabilities endpoint."""
     platform:          str
     model_name:        str
     context_window:    int     = 4096

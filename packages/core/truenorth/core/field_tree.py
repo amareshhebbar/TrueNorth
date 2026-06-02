@@ -208,6 +208,27 @@ class FieldTree:
     # Condition evaluators
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _normalise_show_if(cfg: dict) -> dict:
+        """
+        Translate 'show_if' key (from YAML) into canonical condition keys.
+        show_if:
+          field_name: value       → if_value_is: {field: field_name, value: value}
+          field_name: true/false  → if_true / if_false
+        """
+        show_if = cfg.get("show_if")
+        if not show_if or not isinstance(show_if, dict):
+            return cfg
+        result = dict(cfg)
+        for field_name, gate_value in show_if.items():
+            if gate_value is True:
+                result.setdefault("if_true", field_name)
+            elif gate_value is False:
+                result.setdefault("if_false", field_name)
+            else:
+                result.setdefault("if_value_is", {"field": field_name, "value": gate_value})
+        return result
+
     def _eval_all_conditions(
         self,
         cfg:              dict,
@@ -217,6 +238,7 @@ class FieldTree:
         Evaluate ALL condition types present in a field config.
         All present conditions must pass (implicit AND).
         """
+        cfg = self._normalise_show_if(cfg)
         # if_true: field_name
         if_true = cfg.get("if_true")
         if if_true:

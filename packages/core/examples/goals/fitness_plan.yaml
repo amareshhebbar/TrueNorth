@@ -1,109 +1,120 @@
-goal_id: fitness_plan
+id: fitness_plan
+name: "Fitness Plan"
+version: "1.0"
 
 persona:
-  base: "a warm, knowledgeable fitness coach who is encouraging and practical"
-  adaptive: true
+  name: "Alex"
+  tone: "warm"
 
-required_fields:
+fields:
+  - name: name
+    type: text
+    required: true
+    question: "What's your name?"
+
   - name: age
     type: integer
-    privacy: low
+    required: true
+    min: 16
+    max: 100
+    question: "How old are you?"
 
-  - name: height
-    type: float
-    privacy: low
+  - name: weight_kg
+    type: number
+    required: true
+    question: "What's your current weight in kg?"
 
-  - name: weight
-    type: float
-    privacy: medium
-    temporal: true
-    max_age_days: 7
+  - name: height_cm
+    type: number
+    required: true
+    question: "What's your height in cm?"
 
-  - name: fitness_goal
-    type: enum
-    values: [weight_loss, muscle_gain, endurance, flexibility, general_fitness]
-    privacy: low
+  - name: primary_goal
+    type: text
+    required: true
+    allowed_values: [lose weight, build muscle, run 5k, general fitness, improve flexibility]
+    question: "What is your primary fitness goal?"
 
-  - name: experience_level
-    type: enum
-    values: [beginner, intermediate, advanced]
-    privacy: low
+  - name: activity_level
+    type: text
+    required: true
+    allowed_values: [sedentary, lightly active, moderately active, very active, extremely active]
+    question: "How would you describe your current activity level?"
 
   - name: days_per_week
     type: integer
-    privacy: low
+    required: true
+    min: 1
+    max: 7
+    question: "How many days per week can you train?"
 
-optional_fields:
-  - name: injuries
+  - name: session_duration_minutes
+    type: integer
+    required: true
+    min: 15
+    max: 180
+    question: "How long can each training session be (minutes)?"
+
+  - name: has_gym_access
+    type: boolean
+    required: true
+    question: "Do you have access to a gym or equipment?"
+
+  - name: has_injury
+    type: boolean
+    required: true
+    question: "Do you have any current injuries or physical limitations?"
+
+  - name: injury_description
     type: text
-    privacy: medium
-    optional: true
-    follow_ups:
-      - "Which area is affected?"
-      - "How long have you had it?"
-      - "Does it hurt during exercise or only after?"
+    required: false
+    if_true: has_injury
+    question: "Please describe your injury or limitation."
 
-  - name: equipment_access
-    type: enum
-    values: [gym, home_basic, home_full, no_equipment]
-    privacy: low
-    optional: true
-
-  - name: diet_type
-    type: enum
-    values: [no_restriction, vegetarian, vegan, keto, other]
-    privacy: low
-    optional: true
-
-  - name: medical_conditions
+  - name: target_muscle_groups
     type: text
-    privacy: high
-    optional: true
-    encryption: aes256
+    required: false
+    if_value_is:
+      field: primary_goal
+      value: build muscle
+    question: "Which muscle groups do you want to focus on?"
+
+  - name: current_lifts_kg
+    type: text
+    required: false
+    if_value_is:
+      field: primary_goal
+      value: build muscle
+    question: "What are your current lifts (bench, squat, deadlift) in kg?"
+
+  - name: target_5k_time_minutes
+    type: integer
+    required: false
+    if_value_is:
+      field: primary_goal
+      value: run 5k
+    question: "What is your target 5k time in minutes?"
+
+  - name: recovery_focus
+    type: boolean
+    required: false
+    if_numeric_gt:
+      field: age
+      value: 45
+    question: "Would you like to incorporate recovery and mobility work?"
+
+  - name: beginner_guidance
+    type: boolean
+    required: false
+    if_value_in:
+      field: activity_level
+      values: [sedentary, lightly active]
+    question: "Would you like beginner-friendly guidance?"
 
 output:
-  format: structured_report
-  sections:
-    - name: weekly_workout_plan
-      always_include: true
-    - name: injury_modifications
-      include_if: "profile.get('injuries') and profile['injuries'] not in ['none', 'no', '']"
-    - name: diet_recommendations
-      include_if: "profile.get('diet_type')"
-    - name: beginner_guidance
-      include_if: "profile.get('experience_level') == 'beginner'"
-    - name: progress_tracking
-      always_include: true
-
-compliance:
-  mode: none
-
-rate_limits:
-  sessions_per_day: 5
-  messages_per_session: 40
-
-cost_management:
-  max_tokens_per_session: 8000
-  max_cost_per_session_usd: 0.04
-  fallback_model: gemini-2.0-flash-lite
-
-escalation:
-  enabled: true
-  triggers:
-    - condition: "emotion_state == 'distressed'"
-      action: immediate_escalation
-      escalation_message: >
-        I'm concerned about you. Let me connect you with someone
-        who can provide the right support right now.
-    - condition: "consecutive_confusion_turns >= 3"
-      action: offer_escalation
-      message: "Would it help to speak with a human coach directly?"
-
-webhooks:
-  on_goal_complete:
-    - url: "${WEBHOOK_URL}"
-      method: POST
-      payload:
-        session_id: "{{session_id}}"
-        profile: "{{profile}}"
-        completed_at: "{{timestamp}}"
+  format: json
+  template: >
+    Create a personalised 4-week fitness plan for {name}, aged {age}.
+    Goal: {primary_goal}. Activity level: {activity_level}.
+    Available {days_per_week} days/week, {session_duration_minutes} min/session.
+    Gym access: {has_gym_access}.

@@ -426,7 +426,7 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_unreachable_bridge_returns_false(self):
-        mock_http = MockHTTPClient(fail_on="/v1/health")
+        mock_http = MockHTTPClient(fail_on="/health")
         c = _client_with_mock(mock_http)
         assert await c.health_check() is False
 
@@ -447,7 +447,7 @@ class TestListModels:
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_failure(self):
-        mock_http = MockHTTPClient(fail_on="/v1/models")
+        mock_http = MockHTTPClient(fail_on="/models")
         c = _client_with_mock(mock_http)
         models = await c.list_models()
         assert models == []
@@ -485,7 +485,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_connection_refused_raises_mobile_unavailable(self):
-        mock_http = MockHTTPClient(fail_on="/v1/chat")
+        mock_http = MockHTTPClient(fail_on="/chat")
         c = _client_with_mock(mock_http)
         c._capabilities = DeviceCapabilities(
             platform="ios", model_name="m", battery_level=1.0, thermal_state="nominal"
@@ -503,7 +503,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_stream_raises_on_connection_failure(self):
-        mock_http = MockHTTPClient(fail_on="/v1/chat")
+        mock_http = MockHTTPClient(fail_on="/chat")
         c = _client_with_mock(mock_http)
         c._capabilities = DeviceCapabilities(
             platform="ios", model_name="m", battery_level=1.0, thermal_state="nominal"

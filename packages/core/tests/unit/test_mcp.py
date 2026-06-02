@@ -91,7 +91,7 @@ class TestTypes:
         t = _make_tool()
         d = t.to_dict()
         assert d["name"]   == "test_tool"
-        assert "server"    in d
+        assert "server_name" in d
         assert "input_schema" in d
 
     def test_tool_llm_description_includes_params(self):

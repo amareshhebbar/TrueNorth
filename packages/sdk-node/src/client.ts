@@ -162,7 +162,7 @@ export class SessionsClient {
   constructor(private readonly t: Transport) {}
 
   async create(goalId: string, opts?: CreateSessionOptions): Promise<Session> {
-    return mapSession(await this.t.post<RawSession>('/v1/sessions', {
+    return mapSession(await this.t.post<RawSession>('/sessions', {
       goal_id:     goalId,
       user_id:     opts?.userId,
       session_id:  opts?.sessionId,
@@ -175,30 +175,30 @@ export class SessionsClient {
 
   async message(sessionId: string, text: string): Promise<MessageResult> {
     return mapMessage(
-      await this.t.post<RawMessageResult>(`/v1/sessions/${sessionId}/message`, { text })
+      await this.t.post<RawMessageResult>(`/sessions/${sessionId}/message`, { text })
     )
   }
 
   async get(sessionId: string): Promise<Session> {
-    return mapSession(await this.t.get<RawSession>(`/v1/sessions/${sessionId}`))
+    return mapSession(await this.t.get<RawSession>(`/sessions/${sessionId}`))
   }
 
   async output(sessionId: string): Promise<Output> {
     const r = await this.t.get<{ output: RawOutput; session_id: string }>(
-      `/v1/sessions/${sessionId}/output`
+      `/sessions/${sessionId}/output`
     )
     return mapOutput({ ...r.output, session_id: r.session_id })
   }
 
   async forceOutput(sessionId: string): Promise<Output> {
     const r = await this.t.post<{ output: RawOutput; session_id: string; text: string }>(
-      `/v1/sessions/${sessionId}/force-output`
+      `/sessions/${sessionId}/force-output`
     )
     return mapOutput({ ...(r.output ?? {}), session_id: r.session_id })
   }
 
   async end(sessionId: string): Promise<void> {
-    await this.t.delete(`/v1/sessions/${sessionId}`)
+    await this.t.delete(`/sessions/${sessionId}`)
   }
 }
 
@@ -206,15 +206,15 @@ export class GoalsClient {
   constructor(private readonly t: Transport) {}
 
   async list(opts?: { q?: string; sector?: string; limit?: number }): Promise<Goal[]> {
-    return this.t.get('/v1/goals', opts as Record<string, string | number | undefined>)
+    return this.t.get('/goals', opts as Record<string, string | number | undefined>)
   }
 
   async get(name: string, version = 'latest'): Promise<Goal> {
-    return this.t.get(`/v1/goals/${name}`, { version })
+    return this.t.get(`/goals/${name}`, { version })
   }
 
   async install(name: string, version = 'latest'): Promise<Goal> {
-    return this.t.post(`/v1/goals/${name}/install`, { version })
+    return this.t.post(`/goals/${name}/install`, { version })
   }
 }
 
@@ -222,11 +222,11 @@ export class AnalyticsClient {
   constructor(private readonly t: Transport) {}
 
   async cost(goalId: string, periodDays = 7): Promise<CostSummary> {
-    return this.t.get('/v1/analytics/cost', { goal: goalId, period: periodDays })
+    return this.t.get('/analytics/cost', { goal: goalId, period: periodDays })
   }
 
   async health(goalId: string, windowHours = 24): Promise<GoalHealthReport> {
-    return this.t.get('/v1/analytics/health', { goal: goalId, window: windowHours })
+    return this.t.get('/analytics/health', { goal: goalId, window: windowHours })
   }
 
   async costTrend(
@@ -234,7 +234,7 @@ export class AnalyticsClient {
     periodDays   = 30,
     granularity: 'day' | 'hour' = 'day',
   ): Promise<Array<{ period: string; costUsd: number; sessions: number; tokens: number }>> {
-    return this.t.get('/v1/analytics/cost/trend', {
+    return this.t.get('/analytics/cost/trend', {
       goal: goalId, period: periodDays, granularity,
     })
   }

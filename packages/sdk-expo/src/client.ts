@@ -169,7 +169,7 @@ export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): Us
   useEffect(() => {
     let cancelled = false
     setIsLoading(true); setError(null)
-    apiRequest<RawSession>(config, 'POST', '/v1/sessions', {
+    apiRequest<RawSession>(config, 'POST', '/sessions', {
       goal_id: goalId, user_id: opts.userId,
       budget_usd: opts.budgetUsd, seed_fields: opts.seedFields,
     }).then(r => {
@@ -187,14 +187,14 @@ export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): Us
     if (!sessionId || isLoading || isComplete) return
     setIsLoading(true); setError(null)
     try {
-      const raw    = await apiRequest<RawMsg>(config, 'POST', `/v1/sessions/${sessionId}/message`, { text })
+      const raw    = await apiRequest<RawMsg>(config, 'POST', `/sessions/${sessionId}/message`, { text })
       const result = mapMsg(raw)
       setAgentText(result.text)
       setCompletionPct(result.completionPct)
       setTotalCostUsd(p => p + result.costUsd)
       if (result.isComplete) {
         setIsComplete(true)
-        const out = result.output ?? (await apiRequest<{ output: Output }>(config, 'GET', `/v1/sessions/${sessionId}/output`)).output
+        const out = result.output ?? (await apiRequest<{ output: Output }>(config, 'GET', `/sessions/${sessionId}/output`)).output
         setOutput(out)
         onCompleteRef.current?.(out)
       }
@@ -224,15 +224,15 @@ export class TrueNorthClient {
   constructor(config: Config) { this.config = resolved(config) }
 
   async createSession(goalId: string, opts?: { userId?: string; budgetUsd?: number }): Promise<Session> {
-    return mapSess(await apiRequest<RawSession>(this.config, 'POST', '/v1/sessions', { goal_id: goalId, user_id: opts?.userId, budget_usd: opts?.budgetUsd }))
+    return mapSess(await apiRequest<RawSession>(this.config, 'POST', '/sessions', { goal_id: goalId, user_id: opts?.userId, budget_usd: opts?.budgetUsd }))
   }
 
   async sendMessage(sessionId: string, text: string): Promise<MessageResult> {
-    return mapMsg(await apiRequest<RawMsg>(this.config, 'POST', `/v1/sessions/${sessionId}/message`, { text }))
+    return mapMsg(await apiRequest<RawMsg>(this.config, 'POST', `/sessions/${sessionId}/message`, { text }))
   }
 
   async getOutput(sessionId: string): Promise<Output> {
-    const r = await apiRequest<{ output: Output }>(this.config, 'GET', `/v1/sessions/${sessionId}/output`)
+    const r = await apiRequest<{ output: Output }>(this.config, 'GET', `/sessions/${sessionId}/output`)
     return r.output
   }
 }

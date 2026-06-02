@@ -1,6 +1,6 @@
 // app/api/chat/route.ts — Next.js App Router example
 import { NextRequest, NextResponse } from "next/server";
-import { TrueNorthClient } from "@studioilios/truenorth";
+import { TrueNorthClient } from "@amareshhebbar/truenorth";
 
 const tn = new TrueNorthClient({
   serverUrl: process.env.TRUENORTH_API_URL ?? "http://localhost:8000",

@@ -1,4 +1,4 @@
-module github.com/studioilios/truenorth
+module github.com/amareshhebbar/truenorth
 
 go 1.22
 

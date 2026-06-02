@@ -98,7 +98,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added — Phase 10: REST API + SDKs
 
-- FastAPI REST API: `/v1/sessions`, `/v1/goals`, `/v1/analytics`
+- FastAPI REST API: `/sessions`, `/goals`, `/analytics`
 - Python SDK — sync (`TrueNorth`) + async (`AsyncTrueNorth`), stdlib only
 - TypeScript SDK — works in Node.js, Bun, Deno, Next.js, React
 - Go SDK — idiomatic Go, context-aware, full test coverage

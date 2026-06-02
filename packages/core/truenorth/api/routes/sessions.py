@@ -68,11 +68,17 @@ async def create_session(req: CreateSessionRequest,
 @router.get("/{session_id}")
 async def get_session(session_id: str, x_api_key: str | None = Header(default=None)):
     _verify_api_key(x_api_key)
-    from truenorth.api.main import db_store
-    if not db_store:
-        raise HTTPException(503, "Database not available")
-    # Needs goal config to deserialize — simplified for now
-    return {"session_id": session_id, "message": "use /sessions/{id}/messages to continue"}
+    
+    from truenorth.core.session_manager import SessionManager
+    from truenorth.api.main import db_store, redis_store
+    
+    sm = SessionManager(postgres=db_store, redis=redis_store)
+    state = await sm.load(session_id)
+    
+    if not state:
+        raise HTTPException(404, "Session not found")
+        
+    return {"session_id": session_id, "state": state}
 
 
 def _load_goal_config(goal_id: str):
@@ -88,3 +94,37 @@ def _verify_api_key(key: str | None):
     expected = os.getenv("TRUENORTH_API_KEY", "")
     if expected and key != expected:
         raise HTTPException(401, "Invalid API key")
+
+
+@router.get("")
+async def list_sessions(
+    user_id: str | None = None,
+    tenant_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    x_api_key: str | None = Header(default=None)
+):
+    _verify_api_key(x_api_key)
+    from truenorth.core.session_manager import SessionManager
+    from truenorth.api.main import db_store, redis_store
+    
+    sm = SessionManager(postgres=db_store, redis=redis_store)
+    return await sm.list_sessions(
+        user_id=user_id, tenant_id=tenant_id, status=status, limit=limit, offset=offset
+    )
+
+@router.delete("/{session_id}")
+async def delete_session(session_id: str, x_api_key: str | None = Header(default=None)):
+    _verify_api_key(x_api_key)
+    from truenorth.core.session_manager import SessionManager
+    from truenorth.api.main import db_store, redis_store
+    
+    sm = SessionManager(postgres=db_store, redis=redis_store)
+    deleted = await sm.delete(session_id)
+    
+    # If the session wasn't found to be deleted, return a 404
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {"status": "deleted", "session_id": session_id}

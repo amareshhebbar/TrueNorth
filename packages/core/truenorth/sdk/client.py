@@ -259,7 +259,7 @@ class _SessionsResource:
         seed_fields: Optional[Dict[str, Any]] = None,
         language:   Optional[str]            = None,
     ) -> Session:
-        resp = self._t.post("/v1/sessions", {
+        resp = self._t.post("/sessions", {
             "goal_id": goal_id, "user_id": user_id,
             "session_id": session_id, "budget_usd": budget_usd,
             "seed_fields": seed_fields, "language": language,
@@ -267,20 +267,20 @@ class _SessionsResource:
         return Session.from_dict(resp)
 
     def message(self, session_id: str, text: str) -> MessageResult:
-        resp = self._t.post(f"/v1/sessions/{session_id}/message", {"text": text})
+        resp = self._t.post(f"/sessions/{session_id}/message", {"text": text})
         return MessageResult.from_dict(resp)
 
     def get(self, session_id: str) -> Session:
-        return Session.from_dict(self._t.get(f"/v1/sessions/{session_id}"))
+        return Session.from_dict(self._t.get(f"/sessions/{session_id}"))
 
     def output(self, session_id: str) -> Output:
-        return Output.from_dict(self._t.get(f"/v1/sessions/{session_id}/output"))
+        return Output.from_dict(self._t.get(f"/sessions/{session_id}/output"))
 
     def force_output(self, session_id: str) -> Output:
-        return Output.from_dict(self._t.post(f"/v1/sessions/{session_id}/force-output"))
+        return Output.from_dict(self._t.post(f"/sessions/{session_id}/force-output"))
 
     def end(self, session_id: str) -> None:
-        self._t.delete(f"/v1/sessions/{session_id}")
+        self._t.delete(f"/sessions/{session_id}")
 
 
 class _AsyncSessionsResource:
@@ -295,7 +295,7 @@ class _AsyncSessionsResource:
         seed_fields: Optional[Dict[str, Any]] = None,
         language:   Optional[str]            = None,
     ) -> Session:
-        resp = await self._t.post("/v1/sessions", {
+        resp = await self._t.post("/sessions", {
             "goal_id": goal_id, "user_id": user_id,
             "session_id": session_id, "budget_usd": budget_usd,
             "seed_fields": seed_fields, "language": language,
@@ -303,59 +303,59 @@ class _AsyncSessionsResource:
         return Session.from_dict(resp)
 
     async def message(self, session_id: str, text: str) -> MessageResult:
-        resp = await self._t.post(f"/v1/sessions/{session_id}/message", {"text": text})
+        resp = await self._t.post(f"/sessions/{session_id}/message", {"text": text})
         return MessageResult.from_dict(resp)
 
     async def get(self, session_id: str) -> Session:
-        return Session.from_dict(await self._t.get(f"/v1/sessions/{session_id}"))
+        return Session.from_dict(await self._t.get(f"/sessions/{session_id}"))
 
     async def output(self, session_id: str) -> Output:
-        return Output.from_dict(await self._t.get(f"/v1/sessions/{session_id}/output"))
+        return Output.from_dict(await self._t.get(f"/sessions/{session_id}/output"))
 
     async def force_output(self, session_id: str) -> Output:
-        return Output.from_dict(await self._t.post(f"/v1/sessions/{session_id}/force-output"))
+        return Output.from_dict(await self._t.post(f"/sessions/{session_id}/force-output"))
 
     async def end(self, session_id: str) -> None:
-        await self._t.delete(f"/v1/sessions/{session_id}")
+        await self._t.delete(f"/sessions/{session_id}")
 
 
 class _GoalsResource:
     def __init__(self, transport): self._t = transport
 
     def list(self, q: str = "", sector: str = None, limit: int = 20) -> List[dict]:
-        return self._t.get("/v1/goals", {"q": q, "sector": sector, "limit": limit})
+        return self._t.get("/goals", {"q": q, "sector": sector, "limit": limit})
 
     def get(self, name: str, version: str = "latest") -> dict:
-        return self._t.get(f"/v1/goals/{name}", {"version": version})
+        return self._t.get(f"/goals/{name}", {"version": version})
 
     def install(self, name: str, version: str = "latest") -> dict:
-        return self._t.post(f"/v1/goals/{name}/install", {"version": version})
+        return self._t.post(f"/goals/{name}/install", {"version": version})
 
 
 class _AsyncGoalsResource:
     def __init__(self, transport): self._t = transport
 
     async def list(self, q: str = "", sector: str = None, limit: int = 20) -> List[dict]:
-        return await self._t.get("/v1/goals", {"q": q, "sector": sector, "limit": limit})
+        return await self._t.get("/goals", {"q": q, "sector": sector, "limit": limit})
 
     async def get(self, name: str, version: str = "latest") -> dict:
-        return await self._t.get(f"/v1/goals/{name}", {"version": version})
+        return await self._t.get(f"/goals/{name}", {"version": version})
 
     async def install(self, name: str, version: str = "latest") -> dict:
-        return await self._t.post(f"/v1/goals/{name}/install", {"version": version})
+        return await self._t.post(f"/goals/{name}/install", {"version": version})
 
 
 class _AnalyticsResource:
     def __init__(self, transport): self._t = transport
 
     def cost(self, goal: str, period: int = 7) -> dict:
-        return self._t.get("/v1/analytics/cost", {"goal": goal, "period": period})
+        return self._t.get("/analytics/cost", {"goal": goal, "period": period})
 
     def health(self, goal: str, window: int = 24) -> dict:
-        return self._t.get("/v1/analytics/health", {"goal": goal, "window": window})
+        return self._t.get("/analytics/health", {"goal": goal, "window": window})
 
     def cost_trend(self, goal: str, period: int = 30, granularity: str = "day") -> List[dict]:
-        return self._t.get("/v1/analytics/cost/trend",
+        return self._t.get("/analytics/cost/trend",
                            {"goal": goal, "period": period, "granularity": granularity})
 
 
@@ -363,13 +363,13 @@ class _AsyncAnalyticsResource:
     def __init__(self, transport): self._t = transport
 
     async def cost(self, goal: str, period: int = 7) -> dict:
-        return await self._t.get("/v1/analytics/cost", {"goal": goal, "period": period})
+        return await self._t.get("/analytics/cost", {"goal": goal, "period": period})
 
     async def health(self, goal: str, window: int = 24) -> dict:
-        return await self._t.get("/v1/analytics/health", {"goal": goal, "window": window})
+        return await self._t.get("/analytics/health", {"goal": goal, "window": window})
 
     async def cost_trend(self, goal: str, period: int = 30, granularity: str = "day") -> List[dict]:
-        return await self._t.get("/v1/analytics/cost/trend",
+        return await self._t.get("/analytics/cost/trend",
                                  {"goal": goal, "period": period, "granularity": granularity})
 
 

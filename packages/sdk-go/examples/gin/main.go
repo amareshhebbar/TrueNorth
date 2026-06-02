@@ -1,4 +1,3 @@
-// Example: TrueNorth with Gin web framework
 package main
 
 import (
@@ -7,7 +6,8 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	truenorth "github.com/studioilios/truenorth"
+
+	truenorth "github.com/amareshhebbar/truenorth"
 )
 
 var tn = truenorth.New(

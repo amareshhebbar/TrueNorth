@@ -54,6 +54,9 @@ from truenorth.compliance.dpdp import (
 # from truenorth.compliance.dpdp import (
 #     GDPRManager, GDPRConsentRecord, GDPRLegalBasis, DataSubjectRight,
 # )
+from truenorth.memory.session_resume import SessionResume
+from truenorth.memory.vector_store import VectorStore
+from truenorth.compliance.gdpr import GDPRManager, GDPRLegalBasis, DataSubjectRight
 from truenorth.channel.whatsapp import WhatsAppMessage, WhatsAppChannel
 
 

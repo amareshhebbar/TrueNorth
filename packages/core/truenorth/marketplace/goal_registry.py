@@ -163,7 +163,7 @@ class GoalRegistry:
         registry.set_install_dir("~/.truenorth/goals")
     """
 
-    DEFAULT_REGISTRY_URL = "https://registry.truenorth.ai/v1"
+    DEFAULT_REGISTRY_URL = "https://registry.truenorth.ai"
     INSTALL_DIR_DEFAULT  = "~/.truenorth/goals"
 
     def __init__(

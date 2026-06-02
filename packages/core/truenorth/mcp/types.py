@@ -1,4 +1,3 @@
-"""truenorth/mcp/types.py"""
 from __future__ import annotations
 import time, uuid
 from dataclasses import dataclass, field
@@ -18,6 +17,11 @@ class Tool:
     server_name:  str
     input_schema: Dict[str, Any] = field(default_factory=dict)
     builtin:      bool           = False
+    def llm_description(self) -> str:
+        props  = self.input_schema.get("properties", {})
+        params = ", ".join(f"{k}: {v.get('type','any')}" for k,v in props.items())
+        return f"{self.name}({params}) — {self.description}"
+
     def to_dict(self) -> dict:
         return {"name": self.name, "description": self.description,
                 "server_name": self.server_name, "input_schema": self.input_schema,
@@ -25,8 +29,8 @@ class Tool:
 
 @dataclass
 class ToolCall:
-    call_id:    str
     tool_name:  str
+    call_id:    str                = ''
     arguments:  Dict[str, Any] = field(default_factory=dict)
     session_id: str            = ""
     turn:       int            = 0
@@ -42,9 +46,9 @@ class ToolCall:
 
 @dataclass
 class ToolResult:
-    call_id:    str
     tool_name:  str
     status:     ToolResultStatus
+    call_id:    str                = ''
     content:    Optional[Any] = None
     error:      Optional[str] = None
     latency_ms: int           = 0
@@ -52,6 +56,10 @@ class ToolResult:
     @property
     def is_success(self) -> bool:
         return self.status == ToolResultStatus.SUCCESS
+    @property
+    def text(self) -> str:
+        return self.result_text
+
     @property
     def result_text(self) -> str:
         if self.content is None:

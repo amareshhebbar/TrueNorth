@@ -367,13 +367,13 @@ asyncio.run(main())
 truenorth serve --port 8000
 
 # Create a session
-curl -X POST http://localhost:8000/v1/sessions \
+curl -X POST http://localhost:8000/sessions \
   -H "X-TrueNorth-Key: tn_live_..." \
   -H "Content-Type: application/json" \
   -d '{"goal_id": "fitness-coach"}'
 
 # Send a message
-curl -X POST http://localhost:8000/v1/sessions/sess-abc/message \
+curl -X POST http://localhost:8000/sessions/sess-abc/message \
   -H "X-TrueNorth-Key: tn_live_..." \
   -d '{"text": "I am 28 years old"}'
 ```
@@ -547,7 +547,7 @@ chain:
 ┌────────────────────────────▼────────────────────────────────────┐
 │                      API Layer (FastAPI)                         │
 │  Auth middleware · Rate limiter · Budget guard                   │
-│  /v1/sessions · /v1/goals · /v1/analytics                       │
+│  /sessions · /goals · /analytics                       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐

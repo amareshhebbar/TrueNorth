@@ -644,19 +644,19 @@ class LLMRouter:
 
         if provider == "cohere":
             from truenorth.llm.openai_client import OpenAIClient
-            model_config["base_url"] = "https://api.cohere.com/compatibility/v1"
+            model_config["base_url"] = "https://api.cohere.com/compatibility"
             model_config.setdefault("api_key", os.environ.get("COHERE_API_KEY", ""))
             return OpenAIClient(config=model_config)
 
         if provider == "groq":
             from truenorth.llm.openai_client import OpenAIClient
-            model_config["base_url"] = "https://api.groq.com/openai/v1"
+            model_config["base_url"] = "https://api.groq.com/openai"
             model_config.setdefault("api_key", os.environ.get("GROQ_API_KEY", ""))
             return OpenAIClient(config=model_config)
 
         if provider == "together":
             from truenorth.llm.openai_client import OpenAIClient
-            model_config["base_url"] = "https://api.together.xyz/v1"
+            model_config["base_url"] = "https://api.together.xyz"
             model_config.setdefault("api_key", os.environ.get("TOGETHER_API_KEY", ""))
             return OpenAIClient(config=model_config)
 

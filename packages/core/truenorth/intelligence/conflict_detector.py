@@ -77,14 +77,14 @@ class ConflictEvidence:
 
 @dataclass
 class Conflict:
-    id:              str
     field:           str
     old_value:       Any
     new_value:       Any
     conflict_type:   ConflictType
-    severity:        ConflictSeverity
     turn_old:        int
     turn_new:        int
+    id:              str             = field(default_factory=lambda: __import__("uuid").uuid4().hex[:8])
+    severity:        ConflictSeverity = ConflictSeverity.MEDIUM
     status:          ConflictStatus  = ConflictStatus.OPEN
     resolution:      Optional[Any]   = None
     resolution_turn: Optional[int]   = None

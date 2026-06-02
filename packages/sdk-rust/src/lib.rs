@@ -216,21 +216,21 @@ impl SessionsClient {
             if let Some(budget) = o.budget_usd { body["budget_usd"] = budget.into(); }
             if let Some(lang)   = o.language   { body["language"]   = lang.into(); }
         }
-        self.t.post("/v1/sessions", &body).await
+        self.t.post("/sessions", &body).await
     }
 
     pub async fn message(&self, session_id: &str, text: &str) -> Result<MessageResult> {
-        self.t.post(&format!("/v1/sessions/{}/message", session_id),
+        self.t.post(&format!("/sessions/{}/message", session_id),
             &serde_json::json!({ "text": text })).await
     }
 
     pub async fn get(&self, session_id: &str) -> Result<Session> {
-        self.t.get(&format!("/v1/sessions/{}", session_id), None).await
+        self.t.get(&format!("/sessions/{}", session_id), None).await
     }
 
     pub async fn output(&self, session_id: &str) -> Result<Output> {
         let wrapper: OutputWrapper = self.t.get(
-            &format!("/v1/sessions/{}/output", session_id), None
+            &format!("/sessions/{}/output", session_id), None
         ).await?;
         wrapper.output.ok_or_else(|| TrueNorthError::Api {
             status_code: 409,
@@ -241,7 +241,7 @@ impl SessionsClient {
 
     pub async fn force_output(&self, session_id: &str) -> Result<Output> {
         let wrapper: OutputWrapper = self.t.post(
-            &format!("/v1/sessions/{}/force-output", session_id),
+            &format!("/sessions/{}/force-output", session_id),
             &serde_json::json!({}),
         ).await?;
         wrapper.output.ok_or_else(|| TrueNorthError::Api {
@@ -252,7 +252,7 @@ impl SessionsClient {
     }
 
     pub async fn end(&self, session_id: &str) -> Result<()> {
-        self.t.delete(&format!("/v1/sessions/{}", session_id)).await
+        self.t.delete(&format!("/sessions/{}", session_id)).await
     }
 }
 
@@ -265,11 +265,11 @@ impl GoalsClient {
         let mut params = vec![];
         if let Some(q) = query  { params.push(("q",      q));      }
         if let Some(s) = sector { params.push(("sector", s));      }
-        self.t.get("/v1/goals", Some(params)).await
+        self.t.get("/goals", Some(params)).await
     }
 
     pub async fn install(&self, name: &str, version: &str) -> Result<Goal> {
-        self.t.post(&format!("/v1/goals/{}/install", name),
+        self.t.post(&format!("/goals/{}/install", name),
             &serde_json::json!({ "version": version })).await
     }
 }

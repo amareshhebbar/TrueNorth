@@ -305,7 +305,7 @@ truenorth keys create --label "My app" --plan pro
 ### Use the key
 
 ```bash
-curl http://localhost:8000/v1/sessions \
+curl http://localhost:8000/sessions \
   -H "X-TrueNorth-Key: tn_live_abc123..." \
   -H "Content-Type: application/json" \
   -d '{"goal_id": "fitness-coach"}'

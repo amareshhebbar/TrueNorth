@@ -1,70 +1,67 @@
 """
-Deterministic mock LLM for tests and dry-runs.
-Zero API calls. Reads responses from scenario files.
+truenorth/testing/mock_llm.py
+Mock LLM client for tests. Returns canned responses without network calls.
 """
-
 from __future__ import annotations
-import json
-from pathlib import Path
-from truenorth.llm.base import BaseLLMClient, LLMResponse
+from typing import AsyncIterator, Dict, List, Optional
+from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
 
 
-class MockLLMClient(BaseLLMClient):
+class MockLLMClient(LLMBase):
     """
-    Returns scripted responses from a scenario JSON file.
-    Falls back to smart default responses based on task type.
+    Deterministic mock LLM for tests.
+    Pass `responses` dict keyed by keywords in the prompt.
+    When a keyword matches, returns the associated response.
+    Otherwise returns `default`.
     """
+    model_name = "mock"
 
-    def __init__(self, scenario_path: str | None = None):
-        self._scenario: list[dict] = []
-        self._call_count = 0
+    def __init__(
+        self,
+        responses: Optional[Dict[str, str]] = None,
+        default:   str = "mock response",
+    ):
+        super().__init__()
+        self._responses  = responses or {}
+        self._default    = default
+        self.call_count  = 0
+        self.last_prompt = ""
 
-        if scenario_path:
-            path = Path(scenario_path)
-            if path.exists():
-                data = json.loads(path.read_text())
-                self._scenario = data.get("llm_responses", [])
+    def _match(self, messages: List[Message]) -> str:
+        text = " ".join(m.content for m in messages if hasattr(m, "content")).lower()
+        self.last_prompt = text
+        for kw, resp in self._responses.items():
+            if kw.lower() in text:
+                return resp
+        return self._default
 
-    async def complete(self, prompt: str, system: str = "", model: str = "",
-                       temperature: float = 0.7, max_tokens: int = 1000) -> LLMResponse:
-        # Use scripted response if available
-        if self._call_count < len(self._scenario):
-            content = self._scenario[self._call_count].get("content", "")
-            self._call_count += 1
-        else:
-            content = self._default_response(prompt, system)
-
+    async def generate(
+        self,
+        messages:    List[Message],
+        system:      Optional[str] = None,
+        max_tokens:  int   = 1024,
+        temperature: float = 0.7,
+        **kwargs,
+    ) -> LLMResponse:
+        self.call_count += 1
+        content = self._match(messages)
         return LLMResponse(
-            content=content, model="mock",
-            input_tokens=len(prompt.split()),
-            output_tokens=len(content.split()),
+            content       = content,
+            model         = self.model_name,
+            input_tokens  = 10,
+            output_tokens = 20,
         )
 
-    def _default_response(self, prompt: str, system: str) -> str:
-        """Smart defaults based on what the prompt is asking for."""
-        prompt_lower = prompt.lower()
-
-        # Field extraction
-        if "extract" in prompt_lower and "json" in (system or "").lower():
-            return json.dumps({"extracted": {}, "user_is_correcting": False})
-
-        # Emotion detection
-        if "emotional state" in prompt_lower or "emotion" in prompt_lower:
-            return json.dumps({
-                "state": "neutral", "confidence": 0.8,
-                "reasoning": "mock", "agent_adaptation": {}
-            })
-
-        # Conflict detection
-        if "contradict" in prompt_lower or "conflict" in prompt_lower:
-            return json.dumps({"conflict_type": "no_conflict"})
-
-        # Conversation / question planning
-        if "next field" in prompt_lower or "what to ask" in prompt_lower:
-            return json.dumps({
-                "next_field": None, "message": "Could you tell me more?",
-                "is_complete": False, "reasoning": "mock"
-            })
-
-        # Welcome / completion messages
-        return "Hello! I'm here to help. Tell me about yourself."
+    async def generate_stream(
+        self,
+        messages:    List[Message],
+        system:      Optional[str] = None,
+        max_tokens:  int   = 1024,
+        temperature: float = 0.7,
+        **kwargs,
+    ) -> AsyncIterator[StreamChunk]:
+        self.call_count += 1
+        content = self._match(messages)
+        for word in content.split():
+            yield StreamChunk(delta=word + " ")
+        yield StreamChunk(delta="", is_final=True, input_tokens=10, output_tokens=20)

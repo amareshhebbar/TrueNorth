@@ -5,7 +5,6 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from truenorth.storage.postgres import PostgresStore
 from truenorth.storage.redis import RedisStore
 
@@ -39,7 +38,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="TrueNorth API",
         description="Conversation-first AI agent framework",
-        version="0.1.0",
+        version="10.4.5",
         lifespan=lifespan,
     )
 
@@ -49,13 +48,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    from truenorth.api.routes import sessions, messages, analytics, health
+    from truenorth.api.routes import sessions, messages, analytics, health, goals
     app.include_router(health.router, tags=["health"])
     app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
     app.include_router(messages.router, prefix="/sessions", tags=["messages"])
     app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
-
+    app.include_router(goals.router, prefix="/goals", tags=["goals"])
     from truenorth.api import websocket
     app.include_router(websocket.router, tags=["websocket"])
 

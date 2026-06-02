@@ -180,7 +180,13 @@ class YAMLLoader:
             normalised.append(f)
         config["fields"] = normalised
 
-        config.setdefault("id", Path(config.get("name", "unknown")).stem)
+        # Read id: try explicit "id" key first, then derive from filename, then from "name"
+        if "id" not in config:
+            _raw_id = config.get("name", "unknown")
+            # Convert "Fitness Plan" → "fitness_plan"
+            import re as _re
+            _slug = _re.sub(r"[^a-z0-9]+", "_", _raw_id.lower()).strip("_")
+            config["id"] = _slug or "unknown"
         config.setdefault("persona", {"name": "TrueNorth", "tone": "friendly"})
         config.setdefault("output", {"format": "text", "template": ""})
         config.setdefault("budget", {})
