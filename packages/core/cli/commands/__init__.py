@@ -450,7 +450,7 @@ def _build_router(mock: bool):
 
         mock_client = _SmartMock(default="Understood, thank you.")
         router = LLMRouter()
-        for model in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for model in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(model, mock_client)
         return router
 
