@@ -35,7 +35,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from client import (
+from truenorth.sdk.client import (
     TrueNorth, AsyncTrueNorth, TrueNorthError,
     Session, MessageResult, Output, run_session, arun_session,
     _SyncTransport, _AsyncTransport,
