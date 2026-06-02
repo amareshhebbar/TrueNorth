@@ -8,7 +8,7 @@ from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk, _Time
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "gemini-1.5-flash"
+_DEFAULT_MODEL = "gemini-3.5-flash"
 
 
 class GeminiClient(LLMBase):
@@ -17,7 +17,7 @@ class GeminiClient(LLMBase):
 
     Config keys:
       api_key : str  — GEMINI_API_KEY or GOOGLE_API_KEY
-      model   : str  — default gemini-1.5-flash
+      model   : str  — default gemini-3.5-flash
     """
 
     supports_streaming: bool = True

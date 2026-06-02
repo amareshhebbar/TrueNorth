@@ -42,8 +42,8 @@ PRICING: Dict[str, Tuple[float, float]] = {
     "claude-3-haiku-20240307":    ( 0.25,  1.25),
 
     # ── Google Gemini ────────────────────────────────────────────────────────
-    "gemini-1.5-flash":           ( 0.075, 0.30),
-    "gemini-1.5-flash-8b":        ( 0.0375, 0.15),
+    "gemini-3.5-flash":           ( 0.075, 0.30),
+    "gemini-3.5-flash-8b":        ( 0.0375, 0.15),
     "gemini-1.5-pro":             ( 3.50, 10.50),
     "gemini-2.0-flash":           ( 0.10,  0.40),
     "gemini-2.0-flash-lite":      ( 0.075, 0.30),
@@ -110,7 +110,7 @@ PROVIDERS: Dict[str, List[str]] = {
         "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307",
     ],
     "google": [
-        "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro",
+        "gemini-3.5-flash", "gemini-3.5-flash-8b", "gemini-1.5-pro",
         "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-pro",
     ],
     "openai": [

@@ -47,21 +47,21 @@ TASK_OTHER    = "other"       # catch-all
 # ─────────────────────────────────────────────────────────────────────────────
 
 _DEFAULT_ROUTING: Dict[str, str] = {
-    TASK_EXTRACT:  "gemini-1.5-flash",        
+    TASK_EXTRACT:  "gemini-3.5-flash",        
     TASK_CONVERSE: "claude-haiku-4-5-20251001", 
     TASK_OUTPUT:   "claude-sonnet-4-20250514",  
-    TASK_CLASSIFY: "gemini-1.5-flash",         
+    TASK_CLASSIFY: "gemini-3.5-flash",         
     TASK_VERIFY:   "claude-sonnet-4-20250514",  
     TASK_OTHER:    "claude-haiku-4-5-20251001",
 }
 
 _DEFAULT_FALLBACKS: Dict[str, List[str]] = {
     TASK_EXTRACT:  ["gpt-4o-mini", "claude-haiku-4-5-20251001"],
-    TASK_CONVERSE: ["gpt-4o-mini", "gemini-1.5-flash"],
+    TASK_CONVERSE: ["gpt-4o-mini", "gemini-3.5-flash"],
     TASK_OUTPUT:   ["gpt-4o",      "claude-haiku-4-5-20251001"],
     TASK_CLASSIFY: ["claude-haiku-4-5-20251001"],
     TASK_VERIFY:   ["gpt-4o"],
-    TASK_OTHER:    ["gemini-1.5-flash"],
+    TASK_OTHER:    ["gemini-3.5-flash"],
 }
 
 _MODEL_PROVIDER: Dict[str, str] = {
@@ -243,10 +243,10 @@ class LLMRouter:
         Build a router from environment variables.
 
         Override any task's model:
-          TRUENORTH_MODEL_EXTRACT=gemini-1.5-flash
+          TRUENORTH_MODEL_EXTRACT=gemini-3.5-flash
           TRUENORTH_MODEL_CONVERSE=claude-haiku-4-5-20251001
           TRUENORTH_MODEL_OUTPUT=claude-sonnet-4-20250514
-          TRUENORTH_MODEL_CLASSIFY=gemini-1.5-flash
+          TRUENORTH_MODEL_CLASSIFY=gemini-3.5-flash
           TRUENORTH_MODEL_VERIFY=claude-sonnet-4-20250514
 
         Set a default budget:
@@ -282,7 +282,7 @@ class LLMRouter:
         YAML example:
           llm:
             routing:
-              extract:  gemini-1.5-flash
+              extract:  gemini-3.5-flash
               converse: claude-haiku-4-5-20251001
               output:   claude-sonnet-4-20250514
             fallbacks:
