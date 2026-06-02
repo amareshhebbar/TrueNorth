@@ -27,10 +27,10 @@ Goal YAML usage:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from truenorth.mcp.client import MCPClient
-from truenorth.mcp.types  import Tool, ToolCall, ToolResult, ToolResultStatus
+from truenorth.mcp.types  import Tool, ToolResult, ToolResultStatus
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +300,8 @@ class MCPRegistry:
         turn:       int,
     ) -> ToolResult:
         """Execute a built-in tool function."""
-        import time, uuid
+        import time
+        import uuid
         call_id = str(uuid.uuid4())[:8]
         t0      = time.perf_counter()
         try:

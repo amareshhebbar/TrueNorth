@@ -1,11 +1,10 @@
 """Async PostgreSQL storage."""
 
 from __future__ import annotations
-import json
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from truenorth.storage.models import Base, Session as SessionModel
-from truenorth.core.graph_state import GraphState
+from truenorth.core.graph_state import GraphState, FieldValue
 
 
 class PostgresStore:

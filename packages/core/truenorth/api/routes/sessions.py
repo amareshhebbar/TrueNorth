@@ -30,7 +30,6 @@ async def create_session(req: CreateSessionRequest,
 
     from truenorth.core.engine import TrueNorthEngine
     from truenorth.llm.router import LLMRouter
-    from truenorth.core.yaml_loader import YamlLoader
     from truenorth.api.main import db_store
 
     # Load goal config

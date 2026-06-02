@@ -118,7 +118,6 @@ class LocalLLMClient(LLMBase):
         max_tokens:  int,
         temperature: float,
     ) -> LLMResponse:
-        import json as _json
         client = self._get_client()
         payload = self._ollama_payload(messages, system, max_tokens, temperature, stream=False)
         with _Timer() as t:

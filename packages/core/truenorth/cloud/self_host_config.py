@@ -31,12 +31,11 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import textwrap
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class DeployProfile(str, Enum):
@@ -142,7 +141,7 @@ class SelfHostConfig:
         monitoring_volumes = "\n  prometheus_data:\n  grafana_data:" \
             if (self.with_monitoring or self.profile == DeployProfile.ENTERPRISE) else ""
 
-        nginx_svc = textwrap.dedent(f"""
+        nginx_svc = textwrap.dedent("""
   nginx:
     image: nginx:alpine
     ports:

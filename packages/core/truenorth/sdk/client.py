@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -153,7 +153,8 @@ class _SyncTransport:
             raise TrueNorthError(status, "http_error", body.decode()[:200])
 
     def get(self, path: str, params: dict = None) -> dict:
-        import urllib.request, urllib.parse
+        import urllib.request
+        import urllib.parse
         url = self._base + path
         if params:
             url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})

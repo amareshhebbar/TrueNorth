@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from truenorth.mcp.types import ToolCall, ToolResult, ToolResultStatus
+from truenorth.mcp.types import ToolResult, ToolResultStatus
 
 if TYPE_CHECKING:
     from truenorth.mcp.registry import MCPRegistry

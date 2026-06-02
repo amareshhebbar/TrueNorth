@@ -1,10 +1,8 @@
 """WebSocket endpoint for streaming responses."""
 
 from __future__ import annotations
-import os
 import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pathlib import Path
 
 router = APIRouter()
 

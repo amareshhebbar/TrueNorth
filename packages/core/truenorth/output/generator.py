@@ -13,14 +13,13 @@ Uses Claude Sonnet (highest quality) for generation.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from truenorth.core.graph_state import GraphState
 from truenorth.safety.hallucination_firewall import HallucinationFirewall, FirewallVerdict
-from truenorth.output.source_tracer import SourceTracer, SourceMap
+from truenorth.output.source_tracer import SourceTracer
 
 if TYPE_CHECKING:
     from truenorth.llm.router import LLMRouter

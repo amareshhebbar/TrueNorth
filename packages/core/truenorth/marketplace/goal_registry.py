@@ -52,10 +52,9 @@ from __future__ import annotations
 import hashlib
 import re
 import time
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 try:
     import yaml as _yaml

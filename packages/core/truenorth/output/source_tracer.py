@@ -172,7 +172,7 @@ class SourceMap:
     def coverage_report(self) -> str:
         """Human-readable coverage summary for dry-run / CLI output."""
         lines = [
-            f"Source Trace Report",
+            "Source Trace Report",
             f"  Completeness:  {self.completeness.value} ({self.traced_pct:.0%})",
             f"  Audit-ready:   {'yes' if self.is_audit_ready else 'no'}",
             f"  Sentences:     {len(self.sentences)} total",

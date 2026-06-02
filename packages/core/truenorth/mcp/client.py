@@ -23,9 +23,9 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from truenorth.mcp.types import Tool, ToolCall, ToolResult, ToolResultStatus
+from truenorth.mcp.types import Tool, ToolResult, ToolResultStatus
 
 logger = logging.getLogger(__name__)
 

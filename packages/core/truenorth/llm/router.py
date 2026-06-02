@@ -22,9 +22,8 @@ import asyncio
 import logging
 import os
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Dict, List, Optional, Tuple
+from typing import AsyncIterator, Dict, List, Optional
 
 from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
 

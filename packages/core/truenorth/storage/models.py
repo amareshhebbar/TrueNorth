@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from datetime import datetime
-from sqlalchemy import String, Float, Boolean, Integer, DateTime, JSON, Text
+from sqlalchemy import String, Float, Boolean, Integer, DateTime, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import uuid
 
