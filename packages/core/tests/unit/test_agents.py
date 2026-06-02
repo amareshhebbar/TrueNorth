@@ -893,7 +893,7 @@ class TestEngineIntegration:
         }
         mock   = MockLLMClient(default="Alex")
         router = LLMRouter()
-        for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
         engine = TrueNorthEngine(goal_config=goal, router=router)
         assert engine._orchestrator is None

@@ -944,7 +944,7 @@ class TestWhatsAppChannel:
         }
         mock   = MockLLMClient(default="Got it.")
         router = LLMRouter()
-        for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         def factory(session_id):

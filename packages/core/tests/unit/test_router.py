@@ -94,7 +94,7 @@ class TestRoutingTable:
 
     def test_extract_defaults_to_gemini_flash(self):
         router = LLMRouter()
-        assert router.routing_table()[TASK_EXTRACT] == "gemini-1.5-flash"
+        assert router.routing_table()[TASK_EXTRACT] == "gemini-3.5-flash"
 
     def test_output_defaults_to_claude_sonnet(self):
         router = LLMRouter()
@@ -401,7 +401,7 @@ class TestProviderDetection:
         assert self._detect("gpt-4o-mini") == "openai"
 
     def test_gemini_is_gemini(self):
-        assert self._detect("gemini-1.5-flash") == "gemini"
+        assert self._detect("gemini-3.5-flash") == "gemini"
         assert self._detect("gemini-2.0-flash") == "gemini"
 
     def test_ollama_is_local(self):
