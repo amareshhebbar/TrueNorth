@@ -185,7 +185,7 @@ Every user message passes through all 13 stages:
 
 | Task | Default Model | Reason |
 |------|---------------|--------|
-| Extract | `gemini-1.5-flash` | Cheapest capable extraction model |
+| Extract | `gemini-3.5-flash` | Cheapest capable extraction model |
 | Converse | `claude-haiku-4-5` | Fast, warm conversational responses |
 | Output | `claude-sonnet-4` | Highest quality final report |
 | Verify | `claude-sonnet-4` | Safety-critical hallucination check |
@@ -298,7 +298,7 @@ Official curated goals pre-built and ready:
 
 ## Benchmarks
 
-> All benchmarks run on `claude-haiku-4-5-20251001` + `gemini-1.5-flash` routing.
+> All benchmarks run on `claude-haiku-4-5-20251001` + `gemini-3.5-flash` routing.
 > Medical intake = 12 required fields. Fitness = 8. Legal = 15.
 
 ### Field extraction accuracy vs raw LLM
@@ -533,7 +533,7 @@ output:
 # ── LLM routing ───────────────────────────────────────────────────────────
 llm:
   routing:
-    extract:  gemini-1.5-flash
+    extract:  gemini-3.5-flash
     converse: claude-haiku-4-5-20251001
     output:   claude-sonnet-4-20250514
     verify:   claude-sonnet-4-20250514
@@ -621,7 +621,7 @@ chain:
 | Provider | Models | On-device |
 |----------|--------|-----------|
 | Anthropic | Claude Opus 4, Sonnet 4, Haiku 4.5 | — |
-| Google | Gemini 1.5 Flash, 1.5 Pro, 2.0 Flash, Nano | ✅ Android |
+| Google | Gemini 3.5 Flash, 3.5 Pro, 2.0 Flash, Nano | ✅ Android |
 | OpenAI | GPT-4o, GPT-4o-mini, o1, o3-mini | — |
 | Cohere | Command R, Command R+ | — |
 | Groq | Llama 3.1 70B/8B, Mixtral | — |
