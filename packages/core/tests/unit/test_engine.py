@@ -61,7 +61,7 @@ def make_mock_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
         default="Sounds good! What else can you tell me?",
     )
     router = LLMRouter()
-    for model in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+    for model in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
         router.register_client(model, mock)
     return router
 
@@ -360,7 +360,7 @@ class TestCostTracking:
 
     def test_accumulates_session_cost(self):
         ct = CostTracker()
-        ct.record("s1", "gemini-1.5-flash", "extract",  200, 100, 100)
+        ct.record("s1", "gemini-3.5-flash", "extract",  200, 100, 100)
         ct.record("s1", "claude-haiku-4-5-20251001",    "converse", 150, 80, 200)
         cost = ct.get_session_cost("s1")
         assert cost.call_count == 2

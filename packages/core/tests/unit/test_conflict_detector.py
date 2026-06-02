@@ -785,7 +785,7 @@ class TestEngineIntegration:
             default="Got it. Tell me more.",
         )
         router = LLMRouter()
-        for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         engine = TrueNorthEngine(goal_config=self.GOAL, router=router)
@@ -816,7 +816,7 @@ class TestEngineIntegration:
 
         mock = MockLLMClient(default="Got it.")
         router = LLMRouter()
-        for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         engine = TrueNorthEngine(goal_config=self.GOAL, router=router)
