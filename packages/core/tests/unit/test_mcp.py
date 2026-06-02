@@ -815,7 +815,7 @@ class TestEngineMCP:
             default='TOOL_CALL: echo({"query": "age from user"})',
         )
         router = LLMRouter()
-        for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         goal = {

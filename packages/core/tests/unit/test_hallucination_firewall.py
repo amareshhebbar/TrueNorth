@@ -112,7 +112,7 @@ Stay hydrated throughout the day.
 def make_mock_router() -> LLMRouter:
     mock = MockLLMClient(default='{"verdict": "VERIFIED", "confidence": 0.9, "issue": null, "traced_field": null, "expected_value": null, "found_value": null}')
     router = LLMRouter()
-    for m in ["gemini-1.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
+    for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
         router.register_client(m, mock)
     return router
 
