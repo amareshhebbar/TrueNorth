@@ -145,7 +145,7 @@ class Conflict:
                 f"Could you double-check that figure?"
             ),
             ConflictType.CROSS_FIELD: (
-                f"Something doesn't quite add up — could you help me reconcile that?"
+                "Something doesn't quite add up — could you help me reconcile that?"
             ),
             ConflictType.SEMANTIC_CONTRADICTION: (
                 f"I noticed something that might be a contradiction about {label}. "

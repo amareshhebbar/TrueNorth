@@ -50,7 +50,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
@@ -161,7 +161,7 @@ class FirewallResult:
             f"  Supervisor used: {self.supervisor_used}",
         ]
         if self.blocked_count:
-            lines.append(f"  ⚠ BLOCKED claims:")
+            lines.append("  ⚠ BLOCKED claims:")
             for c in self.claims:
                 if c.verdict == ClaimVerdict.BLOCKED:
                     lines.append(f"    - {c.raw.text[:80]!r}")
@@ -482,7 +482,7 @@ class ClaimVerifier:
                 traced_field=claim.field_refs[0] if claim.field_refs else None,
                 expected_val=None, found_val=None,
                 confidence=0.45,
-                reason=f"Field referenced but expected value not confirmed in claim",
+                reason="Field referenced but expected value not confirmed in claim",
             )
 
         return VerifiedClaim(
