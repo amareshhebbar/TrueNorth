@@ -1,0 +1,23 @@
+{
+  "name": "truenorth-framework-expo",
+  "version": "0.1.0",
+  "description": "React Native and Expo hooks for TrueNorth.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "react-native": ">=0.64.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
