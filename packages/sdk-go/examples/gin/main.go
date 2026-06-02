@@ -10,29 +10,49 @@ import (
 	truenorth "github.com/amareshhebbar/truenorth"
 )
 
-var tn = truenorth.New(
-	os.Getenv("TRUENORTH_API_URL"),
+// Note: NewClient takes (apiKey, baseURL) in that order!
+var tn = truenorth.NewClient(
 	os.Getenv("TRUENORTH_API_KEY"),
+	os.Getenv("TRUENORTH_API_URL"),
 )
 
 func main() {
 	r := gin.Default()
 
 	r.POST("/chat/start", func(c *gin.Context) {
-		var req struct{ GoalID string `json:"goal_id"` }
-		c.ShouldBindJSON(&req)
-		session, err := tn.StartSession(context.Background(), req.GoalID, "")
+		var req struct {
+			GoalID string `json:"goal_id"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Use the new nested tn.Sessions.Create method
+		session, err := tn.Sessions.Create(context.Background(), req.GoalID, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"session_id": session.SessionID, "message": session.WelcomeMessage})
+		
+		// Use the updated struct fields (ID and AgentMessage)
+		c.JSON(http.StatusOK, gin.H{
+			"session_id": session.ID,
+			"message":    session.AgentMessage,
+		})
 	})
 
 	r.POST("/chat/:id", func(c *gin.Context) {
-		var req struct{ Message string `json:"message"` }
-		c.ShouldBindJSON(&req)
-		resp, err := tn.SendMessage(context.Background(), c.Param("id"), req.Message)
+		var req struct {
+			Message string `json:"message"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Use the new nested tn.Sessions.Message method
+		resp, err := tn.Sessions.Message(context.Background(), c.Param("id"), req.Message)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

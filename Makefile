@@ -189,21 +189,21 @@ test-integration:
 # Node SDK — TypeScript type check
 test-node:
 	@printf "$(CYAN)▶  Node SDK — TypeScript$(RESET)\n"
-	@cd packages/sdk-node && npx tsc --noEmit \
+	@cd packages/sdk-node && npm install --silent && npm run typecheck \
 	&& printf "   $(GREEN)✅  TypeScript types valid$(RESET)\n" \
 	|| (printf "   \033[31m❌  TypeScript errors found$(RESET)\n" && exit 1)
 
 # Expo SDK — TypeScript type check
 test-expo:
 	@printf "$(CYAN)▶  Expo SDK — TypeScript$(RESET)\n"
-	@cd packages/sdk-expo && npx tsc --noEmit \
+	@cd packages/sdk-expo && npm install --silent && npx tsc --noEmit \
 	&& printf "   $(GREEN)✅  Expo types valid$(RESET)\n" \
 	|| (printf "   \033[31m❌  Expo TypeScript errors$(RESET)\n" && exit 1)
 
 # Go SDK — build + vet
 test-go:
 	@printf "$(CYAN)▶  Go SDK — build + vet$(RESET)\n"
-	@cd packages/sdk-go && go build ./... && go vet ./... \
+	@cd packages/sdk-go && go mod tidy && go build ./... && go vet ./... \
 	&& printf "   $(GREEN)✅  Go SDK builds cleanly$(RESET)\n" \
 	|| (printf "   \033[31m❌  Go SDK FAILED$(RESET)\n" && exit 1)
 
