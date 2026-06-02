@@ -1,9 +1,12 @@
 [tool.poetry]
-name = "truenorth"
+name = "truenorth-framework"
 version = "0.1.0"
-description = "TrueNorth — framework for building AI agents that work for real humans"
-authors = ["TrueNorth Team"]
-package-mode = false
+description = "Conversation-first AI agent framework."
+authors = ["Amaresh Hebbar <truenorth.framework@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/amareshhebbar/truenorth"
+
+
 packages = [{include = "truenorth"}]
 
 [tool.poetry.dependencies]
