@@ -58,7 +58,7 @@ _PRICING: Dict[str, Tuple[float, float]] = {
     "claude-sonnet-4-20250514":   ( 3.00, 15.00),
     "claude-haiku-4-5-20251001":  ( 0.80,  4.00),
     # Google
-    "gemini-1.5-flash":           ( 0.075, 0.30),
+    "gemini-3.5-flash":           ( 0.075, 0.30),
     "gemini-1.5-pro":             ( 3.50, 10.50),
     "gemini-2.0-flash":           ( 0.10,  0.40),
     "gemini-2.0-flash-lite":      ( 0.075, 0.30),
