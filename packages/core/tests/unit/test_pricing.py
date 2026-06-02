@@ -59,7 +59,7 @@ class TestPricingTable:
         assert pout == pytest.approx(75.00)
 
     def test_gemini_flash_correct_price(self):
-        pin, pout = PRICING["gemini-1.5-flash"]
+        pin, pout = PRICING["gemini-3.5-flash"]
         assert pin  == pytest.approx(0.075)
         assert pout == pytest.approx(0.30)
 
@@ -143,7 +143,7 @@ class TestFallbackPricing:
     def test_fallback_more_expensive_than_cheapest_real(self):
         # Fallback should be more expensive than Gemini Flash (conservative)
         fallback_cost = cost_usd("mystery-model", 1_000_000, 0)
-        flash_cost    = cost_usd("gemini-1.5-flash", 1_000_000, 0)
+        flash_cost    = cost_usd("gemini-3.5-flash", 1_000_000, 0)
         assert fallback_cost > flash_cost
 
     def test_fallback_less_than_most_expensive(self):
@@ -181,7 +181,7 @@ class TestHelperFunctions:
         assert get_provider("gpt-4o-mini") == "openai"
 
     def test_get_provider_google(self):
-        assert get_provider("gemini-1.5-flash") == "google"
+        assert get_provider("gemini-3.5-flash") == "google"
 
     def test_get_provider_local(self):
         assert get_provider("ollama") in ("local", "unknown")
@@ -246,16 +246,16 @@ class TestCostUsd:
         assert cost == pytest.approx(expected, abs=0.001)
 
     def test_gemini_flash_tiny_call(self):
-        cost = cost_usd("gemini-1.5-flash", 150, 80)
+        cost = cost_usd("gemini-3.5-flash", 150, 80)
         assert 0 < cost < 0.001   # very cheap
 
     def test_zero_tokens_zero_cost(self):
-        for model in ["claude-haiku-4-5-20251001", "gpt-4o", "gemini-1.5-flash"]:
+        for model in ["claude-haiku-4-5-20251001", "gpt-4o", "gemini-3.5-flash"]:
             assert cost_usd(model, 0, 0) == 0.0
 
     def test_pricing_ordered_correctly(self):
         # Gemini Flash should be cheaper than Claude Haiku
-        flash = cost_usd("gemini-1.5-flash",          1_000, 500)
+        flash = cost_usd("gemini-3.5-flash",          1_000, 500)
         haiku = cost_usd("claude-haiku-4-5-20251001", 1_000, 500)
         assert flash < haiku
 
@@ -308,7 +308,7 @@ class TestCliCost:
         ct = CostTracker()
         ct.record("cli-test-sess", "claude-haiku-4-5-20251001", "extract",
                   200, 100, goal_id="fitness_plan")
-        ct.record("cli-test-sess", "gemini-1.5-flash", "converse",
+        ct.record("cli-test-sess", "gemini-3.5-flash", "converse",
                   150, 80, goal_id="fitness_plan")
 
         # CLI reads its own CostTracker — it won't have our data unless we
@@ -409,7 +409,7 @@ class TestCliEstimate:
     def test_estimate_gemini_flash(self):
         runner = CliRunner()
         result = runner.invoke(cli, [
-            "estimate", "--model", "gemini-1.5-flash",
+            "estimate", "--model", "gemini-3.5-flash",
             "--tokens", "5000", "--output", "2000",
         ])
         assert result.exit_code == 0
@@ -488,7 +488,7 @@ class TestCrossModuleConsistency:
 
         test_cases = [
             ("claude-haiku-4-5-20251001", 500, 250),
-            ("gemini-1.5-flash",          1000, 500),
+            ("gemini-3.5-flash",          1000, 500),
             ("gpt-4o",                    300,  150),
             ("claude-sonnet-4-20250514",  800,  400),
             ("ollama",                    5000, 2000),
@@ -506,7 +506,7 @@ class TestCrossModuleConsistency:
 
         cases = [
             ("claude-haiku-4-5-20251001", 1000, 500),
-            ("gemini-1.5-flash",          2000, 1000),
+            ("gemini-3.5-flash",          2000, 1000),
         ]
         for model, inp, out in cases:
             r_cost = router._compute_cost(model, inp, out)

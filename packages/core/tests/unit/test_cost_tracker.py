@@ -102,7 +102,7 @@ class TestPricing:
 
     def test_gemini_flash_cost(self):
         # $0.075/M input
-        cost = _compute_cost("gemini-1.5-flash", 1_000_000, 0)
+        cost = _compute_cost("gemini-3.5-flash", 1_000_000, 0)
         assert cost == pytest.approx(0.075, abs=0.001)
 
     def test_output_tokens_more_expensive(self):
@@ -220,10 +220,10 @@ class TestSessionCost:
     def test_by_model_breakdown(self):
         ct = _ct()
         _record(ct, "s1", model="claude-haiku-4-5-20251001")
-        _record(ct, "s1", model="gemini-1.5-flash")
+        _record(ct, "s1", model="gemini-3.5-flash")
         s  = ct.get_session_cost("s1")
         assert "claude-haiku-4-5-20251001" in s.by_model
-        assert "gemini-1.5-flash"          in s.by_model
+        assert "gemini-3.5-flash"          in s.by_model
 
     def test_budget_remaining(self):
         s = SessionCost(session_id="s1", budget_usd=1.0)
@@ -478,7 +478,7 @@ class TestRecordTurn:
         )
         ct.record_turn(
             session_id="s1", goal_id="g",
-            model="gemini-1.5-flash",
+            model="gemini-3.5-flash",
             input_tokens=200, output_tokens=100,
             cost_usd=0.0001, turn=2,
         )
@@ -510,7 +510,7 @@ class TestRecordTurn:
     def test_record_turn_and_record_both_accumulate(self):
         ct = _ct()
         ct.record_turn("s1","g","haiku",100,50,0.0001, turn=1)
-        _record(ct, "s1", model="gemini-1.5-flash", inp=100, out=50)
+        _record(ct, "s1", model="gemini-3.5-flash", inp=100, out=50)
         s = ct.get_session_cost("s1")
         assert s.call_count == 2
 
@@ -544,7 +544,7 @@ class TestTaskBreakdown:
     def test_breakdown_output_most_expensive(self):
         ct = _ct()
         ct.record("s1","claude-sonnet-4-20250514", TASK_OUTPUT,  500, 2000, goal_id="g")
-        ct.record("s1","gemini-1.5-flash",         TASK_EXTRACT, 200, 100,  goal_id="g")
+        ct.record("s1","gemini-3.5-flash",         TASK_EXTRACT, 200, 100,  goal_id="g")
         bd = ct.task_breakdown("s1")
         assert bd[TASK_OUTPUT]["cost_usd"] > bd[TASK_EXTRACT]["cost_usd"]
 
@@ -575,7 +575,7 @@ class TestGoalTracking:
         ct = _ct()
         _record(ct, "sa", goal="legal_intake", model="claude-sonnet-4-20250514",
                 inp=500, out=1000)
-        _record(ct, "sb", goal="legal_intake", model="gemini-1.5-flash",
+        _record(ct, "sb", goal="legal_intake", model="gemini-3.5-flash",
                 inp=200, out=100)
         g = ct.goal_cost("legal_intake")
         assert "sa" in g.by_session
@@ -632,7 +632,7 @@ class TestProjection:
     def test_avg_cost_per_turn(self):
         ct = _ct()
         for i in range(1, 4):
-            ct.record_turn("s1","g","gemini-1.5-flash",100,50,0.001, turn=i)
+            ct.record_turn("s1","g","gemini-3.5-flash",100,50,0.001, turn=i)
         s = ct.get_session_cost("s1")
         s.turn_count = 3
         assert s.avg_cost_per_turn == pytest.approx(0.001, abs=0.0001)
@@ -648,7 +648,7 @@ class TestTopExpensiveCalls:
         ct = _ct()
         # Cheap calls
         for _ in range(3):
-            ct.record("s1","gemini-1.5-flash", TASK_EXTRACT, 100, 50, goal_id="g")
+            ct.record("s1","gemini-3.5-flash", TASK_EXTRACT, 100, 50, goal_id="g")
         ct.record("s1","claude-sonnet-4-20250514", TASK_OUTPUT, 2000, 5000, goal_id="g")
 
         top = ct.top_expensive_calls("s1", limit=4)
@@ -884,7 +884,7 @@ class TestEngineIntegration:
 
         mock   = MockLLMClient(default="Got it.")
         router = LLMRouter()
-        for m in ["gemini-1.5-flash","claude-haiku-4-5-20251001","claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash","claude-haiku-4-5-20251001","claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         ct   = CostTracker()
@@ -910,7 +910,7 @@ class TestEngineIntegration:
 
         mock   = MockLLMClient(default="response")
         router = LLMRouter()
-        for m in ["gemini-1.5-flash","claude-haiku-4-5-20251001","claude-sonnet-4-20250514"]:
+        for m in ["gemini-3.5-flash","claude-haiku-4-5-20251001","claude-sonnet-4-20250514"]:
             router.register_client(m, mock)
 
         ct   = CostTracker()
