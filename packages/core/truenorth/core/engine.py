@@ -15,7 +15,6 @@ Every user message flows through these stages in order:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 import uuid
@@ -24,13 +23,13 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 
 from truenorth.core.graph_state import GraphState
 from truenorth.core.yaml_loader import YAMLLoader
-from truenorth.core.reasoner import Reasoner, ReasonerAction, ReasonerDecision
+from truenorth.core.reasoner import Reasoner, ReasonerAction
 from truenorth.core.session_manager import SessionManager
 from truenorth.core.field_extractor import FieldExtractor
 from truenorth.core.conversation_planner import ConversationPlanner
 from truenorth.intelligence.emotion_detector import EmotionDetector
 from truenorth.intelligence.confidence_scorer import ConfidenceScorer
-from truenorth.intelligence.conflict_detector import ConflictDetector, ConflictStore, ConflictType
+from truenorth.intelligence.conflict_detector import ConflictDetector
 from truenorth.intelligence.conversation_quality import ConversationQualityMonitor
 from truenorth.intelligence.language_detector import LanguageDetector
 from truenorth.llm.cost_tracker import CostTracker, BudgetExceededError
@@ -475,7 +474,6 @@ class TrueNorthEngine:
         if self._router and decision.action not in (
             ReasonerAction.GENERATE_OUTPUT, ReasonerAction.BUDGET_EXCEEDED
         ):
-            from truenorth.core.conversation_planner import ConversationPlanner
             from truenorth.llm.base import Message as LLMMessage
             from truenorth.llm.router import TASK_CONVERSE
 

@@ -39,7 +39,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from truenorth.agents.base import BaseAgent
@@ -203,7 +203,6 @@ class A2ATaskBridge:
 
     @staticmethod
     def agent_message_to_a2a(message) -> A2ATask:
-        from truenorth.agents.messages import AgentMessage
         task_id = message.message_id
         text    = message.task
         parts   = [A2APart.text(text)]
@@ -505,7 +504,7 @@ class A2AServer:
         self._tasks[task.id] = task
 
         # Convert to TrueNorth AgentMessage
-        from truenorth.agents.messages import AgentMessage, MessageType, Priority
+        from truenorth.agents.messages import AgentMessage
         text    = " ".join(m.text_content() for m in task.messages if m.role == "user")
         payload = {}
         for msg in task.messages:

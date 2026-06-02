@@ -13,13 +13,13 @@ goal_config in the payload carries the output template.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 
 from truenorth.agents.base import BaseAgent
 from truenorth.agents.messages import AgentMessage, AgentResponse, AgentRole, TaskStatus
 
 if TYPE_CHECKING:
-    from truenorth.llm.router import LLMRouter
+    pass
 
 logger = logging.getLogger(__name__)
 

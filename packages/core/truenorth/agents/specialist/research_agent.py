@@ -15,7 +15,7 @@ What differs is which MCP tools are registered.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from truenorth.agents.base import BaseAgent
 from truenorth.agents.messages import AgentMessage, AgentResponse, AgentRole, TaskStatus

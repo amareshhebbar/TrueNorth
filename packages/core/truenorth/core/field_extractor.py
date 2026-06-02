@@ -161,8 +161,8 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
         )
 
         prompt = (
-            f"Extract field values from this user message.\n\n"
-            f"Fields to extract:\n{{\n"
+            "Extract field values from this user message.\n\n"
+            "Fields to extract:\n{\n"
             + ",\n".join(field_lines)
             + f"\n}}\n\n"
             f"User message: {message!r}"

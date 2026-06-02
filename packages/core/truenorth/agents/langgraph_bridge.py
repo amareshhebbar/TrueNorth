@@ -45,11 +45,10 @@ decision graph, or TrueNorth's HR screening into a LangGraph hiring pipeline.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from truenorth.core.engine import TrueNorthEngine
-    from truenorth.agents.base import BaseAgent
 
 logger = logging.getLogger(__name__)
 

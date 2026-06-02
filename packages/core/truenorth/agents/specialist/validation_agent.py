@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from truenorth.agents.base import BaseAgent
 from truenorth.agents.messages import AgentMessage, AgentResponse, AgentRole, TaskStatus

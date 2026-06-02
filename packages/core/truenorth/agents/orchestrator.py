@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from truenorth.agents.messages import (
     AgentMessage, AgentResponse, AgentRole,
-    MessageType, TaskStatus, Priority,
+    TaskStatus, Priority,
 )
 from truenorth.agents.base import BaseAgent
 

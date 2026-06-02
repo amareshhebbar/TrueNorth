@@ -86,7 +86,6 @@ def cost_cmd(session: str, goal: str, fmt: str, top: int, db: str):
 
 def _display_session_cost(ct, session_id: str, fmt: str, top: int):
     """Display per-session cost."""
-    from truenorth.llm.cost_tracker import CostTracker
 
     s   = ct.get_session_cost(session_id)
     bd  = ct.task_breakdown(session_id)
@@ -131,7 +130,6 @@ def _display_goal_cost(ct, goal_id: str, fmt: str):
 
 
 def _rich_session_cost(session_id, s, bd, top_calls, turns):
-    from truenorth.llm.cost_tracker import BudgetStatus
     con = _console
 
     con.print()

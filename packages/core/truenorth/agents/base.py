@@ -23,12 +23,12 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Any, Optional, Set, TYPE_CHECKING
 
 from truenorth.agents.messages import (
     AgentMessage, AgentResponse, AgentRole,
-    MessageType, TaskStatus, Priority,
+    TaskStatus,
 )
 
 if TYPE_CHECKING:
