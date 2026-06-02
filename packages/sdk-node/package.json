@@ -1,10 +1,14 @@
 {
   "name": "truenorth",
   "version": "0.1.0",
-  "description": "Official TypeScript / Node.js SDK for TrueNorth AI",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "description": "Conversation-first AI agent framework.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amareshhebbar/truenorth.git"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
