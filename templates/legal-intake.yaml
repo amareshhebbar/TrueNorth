@@ -1,0 +1,261 @@
+# ============================================================
+#  TrueNorth Template: legal-intake.yaml
+#  Category  : Legal / Consumer Rights
+#  Author    : TrueNorth Community
+# ============================================================
+#
+#  WHAT THIS DOES
+#  ──────────────────────────────────────────────────────────
+#  Structured legal case intake for personal injury, consumer
+#  complaints, employment disputes, and property matters.
+#
+#  The problem:
+#    Most people don't know how to brief a lawyer.
+#    They forget key facts. They don't know which details matter.
+#    Lawyers spend 45 minutes extracting what should take 10.
+#
+#  TrueNorth:
+#    Guides the client through what to remember.
+#    Asks follow-up questions based on answers (show_if logic).
+#    Generates a properly structured case brief for the advocate.
+#    Client-facing language is simple. Lawyer-facing output is technical.
+#
+#  CASE TYPES SUPPORTED (set case_type field):
+#    - personal_injury     (accident, medical negligence)
+#    - consumer_complaint  (defective product, service failure)
+#    - employment_dispute  (wrongful termination, wage theft, harassment)
+#    - property_dispute    (land encroachment, landlord conflict)
+#    - cyber_crime         (fraud, online harassment)
+#    - family_matter       (maintenance, custody — handled sensitively)
+#
+#  INSTALL
+#  ──────────────────────────────────────────────────────────
+#  cd packages/core
+#  pip install -e .
+#  pip install anthropic
+#
+#  FILE STRUCTURE
+#  ──────────────────────────────────────────────────────────
+#  my-legal-app/
+#  ├── 06-legal-intake.yaml   ← this file
+#  └── run.py
+#
+#  CREATE run.py WITH:
+#  ──────────────────────────────────────────────────────────
+#  import asyncio, json
+#  from truenorth.core.yaml_loader import YAMLLoader
+#  from truenorth.core.engine      import TrueNorthEngine
+#
+#  async def main():
+#      engine = TrueNorthEngine(
+#          goal_config=YAMLLoader.load("06-legal-intake.yaml")
+#      )
+#      resp = await engine.start()
+#      print(f"Legal Advisor: {resp.text}\n")
+#      while not engine.state.is_complete:
+#          msg  = input("Client: ").strip()
+#          resp = await engine.process_message(msg)
+#          print(f"\nLegal Advisor: {resp.text}\n")
+#          if resp.output:
+#              print("── CASE BRIEF ──")
+#              print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+#              break
+#
+#  asyncio.run(main())
+#
+#  HOW TO RUN
+#  ──────────────────────────────────────────────────────────
+#  export ANTHROPIC_API_KEY=sk-ant-...
+#  python run.py
+#
+#  EXPECTED OUTPUT
+#  ──────────────────────────────────────────────────────────
+#  {
+#    "case_type": "personal_injury",
+#    "incident_summary": "Road accident on 15 March 2024 at MG Road...",
+#    "applicable_law": ["Motor Vehicles Act 1988", "Tort law"],
+#    "claim_type": "compensation",
+#    "estimated_claim_value": "₹8-15 lakh based on injury severity",
+#    "documents_needed": ["FIR copy", "Medical bills", "Hospital records"],
+#    "limitation_period": "Must file within 2 years of accident (by March 2026)",
+#    "next_steps": ["File FIR if not done", "Collect medical records"],
+#    "case_strength": "STRONG",
+#    "advocate_brief": "Full technical case summary for lawyer..."
+#  }
+#
+#  LEGAL DISCLAIMER
+#  ──────────────────────────────────────────────────────────
+#  This template provides case structuring assistance only.
+#  It does not constitute legal advice.
+#  Always connect clients to a qualified advocate for actual legal work.
+#  Add this disclaimer to your deployment.
+# ============================================================
+
+id: legal_intake
+name: "Legal Case Intake"
+version: "1.1.0"
+author: "@truenorth-community"
+sector: legal
+tags: [legal, intake, case-brief, consumer, personal-injury, India]
+
+compliance:
+  dpdp: true
+  purpose: "Legal case intake for advocate referral"
+  retention_days: 730
+  sensitive_category: legal
+
+persona:
+  name: "Legal Assistant"
+  tone: "calm and methodical — like a careful paralegal, not a judge"
+  empathy_level: high
+  slow_on_distress: true
+  language: auto
+  greeting: >
+    Hello. I will help you put together a clear picture of your legal situation.
+    I will ask you questions one at a time — just tell me what you know.
+    There are no wrong answers. Everything you share is confidential.
+    This takes about 10 minutes.
+
+fields:
+
+  - name: client_name
+    type: text
+    required: true
+    question: "What is your name?"
+
+  - name: contact_phone
+    type: text
+    required: true
+    question: "Your phone number? (so the advocate can reach you)"
+
+  - name: case_type
+    type: text
+    required: true
+    allowed_values:
+      - personal_injury
+      - consumer_complaint
+      - employment_dispute
+      - property_dispute
+      - cyber_crime
+      - family_matter
+      - other
+    question: "What type of matter is this? (personal injury / consumer complaint / employment dispute / property dispute / cyber crime / family matter / other)"
+
+  - name: incident_description
+    type: text
+    required: true
+    question: "Please describe what happened. Take your time — the more detail the better."
+
+  - name: incident_date
+    type: text
+    required: true
+    question: "When did this happen? (approximate date is fine)"
+
+  - name: incident_location
+    type: text
+    required: true
+    question: "Where did it happen? (city, place, address if known)"
+
+  - name: parties_involved
+    type: text
+    required: true
+    question: "Who is the other party? (person, company, government body — describe as much as you know)"
+
+  - name: physical_injury
+    type: boolean
+    required: true
+    question: "Was anyone physically injured? (yes/no)"
+
+  - name: injury_details
+    type: text
+    required: false
+    show_if:
+      physical_injury: true
+    question: "Please describe the injuries. Were they treated at a hospital? Do you have medical records?"
+
+  - name: financial_loss
+    type: boolean
+    required: true
+    question: "Has there been any financial loss — money, property, income lost?"
+
+  - name: financial_loss_amount
+    type: text
+    required: false
+    show_if:
+      financial_loss: true
+    question: "Approximately how much financial loss? (best estimate)"
+
+  - name: fir_filed
+    type: boolean
+    required: false
+    show_if:
+      case_type: personal_injury
+    question: "Was an FIR (police complaint) filed? If yes, do you have a copy?"
+
+  - name: employer_notice_sent
+    type: boolean
+    required: false
+    show_if:
+      case_type: employment_dispute
+    question: "Did you send a written notice or complaint to your employer before coming to us?"
+
+  - name: consumer_complaint_filed
+    type: boolean
+    required: false
+    show_if:
+      case_type: consumer_complaint
+    question: "Did you already file a complaint with the company or NCLT? What response did you get?"
+
+  - name: witnesses
+    type: text
+    required: false
+    question: "Are there any witnesses who saw what happened? Can you contact them?"
+
+  - name: documents_in_hand
+    type: text
+    required: true
+    question: "What documents do you currently have? (contracts, bills, photos, messages, emails, medical records — anything)"
+
+  - name: previous_legal_action
+    type: text
+    required: false
+    question: "Has any legal action been taken already — notices sent, police complaint, consumer forum? What was the outcome?"
+
+  - name: desired_outcome
+    type: text
+    required: true
+    question: "What do you want to happen? What is your ideal outcome from this case?"
+
+  - name: budget_for_legal
+    type: text
+    required: false
+    allowed_values: ["under 5000", "5000-20000", "20000-100000", "above 1 lakh", "not sure yet"]
+    question: "Rough budget for legal fees? (under 5000 / 5000-20000 / 20000-1 lakh / above 1 lakh / not sure)"
+
+output:
+  format: json
+  template: >
+    You are an experienced Indian paralegal helping structure a case brief.
+    Client: {client_name}, contact: {contact_phone}.
+    Case type: {case_type}. Incident: {incident_description}.
+    Date: {incident_date}. Location: {incident_location}.
+    Other party: {parties_involved}. Physical injury: {injury_details}.
+    Financial loss: {financial_loss_amount}. FIR: {fir_filed}.
+    Witnesses: {witnesses}. Documents held: {documents_in_hand}.
+    Previous action: {previous_legal_action}. Desired outcome: {desired_outcome}.
+    Budget: {budget_for_legal}.
+
+    Return JSON with:
+      - incident_summary (2-3 sentence summary of facts)
+      - case_type_formal (legal classification)
+      - applicable_laws (list of relevant Indian laws, Acts, sections)
+      - jurisdiction (which court — District Court / NCDRC / Labour Court / High Court)
+      - limitation_period (legal deadline to file, with exact date if possible)
+      - claim_type (compensation / injunction / specific_relief / criminal)
+      - estimated_claim_value (range based on facts — give honest range)
+      - case_strength (STRONG / MODERATE / WEAK — with one-line reason)
+      - documents_needed (list of what to collect before meeting advocate)
+      - documents_missing (what they said they have vs what they need)
+      - immediate_steps (2-3 things to do in the next 7 days)
+      - advocate_brief (formal 300-word case summary for the lawyer, technical language)
+      - client_summary (same in simple English for the client, non-technical)

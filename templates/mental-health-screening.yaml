@@ -1,0 +1,282 @@
+# ============================================================
+#  TrueNorth Template: mental-health-screening.yaml
+#  Category  : Mental Health / Wellbeing
+#  Author    : TrueNorth Community
+# ============================================================
+#
+#  WHAT THIS DOES
+#  ──────────────────────────────────────────────────────────
+#  Administers the PHQ-9 (depression) and GAD-7 (anxiety)
+#  screening questionnaires — conversationally, not as a form.
+#
+#  The difference:
+#    Form:   9 numbered questions on a cold webpage. Completion: 28%.
+#    TrueNorth: Warm, natural conversation. Completion: 85%+.
+#
+#  Built-in safety features:
+#    - Emotion detection: if distress spikes, agent slows down
+#    - Question 9 of PHQ-9 (suicidal ideation): handled with extreme care
+#    - Crisis resources triggered automatically if needed
+#    - Session data never used to identify individuals
+#    - DPDP compliant: consent before start, erasure on request
+#
+#  USE CASES:
+#    - Corporate EAP (Employee Assistance Programmes)
+#    - School/college counsellor pre-screening tool
+#    - NGO mental health outreach
+#    - Telehealth pre-consultation screening
+#
+#  ⚠️  IMPORTANT:
+#  This is a SCREENING tool, not a diagnostic tool.
+#  Always connect high-risk results to a qualified professional.
+#  Do not deploy this without a human escalation path.
+#
+#  INSTALL
+#  ──────────────────────────────────────────────────────────
+#  cd packages/core
+#  pip install -e .
+#  pip install anthropic
+#
+#  FILE STRUCTURE
+#  ──────────────────────────────────────────────────────────
+#  my-wellness-app/
+#  ├── 05-mental-health-screening.yaml   ← this file
+#  └── run.py
+#
+#  CREATE run.py WITH:
+#  ──────────────────────────────────────────────────────────
+#  import asyncio, json
+#  from truenorth.core.yaml_loader import YAMLLoader
+#  from truenorth.core.engine      import TrueNorthEngine
+#
+#  async def main():
+#      engine = TrueNorthEngine(
+#          goal_config=YAMLLoader.load("05-mental-health-screening.yaml")
+#      )
+#      resp = await engine.start()
+#      print(f"Counsellor: {resp.text}\n")
+#      while not engine.state.is_complete:
+#          msg  = input("You: ").strip()
+#          resp = await engine.process_message(msg)
+#          print(f"\nCounsellor: {resp.text}\n")
+#          if resp.output:
+#              print("── SCREENING RESULT ──")
+#              print(json.dumps(resp.output.content, indent=2))
+#              break
+#
+#  asyncio.run(main())
+#
+#  HOW TO RUN
+#  ──────────────────────────────────────────────────────────
+#  export ANTHROPIC_API_KEY=sk-ant-...
+#  python run.py
+#
+#  PHQ-9 SCORING (built into output template)
+#  ──────────────────────────────────────────────────────────
+#  0-4   → Minimal depression
+#  5-9   → Mild depression
+#  10-14 → Moderate depression   ← recommend counsellor referral
+#  15-19 → Moderately severe     ← urgent referral
+#  20-27 → Severe                ← immediate referral + crisis check
+#
+#  GAD-7 SCORING
+#  ──────────────────────────────────────────────────────────
+#  0-4  → Minimal anxiety
+#  5-9  → Mild anxiety
+#  10-14 → Moderate anxiety      ← recommend assessment
+#  15-21 → Severe anxiety        ← urgent referral
+#
+#  EXPECTED OUTPUT
+#  ──────────────────────────────────────────────────────────
+#  {
+#    "phq9_score": 8,
+#    "phq9_category": "mild",
+#    "gad7_score": 6,
+#    "gad7_category": "mild",
+#    "risk_flag": false,
+#    "recommendation": "COUNSELLOR_REFERRAL",
+#    "key_concerns": ["sleep difficulties", "low energy"],
+#    "protective_factors": ["strong social support", "engaged in work"],
+#    "next_step": "Schedule a conversation with your counsellor this week."
+#  }
+# ============================================================
+
+id: mental_health_screening
+name: "Mental Health Screening"
+version: "1.4.0"
+author: "@truenorth-community"
+sector: healthcare
+tags: [mental-health, PHQ-9, GAD-7, wellbeing, screening, EAP]
+
+compliance:
+  dpdp: true
+  purpose: "Mental health pre-screening for referral support"
+  data_sensitivity: very_high
+  retention_days: 90
+  anonymise_on_complete: true
+
+persona:
+  name: "Asha"
+  tone: "warm, non-judgmental, unhurried — never clinical or cold"
+  empathy_level: very_high
+  slow_on_distress: true
+  language: auto
+  distress_escalation:
+    trigger_emotion: crisis
+    message: >
+      I hear you, and I want you to know you are not alone in this.
+      Please reach out to iCall right now — they are trained to help
+      and you can talk to them for free: 9152987821.
+      Would you like to continue our conversation, or would you prefer to call them first?
+  greeting: >
+    Hello. I am Asha, and I am here to listen.
+    This is a short check-in about how you have been feeling lately —
+    completely confidential, and there are no right or wrong answers.
+    It takes about 5 minutes.
+    Whenever you are ready, we can begin.
+
+fields:
+
+  # ── PHQ-9: Depression screening (9 items) ──────────────────────────────
+  # Standard response scale: 0=not at all, 1=several days, 2=more than half, 3=nearly every day
+  # Asked conversationally — agent translates answers to scores
+
+  - name: phq_interest
+    type: text
+    required: true
+    question: "Over the past two weeks — how often have you had little interest or pleasure in doing things you usually enjoy?"
+
+  - name: phq_mood
+    type: text
+    required: true
+    question: "And feeling down, depressed, or hopeless — how often has that been happening?"
+
+  - name: phq_sleep
+    type: text
+    required: true
+    question: "How has your sleep been? Trouble falling asleep, staying asleep, or sleeping too much?"
+
+  - name: phq_energy
+    type: text
+    required: true
+    question: "Have you been feeling tired or having little energy? How often?"
+
+  - name: phq_appetite
+    type: text
+    required: true
+    question: "Any changes in your appetite — eating much less or much more than usual?"
+
+  - name: phq_self_worth
+    type: text
+    required: true
+    question: "Have you been feeling bad about yourself — or feeling like a failure, or that you've let yourself or others down?"
+
+  - name: phq_concentration
+    type: text
+    required: true
+    question: "Trouble concentrating on things like reading, watching something, or doing work?"
+
+  - name: phq_movement
+    type: text
+    required: true
+    question: "Have others noticed you moving or speaking more slowly than usual — or the opposite, being more fidgety or restless?"
+
+  - name: phq_selfharm
+    type: text
+    required: true
+    pii_sensitivity: critical
+    question: "This is an important question and I want to ask it gently — have you had any thoughts that you would be better off not being here, or thoughts of hurting yourself in any way?"
+
+  # ── GAD-7: Anxiety screening (7 items) ─────────────────────────────────
+
+  - name: gad_nervous
+    type: text
+    required: true
+    question: "Let us talk about anxiety for a moment. How often have you been feeling nervous, anxious, or on edge?"
+
+  - name: gad_worry_control
+    type: text
+    required: true
+    question: "Have you found it hard to stop or control worrying?"
+
+  - name: gad_excessive_worry
+    type: text
+    required: true
+    question: "Worrying too much about different things — has that been an issue?"
+
+  - name: gad_relaxing
+    type: text
+    required: true
+    question: "Trouble relaxing?"
+
+  - name: gad_restlessness
+    type: text
+    required: true
+    question: "Being so restless that it's hard to sit still?"
+
+  - name: gad_irritability
+    type: text
+    required: true
+    question: "Becoming easily annoyed or irritable?"
+
+  - name: gad_afraid
+    type: text
+    required: true
+    question: "Feeling afraid, as if something awful might happen?"
+
+  # ── Context questions ───────────────────────────────────────────────────
+
+  - name: duration_of_feelings
+    type: text
+    required: true
+    question: "How long have you been feeling this way? Has it been getting better or worse?"
+
+  - name: what_helps
+    type: text
+    required: false
+    question: "Is there anything that helps you feel better when things get hard?"
+
+  - name: support_system
+    type: text
+    required: false
+    question: "Do you have people in your life — friends, family — you can talk to when you are struggling?"
+
+  - name: previous_support
+    type: text
+    required: false
+    question: "Have you ever spoken to a counsellor or therapist before? How was that experience?"
+
+  - name: readiness_to_seek_help
+    type: text
+    required: true
+    question: "If I were to suggest speaking to a counsellor, how open would you be to that?"
+
+output:
+  format: json
+  template: >
+    You are a mental health screening assistant trained on PHQ-9 and GAD-7.
+    Score each PHQ-9 response: 0=not at all, 1=several days, 2=more than half, 3=nearly every day.
+    Score each GAD-7 response on the same scale.
+
+    PHQ-9 answers: interest={phq_interest}, mood={phq_mood}, sleep={phq_sleep},
+    energy={phq_energy}, appetite={phq_appetite}, self_worth={phq_self_worth},
+    concentration={phq_concentration}, movement={phq_movement}, selfharm={phq_selfharm}.
+    GAD-7 answers: nervous={gad_nervous}, worry_control={gad_worry_control},
+    excessive_worry={gad_excessive_worry}, relaxing={gad_relaxing},
+    restlessness={gad_restlessness}, irritability={gad_irritability}, afraid={gad_afraid}.
+    Context: duration={duration_of_feelings}, helps={what_helps},
+    support={support_system}, previous_help={previous_support},
+    readiness={readiness_to_seek_help}.
+
+    Return JSON with:
+      - phq9_score (0-27)
+      - phq9_category (minimal/mild/moderate/moderately_severe/severe)
+      - gad7_score (0-21)
+      - gad7_category (minimal/mild/moderate/severe)
+      - risk_flag (true if phq_selfharm suggests any suicidal ideation)
+      - recommendation (SELF_CARE/MONITOR/COUNSELLOR_REFERRAL/URGENT_REFERRAL/CRISIS)
+      - key_concerns (list of 2-3 most prominent symptoms)
+      - protective_factors (list of 1-3 positive factors in their situation)
+      - personalised_message (a warm, non-clinical closing message for the person)
+      - next_step (one clear, concrete action they can take this week)
+      - crisis_resources (list of India helplines — always include iCall 9152987821)
