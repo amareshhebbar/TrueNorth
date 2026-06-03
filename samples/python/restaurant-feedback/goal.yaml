@@ -1,0 +1,116 @@
+id: restaurant_feedback
+name: "Restaurant Feedback"
+version: "1.0.0"
+sector: hospitality
+tags: [restaurant, feedback, NPS, review, customer]
+
+persona:
+  name: "Table Assistant"
+  tone: "warm, conversational, appreciative — like a genuinely curious manager"
+  empathy_level: medium
+  language: auto
+  greeting: >
+    Hi! Thank you for dining with us today.
+    I would love to hear about your experience — it takes about 2 minutes.
+    Your honest feedback helps us improve for everyone.
+
+fields:
+  - name: visit_date
+    type: text
+    required: false
+    question: "Quick note — was this your visit today, or a recent meal?"
+
+  - name: party_size
+    type: integer
+    required: false
+    min: 1
+    max: 50
+    question: "How many people were in your group?"
+
+  - name: occasion
+    type: text
+    required: false
+    allowed_values: [casual dining, birthday, anniversary, business meal, family gathering, date, other]
+    question: "Any special occasion? (casual / birthday / anniversary / business / family / date / other)"
+
+  - name: food_rating
+    type: integer
+    required: true
+    min: 1
+    max: 10
+    question: "How would you rate the food — taste, portion size, and presentation — out of 10?"
+
+  - name: food_highlight
+    type: text
+    required: false
+    question: "What dish stood out the most — either positively or negatively?"
+
+  - name: service_rating
+    type: integer
+    required: true
+    min: 1
+    max: 10
+    question: "How was the service out of 10? (speed, friendliness, attentiveness)"
+
+  - name: ambience_rating
+    type: integer
+    required: true
+    min: 1
+    max: 10
+    question: "Ambience and comfort — out of 10?"
+
+  - name: value_for_money
+    type: integer
+    required: true
+    min: 1
+    max: 10
+    question: "Value for money — out of 10?"
+
+  - name: what_we_did_well
+    type: text
+    required: false
+    question: "What did we do really well today?"
+
+  - name: what_to_improve
+    type: text
+    required: true
+    question: "What is the one thing we could have done better?"
+
+  - name: would_return
+    type: boolean
+    required: true
+    question: "Would you come back — and bring friends?"
+
+  - name: nps_score
+    type: integer
+    required: true
+    min: 0
+    max: 10
+    question: "On a scale of 0 to 10, how likely are you to recommend us to a friend?"
+
+  - name: email_for_voucher
+    type: text
+    required: false
+    question: "Leave your email and we'll send you a 10% discount for your next visit. (completely optional)"
+
+output:
+  format: json
+  template: >
+    Analyse this restaurant feedback and generate a structured summary.
+    Visit: {visit_date}, party of {party_size}, occasion: {occasion}.
+    Ratings: food={food_rating}/10, service={service_rating}/10,
+    ambience={ambience_rating}/10, value={value_for_money}/10.
+    Food highlight: {food_highlight}.
+    Did well: {what_we_did_well}. Improve: {what_to_improve}.
+    Would return: {would_return}. NPS: {nps_score}/10.
+
+    Return JSON with:
+    - overall_score (average of all ratings, out of 10)
+    - nps_category (Promoter if >=9 / Passive if 7-8 / Detractor if <=6)
+    - sentiment (POSITIVE / NEUTRAL / NEGATIVE)
+    - priority_issue (the single most important thing to fix — one sentence)
+    - compliment_to_share (quote or paraphrase to share with staff)
+    - manager_action_required (true if any score below 5 or complaint is serious)
+    - voucher_eligible (true if NPS >= 8 and email provided)
+    - response_message (personalised thank-you message to send to this customer)
+    - internal_tags (list of tags for analytics: e.g. slow_service, great_food, value_complaint)
