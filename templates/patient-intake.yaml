@@ -1,0 +1,170 @@
+# ============================================================
+#  TrueNorth Template: patient-intake.yaml
+#  Category  : Healthcare
+#  Author    : TrueNorth Community
+# ============================================================
+#
+#  WHAT THIS DOES
+#  ──────────────────────────────────────────────────────────
+#  Replaces the paper clipboard at every clinic.
+#  Patient fills this via WhatsApp or web before the doctor
+#  walks in. Doctor gets a 30-second structured summary.
+#  DPDP Act 2023 compliant. No app download needed.
+#
+#  INSTALL
+#  ──────────────────────────────────────────────────────────
+#  cd packages/core
+#  pip install -e .
+#  pip install anthropic              # or openai / google-generativeai
+#
+#  FILE STRUCTURE
+#  ──────────────────────────────────────────────────────────
+#  my-clinic/
+#  ├── 01-patient-intake.yaml   ← this file
+#  └── run.py
+#
+#  CREATE run.py WITH:
+#  ──────────────────────────────────────────────────────────
+#  import asyncio, json
+#  from truenorth.core.yaml_loader import YAMLLoader
+#  from truenorth.core.engine      import TrueNorthEngine
+#
+#  async def main():
+#      engine = TrueNorthEngine(goal_config=YAMLLoader.load("01-patient-intake.yaml"))
+#      resp   = await engine.start()
+#      print(f"\nAgent: {resp.text}\n")
+#      while not engine.state.is_complete:
+#          user_input = input("You: ").strip()
+#          resp       = await engine.process_message(user_input)
+#          print(f"\nAgent: {resp.text}\n")
+#          if resp.output:
+#              print("── INTAKE SUMMARY ──")
+#              print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+#              break
+#
+#  asyncio.run(main())
+#
+#  HOW TO RUN
+#  ──────────────────────────────────────────────────────────
+#  export ANTHROPIC_API_KEY=sk-ant-...
+#  cd my-clinic
+#  python run.py
+#
+#  EXPECTED OUTPUT
+#  ──────────────────────────────────────────────────────────
+#  {
+#    "patient_name": "Ravi Kumar",
+#    "chief_complaint": "severe headache and fever for 3 days",
+#    "pain_scale": 7,
+#    "medications": "paracetamol 500mg",
+#    "allergies": "penicillin",
+#    "clinical_summary": "28-year-old male presenting with 3-day
+#     history of severe headache (7/10) and fever..."
+#  }
+# ============================================================
+
+id: patient_intake
+name: "Patient Intake"
+version: "2.1.0"
+
+compliance:
+  dpdp: true
+  purpose: "Medical intake for clinical assessment"
+  retention_days: 365
+  sensitive_category: health
+
+persona:
+  name: "Clinic Assistant"
+  tone: "warm and professional"
+  empathy_level: high
+  slow_on_distress: true
+  language: auto
+  greeting: >
+    Hello! I am here to help prepare for your appointment today.
+    Everything you share is private and goes directly to your doctor.
+    This takes about 3 minutes.
+
+fields:
+  - name: patient_name
+    type: text
+    required: true
+    question: "What is your full name?"
+
+  - name: date_of_birth
+    type: text
+    required: true
+    question: "What is your date of birth? (e.g. 15 March 1990)"
+
+  - name: chief_complaint
+    type: text
+    required: true
+    question: "What brings you in today? Please describe what you are experiencing."
+
+  - name: pain_scale
+    type: integer
+    required: true
+    min: 0
+    max: 10
+    question: "On a scale of 0 to 10, how would you rate your discomfort right now? (0 = no pain, 10 = worst imaginable)"
+
+  - name: symptom_duration
+    type: text
+    required: true
+    question: "How long have you been experiencing this? (e.g. since yesterday, for 3 days)"
+
+  - name: makes_it_worse
+    type: text
+    required: false
+    question: "Is there anything that makes it worse?"
+
+  - name: makes_it_better
+    type: text
+    required: false
+    question: "Is there anything that gives you relief?"
+
+  - name: current_medications
+    type: text
+    required: true
+    question: "Are you currently taking any medications, supplements, or vitamins? Please list them, or say 'none'."
+
+  - name: known_allergies
+    type: text
+    required: true
+    question: "Do you have any known allergies to medications or foods?"
+
+  - name: medical_history
+    type: text
+    required: false
+    question: "Do you have any ongoing health conditions such as diabetes, hypertension, or asthma?"
+
+  - name: emergency_contact_name
+    type: text
+    required: true
+    question: "What is your emergency contact's name?"
+
+  - name: emergency_contact_phone
+    type: text
+    required: true
+    question: "And their phone number?"
+
+output:
+  format: json
+  template: >
+    Create a structured clinical intake note for the doctor.
+    Patient {patient_name}, DOB {date_of_birth}.
+    Presenting with: {chief_complaint}. Pain scale: {pain_scale}/10.
+    Duration: {symptom_duration}.
+    Aggravating: {makes_it_worse}. Relieving: {makes_it_better}.
+    Medications: {current_medications}. Allergies: {known_allergies}.
+    History: {medical_history}.
+    Emergency contact: {emergency_contact_name}, {emergency_contact_phone}.
+    Write a 3-sentence clinical summary a doctor reads before entering the room.
+    Return JSON with all fields plus a "clinical_summary" key.
+
+follow_up:
+  - trigger: "after 2 hours"
+    condition: "session not complete"
+    channel: whatsapp
+    message_prompt: >
+      Patient started intake but did not finish.
+      Gently remind them to complete it before their appointment.
