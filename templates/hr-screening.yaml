@@ -1,0 +1,244 @@
+# ============================================================
+#  TrueNorth Template: hr-screening.yaml
+#  Category  : HR & Recruitment
+#  Author    : TrueNorth Community
+# ============================================================
+#
+#  WHAT THIS DOES
+#  ──────────────────────────────────────────────────────────
+#  First-round candidate screening that saves 45 minutes
+#  of recruiter time per candidate.
+#
+#  Candidates receive a WhatsApp or web link after applying.
+#  TrueNorth conducts the screening conversationally.
+#  Recruiter gets a ranked shortlist — not 200 raw applications.
+#
+#  Features:
+#    - Role-specific technical questions (configure in YAML)
+#    - Automatic scorecard generated per candidate
+#    - Detects red flags: inflated experience, vague answers
+#    - Sends structured brief to ATS via webhook
+#    - DPDP compliant: candidate consent before data collection
+#
+#  INSTALL
+#  ──────────────────────────────────────────────────────────
+#  cd packages/core
+#  pip install -e .
+#  pip install anthropic
+#
+#  CUSTOMISE FOR YOUR ROLE
+#  ──────────────────────────────────────────────────────────
+#  Change these fields to match your job:
+#    - role_applied (the job title)
+#    - technical_questions (up to 3 role-specific questions)
+#    - min_experience_years (minimum requirement)
+#    - required_skills (comma-separated must-haves)
+#  Everything else stays the same across all roles.
+#
+#  FILE STRUCTURE
+#  ──────────────────────────────────────────────────────────
+#  my-hiring/
+#  ├── 04-hr-screening.yaml   ← this file (customise for your role)
+#  └── run.py
+#
+#  CREATE run.py WITH:
+#  ──────────────────────────────────────────────────────────
+#  import asyncio, json
+#  from truenorth.core.yaml_loader import YAMLLoader
+#  from truenorth.core.engine      import TrueNorthEngine
+#
+#  async def main():
+#      engine = TrueNorthEngine(
+#          goal_config=YAMLLoader.load("04-hr-screening.yaml")
+#      )
+#      resp = await engine.start()
+#      print(f"Recruiter AI: {resp.text}\n")
+#      while not engine.state.is_complete:
+#          msg  = input("Candidate: ").strip()
+#          resp = await engine.process_message(msg)
+#          print(f"\nRecruiter AI: {resp.text}\n")
+#          if resp.output:
+#              print("── CANDIDATE SCORECARD ──")
+#              print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+#              break
+#
+#  asyncio.run(main())
+#
+#  HOW TO RUN
+#  ──────────────────────────────────────────────────────────
+#  export ANTHROPIC_API_KEY=sk-ant-...
+#  python run.py
+#
+#  SAMPLE OUTPUT
+#  ──────────────────────────────────────────────────────────
+#  {
+#    "candidate_name": "Priya Sharma",
+#    "role_applied": "Senior Backend Engineer",
+#    "overall_score": 78,
+#    "recommendation": "SHORTLIST",
+#    "strengths": ["Strong Python fundamentals", "System design experience"],
+#    "concerns": ["Notice period longer than required", "No Kubernetes exp"],
+#    "technical_score": 80,
+#    "culture_score": 75,
+#    "availability_score": 60,
+#    "next_step": "Schedule technical round with lead engineer",
+#    "screener_notes": "..."
+#  }
+#
+#  RECOMMENDATION VALUES
+#  ──────────────────────────────────────────────────────────
+#  SHORTLIST    → forward to technical round
+#  HOLD         → consider if shortlist is thin
+#  REJECT       → does not meet minimum requirements
+#  STRONG_HIRE  → exceptional — fast-track
+#
+#  INTEGRATE WITH YOUR ATS
+#  ──────────────────────────────────────────────────────────
+#  Set COMPLETION_WEBHOOK_URL in your server to push the
+#  scorecard to Greenhouse, Lever, Freshteam, or any ATS
+#  via their API.
+# ============================================================
+
+id: hr_screening
+name: "HR Candidate Screening"
+version: "2.0.0"
+author: "@truenorth-community"
+sector: hr
+tags: [recruitment, screening, hiring, candidate, ATS]
+
+# ── Customise these for your role ─────────────────────────
+# Change role_applied, required_skills, min_experience_years
+# and the technical_question fields below.
+
+persona:
+  name: "Talent Team"
+  tone: "professional and warm — this is a two-way conversation, not an interrogation"
+  empathy_level: medium
+  language: auto
+  greeting: >
+    Hi! Thanks for applying. I am the TrueNorth Talent Team's AI assistant.
+    I would like to ask you a few questions about your background and this role.
+    This takes about 8 minutes and helps us move faster for you.
+    Ready to begin?
+
+fields:
+  - name: candidate_name
+    type: text
+    required: true
+    question: "What is your full name?"
+
+  - name: current_role
+    type: text
+    required: true
+    question: "What is your current role and company? (or 'currently between jobs' if applicable)"
+
+  - name: total_experience_years
+    type: number
+    required: true
+    min: 0
+    max: 50
+    question: "How many years of total professional experience do you have?"
+
+  - name: relevant_experience_years
+    type: number
+    required: true
+    min: 0
+    max: 50
+    question: "Of those, how many years are directly relevant to a backend engineering role?"
+
+  - name: primary_skills
+    type: text
+    required: true
+    question: "What are your top 3 to 5 technical skills or technologies you work with most?"
+
+  - name: technical_question_1
+    type: text
+    required: true
+    question: "Tell me about the most complex system you have designed or built. What was the scale, what were the challenges, and what would you do differently now?"
+
+  - name: technical_question_2
+    type: text
+    required: true
+    question: "How do you approach debugging a performance issue in a production system that is affecting users right now?"
+
+  - name: technical_question_3
+    type: text
+    required: false
+    question: "Have you worked with distributed systems or microservices? What was your role and what did you learn?"
+
+  - name: current_salary_lpa
+    type: number
+    required: false
+    min: 0
+    max: 500
+    question: "What is your current total compensation in LPA? (This helps us move quickly — say 'prefer not to share' if you would rather not.)"
+
+  - name: expected_salary_lpa
+    type: number
+    required: true
+    min: 0
+    max: 500
+    question: "What is your salary expectation for this role in LPA?"
+
+  - name: notice_period_days
+    type: integer
+    required: true
+    min: 0
+    max: 180
+    question: "What is your current notice period in days? (0 if immediately available)"
+
+  - name: work_mode_preference
+    type: text
+    required: true
+    allowed_values: ["fully remote", "hybrid", "in-office", "flexible"]
+    question: "What is your work mode preference? (fully remote / hybrid / in-office / flexible)"
+
+  - name: location
+    type: text
+    required: true
+    question: "Which city are you currently based in? Are you open to relocating?"
+
+  - name: reason_for_looking
+    type: text
+    required: true
+    question: "What is motivating you to look for a new opportunity right now?"
+
+  - name: why_this_company
+    type: text
+    required: true
+    question: "What specifically about this role or company excited you enough to apply?"
+
+  - name: references_available
+    type: boolean
+    required: false
+    question: "Would you be able to provide 2 professional references if asked? (yes/no)"
+
+output:
+  format: json
+  template: >
+    You are a senior technical recruiter. Evaluate this candidate for a Senior Backend Engineer role.
+    Minimum requirements: 4+ years experience, strong Python/Go, system design capability.
+
+    Candidate: {candidate_name}. Current: {current_role}.
+    Total exp: {total_experience_years} years. Relevant: {relevant_experience_years} years.
+    Skills: {primary_skills}.
+    Technical Q1: {technical_question_1}
+    Technical Q2: {technical_question_2}
+    Technical Q3: {technical_question_3}
+    Current CTC: {current_salary_lpa} LPA. Expected: {expected_salary_lpa} LPA.
+    Notice: {notice_period_days} days. Work mode: {work_mode_preference}. Location: {location}.
+    Reason for looking: {reason_for_looking}. Why us: {why_this_company}.
+
+    Return JSON with:
+      - overall_score (0-100)
+      - recommendation (STRONG_HIRE / SHORTLIST / HOLD / REJECT)
+      - technical_score (0-100 based on technical question answers)
+      - culture_score (0-100 based on motivation and communication)
+      - availability_score (0-100 based on notice period and salary fit)
+      - strengths (list of 3 specific strengths from their answers)
+      - concerns (list of specific concerns — be honest)
+      - red_flags (list of any signals that need probing in next round — empty list if none)
+      - salary_fit (IN_RANGE / ABOVE_RANGE / BELOW_RANGE / UNKNOWN)
+      - next_step (what should happen next)
+      - screener_summary (3-sentence paragraph the hiring manager reads)
+      - questions_for_next_round (3 follow-up questions based on gaps spotted)
