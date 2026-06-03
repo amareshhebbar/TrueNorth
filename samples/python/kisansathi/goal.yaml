@@ -1,0 +1,213 @@
+# ============================================================
+#  TrueNorth Template: crop-advisory.yaml
+#  Category  : Agriculture
+#  Author    : TrueNorth Community
+# ============================================================
+#
+#  WHAT THIS DOES
+#  ──────────────────────────────────────────────────────────
+#  AI farm advisor that speaks in the farmer's own language.
+#  Farmer describes their land, crop, and problem via WhatsApp.
+#  TrueNorth extracts structured data and generates advice
+#  matching ICAR (Indian Council of Agricultural Research)
+#  guidelines, returned in the farmer's language.
+#
+#  This template handles:
+#    - Auto language detection (Hindi, Kannada, Telugu, Tamil, etc.)
+#    - Regional units: "2 bigha", "1 gunny bag urea", "3 acre"
+#    - Crop diseases described in local names
+#    - Regional fertiliser brand recommendations
+#    - Seasonal context (kharif / rabi / zaid)
+#
+#  INSTALL
+#  ──────────────────────────────────────────────────────────
+#  cd packages/core
+#  pip install -e .
+#  pip install anthropic
+#
+#  FILE STRUCTURE
+#  ──────────────────────────────────────────────────────────
+#  my-farm-app/
+#  ├── 03-crop-advisory.yaml   ← this file
+#  └── run.py
+#
+#  CREATE run.py WITH:
+#  ──────────────────────────────────────────────────────────
+#  import asyncio, json
+#  from truenorth.core.yaml_loader import YAMLLoader
+#  from truenorth.core.engine      import TrueNorthEngine
+#
+#  async def main():
+#      engine = TrueNorthEngine(
+#          goal_config=YAMLLoader.load("03-crop-advisory.yaml")
+#      )
+#      resp = await engine.start()
+#      print(f"Advisor: {resp.text}\n")
+#      while not engine.state.is_complete:
+#          msg  = input("Farmer: ").strip()
+#          resp = await engine.process_message(msg)
+#          print(f"\nAdvisor: {resp.text}\n")
+#          if resp.output:
+#              print("── FARM ADVISORY ──")
+#              print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+#              break
+#
+#  asyncio.run(main())
+#
+#  HOW TO RUN
+#  ──────────────────────────────────────────────────────────
+#  export ANTHROPIC_API_KEY=sk-ant-...
+#  python run.py
+#
+#  TEST IN HINDI (try typing this):
+#  ──────────────────────────────────────────────────────────
+#  Farmer: नमस्ते
+#  Farmer: मेरी मक्का की फसल में पत्तियाँ पीली पड़ रही हैं
+#  Farmer: 2 बीघा जमीन है, मध्यप्रदेश में हूँ
+#  Farmer: 40 दिन पहले बोई थी
+#
+#  EXPECTED OUTPUT (in Hindi):
+#  ──────────────────────────────────────────────────────────
+#  {
+#    "crop": "मक्का",
+#    "problem": "पत्तियाँ पीली",
+#    "likely_cause": "नाइट्रोजन की कमी",
+#    "treatment": "यूरिया 50 किग्रा प्रति बीघा...",
+#    "advisory_hindi": "...",
+#    "advisory_english": "..."
+#  }
+#
+#  SUPPORTED LANGUAGES
+#  ──────────────────────────────────────────────────────────
+#  Hindi, Kannada, Telugu, Tamil, Marathi, Gujarati,
+#  Punjabi, Bengali, Odia, English, Hinglish
+#  (auto-detected from farmer's first message)
+#
+#  REGIONAL UNIT CONVERSIONS BUILT IN
+#  ──────────────────────────────────────────────────────────
+#  1 bigha (UP)      = 0.25 acre
+#  1 bigha (Rajasthan) = 0.625 acre
+#  1 gunny bag urea  = 50 kg
+#  1 quintal         = 100 kg
+#  TrueNorth normalises automatically — no farmer training needed
+# ============================================================
+
+id: crop_advisory
+name: "Crop Advisory"
+version: "1.2.0"
+author: "@truenorth-community"
+sector: agriculture
+tags: [farming, crop, pest, disease, fertiliser, ICAR, multilingual]
+
+persona:
+  name: "KisanMitra"
+  tone: "patient and simple — farmer-friendly, no jargon"
+  empathy_level: high
+  language: auto
+  slow_on_distress: true
+  greeting: >
+    नमस्ते! / Hello! / ನಮಸ್ಕಾರ!
+    I am KisanMitra, your farm advisor.
+    Tell me about your crop and I will help you.
+    आप अपनी भाषा में बात कर सकते हैं।
+    (You can speak in your own language)
+
+fields:
+  - name: farmer_name
+    type: text
+    required: false
+    question: "What is your name? (optional)"
+
+  - name: state_district
+    type: text
+    required: true
+    question: "Which state and district is your farm in?"
+
+  - name: crop_name
+    type: text
+    required: true
+    question: "Which crop are you growing? (wheat / rice / maize / cotton / sugarcane / vegetables / other)"
+
+  - name: crop_variety
+    type: text
+    required: false
+    question: "Do you know the variety name? (e.g. HD-2967 for wheat, or say 'not sure')"
+
+  - name: land_size
+    type: text
+    required: true
+    question: "How much land are you farming? (in bigha, acre, or hectare — any unit is fine)"
+
+  - name: sowing_date
+    type: text
+    required: true
+    question: "When did you sow this crop? (approximate date or 'about X weeks ago' is fine)"
+
+  - name: problem_description
+    type: text
+    required: true
+    question: "What problem are you seeing? Please describe in detail — leaf colour, which part of the plant, how many plants affected, anything else you notice."
+
+  - name: problem_started
+    type: text
+    required: true
+    question: "When did this problem start? How fast is it spreading?"
+
+  - name: recent_rainfall
+    type: text
+    required: false
+    question: "Has there been unusual rain or drought recently?"
+
+  - name: fertiliser_applied
+    type: text
+    required: false
+    question: "What fertiliser have you applied so far and when? (or say 'none yet')"
+
+  - name: pesticide_applied
+    type: text
+    required: false
+    question: "Have you sprayed any pesticide or fungicide recently?"
+
+  - name: soil_type
+    type: text
+    required: false
+    allowed_values: ["black cotton soil", "red soil", "sandy loam", "clay", "alluvial", "not sure"]
+    question: "What type of soil do you have? (black cotton / red / sandy loam / clay / alluvial / not sure)"
+
+  - name: irrigation_source
+    type: text
+    required: false
+    allowed_values: ["borewell", "canal", "rain-fed", "drip", "flood irrigation", "not sure"]
+    question: "How do you irrigate? (borewell / canal / rain-fed / drip / flood / not sure)"
+
+output:
+  format: json
+  template: >
+    You are an expert agricultural advisor trained on ICAR guidelines.
+    Farmer {farmer_name} from {state_district} grows {crop_name} ({crop_variety})
+    on {land_size} land, sown {sowing_date}.
+    Problem: {problem_description}. Started: {problem_started}.
+    Recent rain: {recent_rainfall}. Fertiliser history: {fertiliser_applied}.
+    Pesticide history: {pesticide_applied}. Soil: {soil_type}. Water: {irrigation_source}.
+
+    Return JSON with:
+      - likely_cause (most probable reason for the problem)
+      - diagnosis_confidence (HIGH / MEDIUM / LOW)
+      - immediate_action (what to do in the next 3 days)
+      - treatment_plan (step-by-step with quantities per acre/bigha)
+      - products_to_use (generic name + common brand names available in India)
+      - products_to_avoid (if any are contraindicated)
+      - prevention_for_next_season
+      - advisory_in_farmer_language (full advice in the language the farmer used)
+      - advisory_english (same advice in English for the extension worker)
+      - estimated_cost_inr (rough treatment cost per acre)
+      - urgency (URGENT / MODERATE / CAN_WAIT)
+
+follow_up:
+  - trigger: "after 7 days"
+    channel: whatsapp
+    message_prompt: >
+      Follow up with {farmer_name} about their {crop_name} crop.
+      They had a problem: {problem_description}.
+      Ask in their language: how is the crop looking now?
+      Has the treatment helped? Any new issues?
