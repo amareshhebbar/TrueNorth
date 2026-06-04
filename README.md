@@ -186,7 +186,7 @@ Every user message passes through all 13 stages:
 
 | Task | Default Model | Reason |
 |------|---------------|--------|
-| Extract | `gemini-1.5-flash` | Cheapest capable extraction model |
+| Extract | `gemini-3.5-flash` | Cheapest capable extraction model |
 | Converse | `claude-haiku-4-5` | Fast, warm conversational responses |
 | Output | `claude-sonnet-4` | Highest quality final report |
 | Verify | `claude-sonnet-4` | Safety-critical hallucination check |
@@ -299,7 +299,7 @@ Official curated goals pre-built and ready:
 
 ## Benchmarks
 
-> All benchmarks run on `claude-haiku-4-5-20251001` + `gemini-1.5-flash` routing.
+> All benchmarks run on `claude-haiku-4-5-20251001` + `gemini-3.5-flash` routing.
 > Medical intake = 12 required fields. Fitness = 8. Legal = 15.
 
 ### Field extraction accuracy vs raw LLM
@@ -418,9 +418,9 @@ curl -X POST http://localhost:8000/sessions/sess-abc/message \
 ```bash
 truenorth self-host init --dir ./my-truenorth --profile standard
 cd my-truenorth
-cp .env.template .env && nano .env   # add your API keys
+cp .env.template .env && nano .env  
 docker compose up -d
-curl http://localhost:8000/health    # {"status": "ok"}
+curl http://localhost:8000/health   
 ```
 
 ---
@@ -508,7 +508,6 @@ fields:
     type: boolean
     question: "Do you have any injuries or physical limitations?"
 
-  # Conditional field — only shown if has_injury is true
   - name: injury_details
     type: text
     required: false
@@ -534,16 +533,16 @@ output:
 # ── LLM routing ───────────────────────────────────────────────────────────
 llm:
   routing:
-    extract:  gemini-1.5-flash
+    extract:  gemini-3.5-flash
     converse: claude-haiku-4-5-20251001
     output:   claude-sonnet-4-20250514
     verify:   claude-sonnet-4-20250514
-  budget_usd: 0.50         # hard stop at $0.50 per session
+  budget_usd: 0.50         
 
 # ── Memory ────────────────────────────────────────────────────────────────
 memory:
   persist: true
-  carry_from: [age, weight_kg, name]   # pre-fill from prior sessions
+  carry_from: [age, weight_kg, name]   
 
 # ── Follow-up reminders ───────────────────────────────────────────────────
 follow_up:
@@ -621,8 +620,8 @@ chain:
 
 | Provider | Models | On-device |
 |----------|--------|-----------|
-| Anthropic | Claude Opus 4, Sonnet 4, Haiku 4.5 | — |
-| Google | Gemini 1.5 Flash, 1.5 Pro, 2.0 Flash, Nano | ✅ Android |
+| Anthropic | Claude Opus 4>, Sonnet 4>, Haiku 4.5 | — |
+| Google | Gemini 3.5 Flash, 3.5 Pro, Nano | ✅ Android |
 | OpenAI | GPT-4o, GPT-4o-mini, o1, o3-mini | — |
 | Cohere | Command R, Command R+ | — |
 | Groq | Llama 3.1 70B/8B, Mixtral | — |

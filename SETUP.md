@@ -158,7 +158,7 @@ TRUENORTH_JWT_SECRET=your-64-char-random-string
 TRUENORTH_API_KEY=tn_live_your-initial-admin-key
 
 # LLM routing overrides
-TRUENORTH_MODEL_EXTRACT=gemini-1.5-flash
+TRUENORTH_MODEL_EXTRACT=gemini-3.5-flash
 TRUENORTH_MODEL_CONVERSE=claude-haiku-4-5-20251001
 TRUENORTH_MODEL_OUTPUT=claude-sonnet-4-20250514
 
