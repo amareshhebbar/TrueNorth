@@ -207,3 +207,12 @@ class GraphState:
             cost_budget_usd = goal_config.get("budget", {}).get("max_cost_usd"),
             **kwargs,
         )
+
+# ── FieldValue — extracted field with confidence metadata ─────────────────────
+from typing import TypedDict, Any
+
+class FieldValue(TypedDict, total=False):
+    value:       Any
+    confidence:  float
+    source_turn: int
+    raw_text:    str
