@@ -1,4 +1,4 @@
-module github.com/truenorth-ai/cost-tracking
+module github.com/truenorth-ai/farm_advisory
 
 go 1.25.0
 

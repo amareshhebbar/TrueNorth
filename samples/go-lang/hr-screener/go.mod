@@ -1,4 +1,4 @@
-module github.com/truenorth-ai/cliniqflow
+module github.com/truenorth-ai/hr-screener
 
 go 1.25.0
 
