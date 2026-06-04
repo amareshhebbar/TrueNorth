@@ -198,19 +198,17 @@ const (
 
 // ── DEMO 1: Automatic goal chaining ──────────────────────────────────────────
 
-func demo1AutoChain(client *truenorth.Client) {
+func demo1AutoChain(client *truenorth.TrueNorth) {
 	divider("GOAL 1: Fitness Intake")
 	ctx := context.Background()
 
 	// Register the inline goal with TrueNorth
 	fitnessID := fmt.Sprintf("fitness_%d", time.Now().UnixMilli())
-		fmt.Printf("  Register error: %v\n  (using goal ID from API instead)\n", err)
-		fitnessID = "fitness_plan"
-	}
+	fitnessID = "fitness_plan"
 
 	sid := fmt.Sprintf("chain_fitness_%d", time.Now().UnixMilli())
-	session, err := client.Sessions.Create(ctx, truenorth.CreateSessionRequest{
-		GoalID: fitnessID, SessionID: sid,
+	session, err := client.Sessions.Create(ctx, fitnessID, &truenorth.CreateSessionOptions{
+		SessionID: sid,
 	})
 	if err != nil {
 		fmt.Printf("  Error: %v\n  Using estimated output\n", err)
@@ -224,15 +222,13 @@ func demo1AutoChain(client *truenorth.Client) {
 
 	for _, turn := range fitnessTurns {
 		fmt.Printf("  User:  %s\n", turn)
-		result, err := client.Sessions.Message(ctx, truenorth.MessageRequest{
-			SessionID: sid, Text: turn,
-		})
+		result, err := client.Sessions.Message(ctx, sid, turn)
 		if err != nil { break }
 
 		fmt.Printf("  Agent: %s\n\n", result.Text)
-		session, err := client.Sessions.Get(ctx, sessionID)
+		gotSession, err := client.Sessions.Get(ctx, sid)
 		if err == nil {
-			collectedFields = session.CollectedFields
+			collectedFields = gotSession.CollectedFields
 		}
 
 		if result.IsComplete { break }
@@ -286,9 +282,7 @@ func demo1AutoChain(client *truenorth.Client) {
 	// ── Goal 2: Nutrition (pre-filled) ────────────────────────────────────
 	divider("GOAL 2: Nutrition Plan (pre-filled fields not re-asked)")
 
-	// Register nutrition goal
-		fmt.Printf("  (using goal ID from API: nutrition_plan)\n")
-	}
+	// goal pre-loaded on server
 
 	fmt.Printf("  Pre-filled (not asked again):\n")
 	for k, v := range carried {
@@ -297,9 +291,8 @@ func demo1AutoChain(client *truenorth.Client) {
 	fmt.Println()
 
 	nutSid := fmt.Sprintf("chain_nutrition_%d", time.Now().UnixMilli())
-	nutSession, err := client.Sessions.Create(ctx, truenorth.CreateSessionRequest{
-		GoalID:     "nutrition_plan",
-		SessionID:  nutSid,
+	nutSession, err := client.Sessions.Create(ctx, "nutrition_plan", &truenorth.CreateSessionOptions{
+		SessionID: nutSid,
 		SeedFields: carried,
 	})
 	if err != nil {
@@ -311,9 +304,7 @@ func demo1AutoChain(client *truenorth.Client) {
 
 	for _, turn := range nutritionTurns {
 		fmt.Printf("  User:  %s\n", turn)
-		result, err := client.Sessions.Message(ctx, truenorth.MessageRequest{
-			SessionID: nutSid, Text: turn,
-		})
+		result, err := client.Sessions.Message(ctx, nutSid, turn)
 		if err != nil { break }
 		fmt.Printf("  Agent: %s\n\n", result.Text)
 
@@ -509,11 +500,7 @@ func showEstimatedChainOutput() {
 func main() {
 	flag.Parse()
 
-	client := truenorth.New(truenorth.Config{
-		BaseURL: tnURL,
-		APIKey:  tnKey,
-		Timeout: 90 * time.Second,
-	})
+	client := truenorth.NewClient(tnKey, tnURL)
 
 	fmt.Println()
 	fmt.Println(col("  TrueNorth Goal Chaining Demo (Go)", bold, cyan))
