@@ -330,10 +330,10 @@ async def process_message(phone: str, text: str):
 
 
 async def _check_complete(session_id: str, phone: str, response):
-    if not (response.is_complete and response.output):
+    if not (response.is_complete and response.final_output):
         return
 
-    content  = response.output.content or {}
+    content  = response.final_output.content or {}
     lang     = _sessions.get(session_id)
     detected = lang.state.detected_language if lang else "unknown"
 
@@ -434,11 +434,11 @@ async def local_test():
         detected = resp.detected_language or "auto"
         print(f"\n{APP_NAME} [{detected}]: {resp.text}\n")
 
-        if resp.is_complete and resp.output:
+        if resp.is_complete and resp.final_output:
             print("=" * 60)
             print("ADVISORY GENERATED:")
             print("=" * 60)
-            content = resp.output.content
+            content = resp.final_output.content
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
             if content.get("red_flag"):

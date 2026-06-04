@@ -142,8 +142,8 @@ def message():
         "is_complete": resp.is_complete,
     }
 
-    if resp.is_complete and resp.output:
-        content = resp.output.content or {}
+    if resp.is_complete and resp.final_output:
+        content = resp.final_output.content or {}
         feedback_log.append({
             "session_id":  sid,
             "timestamp":   datetime.now().isoformat(),

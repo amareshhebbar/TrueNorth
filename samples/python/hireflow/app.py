@@ -341,10 +341,10 @@ async def process_message(phone: str, text: str):
 
 
 async def _check_done(sid: str, phone: str, response):
-    if not (response.is_complete and response.output):
+    if not (response.is_complete and response.final_output):
         return
 
-    content = response.output.content or {}
+    content = response.final_output.content or {}
     eng     = _sessions.get(sid)
 
     record = {
@@ -431,8 +431,8 @@ async def local_test():
         resp = await engine.process_message(user_input)
         print(f"\nHireFlow: {resp.text}\n")
 
-        if resp.is_complete and resp.output:
-            content = resp.output.content
+        if resp.is_complete and resp.final_output:
+            content = resp.final_output.content
             print("=" * 60)
             print(f"  SCORECARD: {content.get('candidate_name','?')}")
             print("=" * 60)

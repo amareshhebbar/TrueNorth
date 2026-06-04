@@ -285,15 +285,15 @@ async def resume_and_complete(session_id: str, resume_result) -> Optional[dict]:
         resp = await engine.process_message(ans)
         print(f"Agent: {resp.text}\n")
 
-        if resp.output:
-            return resp.output.content
+        if resp.final_output:
+            return resp.final_output.content
 
     # If still not complete, force output
     if not engine.state.is_complete:
         print("(Generating output from collected fields...)")
         force_resp = await engine.force_output()
-        if force_resp and force_resp.output:
-            return force_resp.output.content
+        if force_resp and force_resp.final_output:
+            return force_resp.final_output.content
 
     return None
 

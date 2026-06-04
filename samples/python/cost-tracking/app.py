@@ -181,7 +181,7 @@ async def demo_per_turn_costs():
             f"${turn_cost:.6f}  {latency_ms}ms"
         )
 
-        if resp.output:
+        if resp.final_output:
             break
 
     # Session summary from cost tracker
@@ -239,9 +239,9 @@ async def demo_budget_guard():
             print(f"\n🛑 BUDGET EXCEEDED before turn {i}!")
             print(f"   Forcing output with collected fields...")
             force_resp = await engine.force_output()
-            if force_resp and force_resp.output:
+            if force_resp and force_resp.final_output:
                 print(f"\n   Partial output generated:")
-                content = force_resp.output.content
+                content = force_resp.final_output.content
                 if isinstance(content, dict):
                     for k, v in list(content.items())[:4]:
                         print(f"   {k}: {v}")
@@ -256,7 +256,7 @@ async def demo_budget_guard():
             f"  {i:<4} ${cumulative:<12.6f} ${BUDGET_USD:.4f}        {status}"
         )
 
-        if resp.output:
+        if resp.final_output:
             print(f"\n✅ Session completed within budget!")
             break
 

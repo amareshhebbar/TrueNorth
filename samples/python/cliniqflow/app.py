@@ -358,9 +358,9 @@ async def process_message(phone: str, text: str):
 
 async def _check_complete(session_id: str, phone: str, response):
     """Handle session completion."""
-    if response.is_complete and response.output:
+    if response.is_complete and response.final_output:
         # Store the completed intake
-        store.complete(session_id, response.output.content)
+        store.complete(session_id, response.final_output.content)
 
         # Send confirmation to patient
         summary = (
@@ -375,7 +375,7 @@ async def _check_complete(session_id: str, phone: str, response):
             await fire_completion_webhook(
                 session_id  = session_id,
                 phone       = phone,
-                output      = response.output.content,
+                output      = response.final_output.content,
             )
 
 
@@ -457,12 +457,12 @@ async def local_test():
         store.increment_turns(sess)
         print(f"\nCliniqFlow: {resp.text}\n")
 
-        if resp.is_complete and resp.output:
+        if resp.is_complete and resp.final_output:
             print("\n" + "=" * 60)
             print("  INTAKE COMPLETE — Doctor's Summary")
             print("=" * 60)
-            print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
-            store.complete(sess, resp.output.content)
+            print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
+            store.complete(sess, resp.final_output.content)
             break
 
     final_stats = store.stats()

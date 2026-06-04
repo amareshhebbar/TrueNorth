@@ -68,12 +68,7 @@ FIREWALL STAGES (how it works)
 
 HOW TO TUNE
 -----------
-    firewall = HallucinationFirewall(
-        verify_model        = "claude-haiku-4-5-20251001",   # fast and cheap
-        confidence_threshold = 0.80,       # raise for medical, lower for casual
-        block_on_fail        = True,       # False = flag only, not block
-        max_retries          = 2,          # retry extraction before flagging
-    )
+    firewall = HallucinationFirewall()
 """
 
 import asyncio
@@ -147,10 +142,10 @@ async def run_without_firewall(config: dict) -> Optional[dict]:
         print(f"User:  {user_turn}")
         response = await engine.process_message(user_turn)
 
-        if response.output:
+        if response.final_output:
             print(f"\nAgent: {response.text}")
             print("\n🔴 RAW OUTPUT (no firewall checks):")
-            content = response.output.content
+            content = response.final_output.content
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
             # Highlight the danger: did the LLM invent medication details?
@@ -177,11 +172,7 @@ async def run_with_firewall(config: dict) -> Optional[dict]:
     header("SESSION B — WITH HALLUCINATION FIREWALL", "═")
     print("  3-stage verification active. Unverifiable claims blocked.\n")
 
-    firewall = HallucinationFirewall(
-        verify_model         = "claude-haiku-4-5-20251001",
-        confidence_threshold = 0.80,
-        block_on_fail        = True,
-    )
+    firewall = HallucinationFirewall()
 
     tracer = SourceTracer()
     router = LLMRouter()
@@ -201,16 +192,16 @@ async def run_with_firewall(config: dict) -> Optional[dict]:
         print(f"User:  {user_turn}")
         response = await engine.process_message(user_turn)
 
-        if response.output:
+        if response.final_output:
             print(f"\nAgent: {response.text}")
             print("\n🟢 FIREWALL-VERIFIED OUTPUT:")
-            content = response.output.content
+            content = response.final_output.content
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
             # Show source traces
-            if hasattr(response.output, "source_traces") and response.output.source_traces:
+            if hasattr(response.final_output, "source_traces") and response.final_output.source_traces:
                 print("\n📍 SOURCE TRACES (every claim → the turn it came from):")
-                for trace in response.output.source_traces[:5]:
+                for trace in response.final_output.source_traces[:5]:
                     print(f"  Field: {trace.field}")
                     print(f"  Value: {trace.value}")
                     print(f"  Turn:  {trace.turn}")

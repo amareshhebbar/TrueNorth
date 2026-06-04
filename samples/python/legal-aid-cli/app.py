@@ -341,7 +341,7 @@ async def run():
 
         print_agent(resp.text)
 
-        if resp.output:
+        if resp.final_output:
             break
 
     # Done — display and save
@@ -351,8 +351,8 @@ async def run():
 
         if output and hasattr(output, "content"):
             content = output.content if isinstance(output.content, dict) else {}
-        elif resp.output:
-            content = resp.output.content if isinstance(resp.output.content, dict) else {}
+        elif resp.final_output:
+            content = resp.final_output.content if isinstance(resp.final_output.content, dict) else {}
 
         print_case_brief(content)
 

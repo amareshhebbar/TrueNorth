@@ -283,8 +283,8 @@ async def demo_auto_chaining():
         print(f"User:  {turn}")
         resp = await fitness_engine.process_message(turn)
         print(f"Agent: {resp.text}\n")
-        if resp.output:
-            fitness_output = resp.output.content
+        if resp.final_output:
+            fitness_output = resp.final_output.content
             break
 
     if not fitness_output:
@@ -352,8 +352,8 @@ async def demo_auto_chaining():
         print(f"User:  {turn}")
         resp = await nutrition_engine.process_message(turn)
         print(f"Agent: {resp.text}\n")
-        if resp.output:
-            nutrition_output = resp.output.content
+        if resp.final_output:
+            nutrition_output = resp.final_output.content
             break
 
     if nutrition_output:

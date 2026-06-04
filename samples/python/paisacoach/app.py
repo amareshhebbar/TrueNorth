@@ -291,10 +291,10 @@ async def process_message(phone: str, text: str):
 
 
 async def _check_done(sid: str, phone: str, response):
-    if not (response.is_complete and response.output):
+    if not (response.is_complete and response.final_output):
         return
 
-    content = response.output.content or {}
+    content = response.final_output.content or {}
     eng     = _sessions.get(sid)
 
     _plans.append({
@@ -426,11 +426,11 @@ async def local_test():
         lang = resp.detected_language or "auto"
         print(f"\n{APP_NAME} [{lang}]: {resp.text}\n")
 
-        if resp.is_complete and resp.output:
+        if resp.is_complete and resp.final_output:
             print("=" * 60)
             print("  YOUR FINANCE PLAN")
             print("=" * 60)
-            content = resp.output.content
+            content = resp.final_output.content
             print(f"  Monthly surplus:  ₹{content.get('monthly_surplus', '?'):,}")
             print(f"  Primary goal:     {content.get('primary_goal_plan', {}).get('target', '?') if isinstance(content.get('primary_goal_plan'), dict) else '?'}")
             print()

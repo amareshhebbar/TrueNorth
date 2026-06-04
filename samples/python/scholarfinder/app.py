@@ -422,10 +422,10 @@ async def process_message(phone: str, text: str):
 
 
 async def _check_complete(session_id: str, phone: str, response):
-    if not (response.is_complete and response.output):
+    if not (response.is_complete and response.final_output):
         return
 
-    content = response.output.content or {}
+    content = response.final_output.content or {}
     matched = content.get("matched_scholarships", [])
     amount  = content.get("total_potential_amount", "unknown")
 
@@ -523,9 +523,9 @@ async def local_test():
                 break
             resp = await engine.process_message(user_input)
             print(f"\n{APP_NAME}: {resp.text}\n")
-            if resp.is_complete and resp.output:
+            if resp.is_complete and resp.final_output:
                 print("=" * 60)
-                print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+                print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
                 break
     else:
         # Scripted demo
@@ -535,11 +535,11 @@ async def local_test():
             print(f"Student: {ans}")
             resp = await engine.process_message(ans)
             print(f"\n{APP_NAME}: {resp.text}\n")
-            if resp.is_complete and resp.output:
+            if resp.is_complete and resp.final_output:
                 print("=" * 60)
                 print("SCHOLARSHIP RESULTS:")
                 print("=" * 60)
-                content = resp.output.content
+                content = resp.final_output.content
                 print(json.dumps(content, indent=2, ensure_ascii=False))
 
                 matched = content.get("matched_scholarships", [])

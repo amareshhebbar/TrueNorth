@@ -350,10 +350,10 @@ async def process_message(phone: str, text: str):
 
 
 async def _check_done(session_id: str, phone: str, response):
-    if not (response.is_complete and response.output):
+    if not (response.is_complete and response.final_output):
         return
 
-    content = response.output.content or {}
+    content = response.final_output.content or {}
 
     # Store job card
     job_card = {
@@ -442,11 +442,11 @@ async def local_test():
         resp = await engine.process_message(user_input)
         print(f"\nGarageBot: {resp.text}\n")
 
-        if resp.is_complete and resp.output:
+        if resp.is_complete and resp.final_output:
             print("\n" + "=" * 60)
             print("  JOB CARD CREATED")
             print("=" * 60)
-            print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+            print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
             break
 
 

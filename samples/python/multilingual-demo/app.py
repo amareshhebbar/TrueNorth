@@ -260,10 +260,10 @@ async def run_language_demo(
         response = await engine.process_message(user_input)
         print(f"Agent: {response.text}\n")
 
-        if response.output:
+        if response.final_output:
             print(f"✅ Session complete!\n")
             show_detection_stats(engine.state)
-            content = response.output.content
+            content = response.final_output.content
 
             print("── STRUCTURED OUTPUT ──────────────────────────────────")
             print(json.dumps(content, indent=2, ensure_ascii=False))
@@ -342,9 +342,9 @@ async def interactive_session():
         resp = await engine.process_message(user_input)
         print(f"\nAgent [{resp.detected_language or 'auto'}]: {resp.text}\n")
 
-        if resp.output:
+        if resp.final_output:
             print("── OUTPUT ──")
-            print(json.dumps(resp.output.content, indent=2, ensure_ascii=False))
+            print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
             break
 
 
