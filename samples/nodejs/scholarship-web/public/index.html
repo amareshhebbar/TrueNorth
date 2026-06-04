@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>ScholarFinder — Find Your Scholarships</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+     min-height:100vh;background:linear-gradient(135deg,#1e3a8a,#1e40af,#2563eb);
+     display:flex;flex-direction:column;align-items:center;padding:20px;}
+.hero{text-align:center;color:white;padding:20px 0 16px;}
+.hero h1{font-size:1.6rem;font-weight:800;letter-spacing:-.3px;}
+.hero p{font-size:.9rem;opacity:.8;margin-top:6px;}
+.card{background:white;border-radius:20px;width:100%;max-width:480px;
+      display:flex;flex-direction:column;height:70vh;min-height:400px;
+      box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.bubble{padding:10px 14px;border-radius:16px;max-width:88%;font-size:.9rem;
+        line-height:1.55;word-wrap:break-word;}
+.bot{background:#eff6ff;color:#1e3a8a;align-self:flex-start;border-bottom-left-radius:4px;}
+.user{background:#2563eb;color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+.typing{display:flex;gap:5px;align-items:center;padding:10px 14px;
+        background:#eff6ff;border-radius:16px;border-bottom-left-radius:4px;
+        align-self:flex-start;}
+.dot{width:7px;height:7px;background:#2563eb;border-radius:50%;
+     animation:bounce .9s infinite ease-in-out;}
+.dot:nth-child(2){animation-delay:.15s;} .dot:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-7px);}}
+.progress-bar{height:4px;background:#e2e8f0;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);
+               transition:width .5s ease;}
+.input-row{padding:12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;}
+input{flex:1;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;
+      font-size:.9rem;outline:none;}
+input:focus{border-color:#2563eb;}
+button{background:#2563eb;color:white;border:none;border-radius:12px;
+       padding:10px 18px;font-weight:600;font-size:.9rem;cursor:pointer;}
+button:hover{background:#1d4ed8;} button:disabled{opacity:.4;cursor:default;}
+
+/* Results panel */
+.results{padding:16px;overflow-y:auto;flex:1;}
+.results h2{font-size:1.1rem;color:#1e3a8a;margin-bottom:4px;}
+.results p{font-size:.85rem;color:#64748b;margin-bottom:14px;}
+.scholarship{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;
+             margin-bottom:10px;background:#f8fafc;}
+.scholarship h3{font-size:.9rem;color:#1e3a8a;font-weight:700;}
+.scholarship .amt{font-size:.85rem;color:#16a34a;font-weight:600;margin:3px 0;}
+.scholarship .why{font-size:.8rem;color:#64748b;}
+.scholarship .portal{font-size:.78rem;color:#2563eb;margin-top:4px;}
+.steps{background:#eff6ff;border-radius:12px;padding:12px 14px;margin-top:10px;}
+.steps h3{font-size:.85rem;color:#1e3a8a;font-weight:700;margin-bottom:8px;}
+.step{font-size:.82rem;color:#374151;margin:4px 0;padding-left:14px;
+      position:relative;}
+.step::before{content:"→";position:absolute;left:0;color:#2563eb;}
+.tip{background:#fefce8;border-radius:10px;padding:10px 14px;
+     font-size:.82rem;color:#713f12;margin-top:10px;}
+.restart{width:100%;margin-top:14px;background:#f1f5f9;color:#1e3a8a;
+         border:none;border-radius:12px;padding:10px;font-size:.85rem;
+         font-weight:600;cursor:pointer;}
+.restart:hover{background:#e2e8f0;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🎓 ScholarFinder</h1>
+  <p>Find every scholarship you qualify for — free, 5 minutes</p>
+</div>
+
+<div class="card" id="chatCard">
+  <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+  <div class="messages" id="msgs"></div>
+  <div class="input-row">
+    <input id="inp" placeholder="Type your reply…" autocomplete="off"/>
+    <button id="btn" onclick="send()">Send</button>
+  </div>
+</div>
+
+<script>
+let sid = null, done = false;
+
+async function start() {
+  const r = await fetch('/api/start', {method:'POST'});
+  const d = await r.json();
+  sid = d.sessionId;
+  addBubble('bot', d.text);
+  document.getElementById('inp').focus();
+}
+
+async function send() {
+  const inp  = document.getElementById('inp');
+  const text = inp.value.trim();
+  if (!text || done) return;
+  inp.value = '';
+  addBubble('user', text);
+  showTyping();
+  document.getElementById('btn').disabled = true;
+
+  const r = await fetch('/api/message', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({sessionId: sid, text}),
+  });
+  const d = await r.json();
+  hideTyping();
+
+  if (d.completionPct) {
+    document.getElementById('prog').style.width = d.completionPct + '%';
+  }
+
+  if (d.isComplete) {
+    done = true;
+    addBubble('bot', d.text);
+    setTimeout(() => showResults(d), 600);
+  } else {
+    addBubble('bot', d.text);
+    document.getElementById('btn').disabled = false;
+    inp.focus();
+  }
+}
+
+function showResults(data) {
+  const card = document.getElementById('chatCard');
+  const scholarships = data.scholarships || [];
+
+  let html = `<div class="results">
+    <h2>🎉 You qualify for ${scholarships.length} scholarship${scholarships.length !== 1 ? 's' : ''}!</h2>
+    <p>Total potential: <strong>${data.totalAmount || 'check portals'}</strong> per year</p>`;
+
+  scholarships.forEach((s, i) => {
+    const isTop = s.name === data.topPick;
+    html += `<div class="scholarship" style="${isTop ? 'border-color:#2563eb;background:#eff6ff;' : ''}">
+      ${isTop ? '<span style="font-size:.72rem;background:#2563eb;color:white;padding:2px 7px;border-radius:6px;margin-bottom:4px;display:inline-block;">⭐ Apply first</span><br>' : ''}
+      <h3>${s.name}</h3>
+      <div class="amt">₹ ${s.amount}</div>
+      <div class="why">${s.why_eligible || ''}</div>
+      <div class="portal">🔗 ${s.portal || 'scholarships.gov.in'} &nbsp;·&nbsp; Deadline: ${s.deadline || 'Oct'}</div>
+    </div>`;
+  });
+
+  if (data.nextSteps && data.nextSteps.length) {
+    html += `<div class="steps"><h3>📋 Next steps</h3>`;
+    data.nextSteps.forEach(s => { html += `<div class="step">${s}</div>`; });
+    html += `</div>`;
+  }
+
+  if (data.tip) {
+    html += `<div class="tip">💡 <strong>Tip:</strong> ${data.tip}</div>`;
+  }
+
+  html += `<button class="restart" onclick="location.reload()">Start over for someone else →</button>`;
+  html += `</div>`;
+
+  card.innerHTML = html;
+}
+
+let typingEl = null;
+function addBubble(role, text) {
+  const msgs = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className = 'bubble ' + role;
+  d.textContent = text;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function showTyping() {
+  const msgs = document.getElementById('msgs');
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing';
+  typingEl.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  msgs.appendChild(typingEl);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping() { typingEl && typingEl.remove(); typingEl = null; }
+
+document.getElementById('inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') send();
+});
+
+start();
+</script>
+</body>
+</html>
