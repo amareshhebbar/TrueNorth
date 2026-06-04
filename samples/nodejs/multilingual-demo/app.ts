@@ -237,7 +237,6 @@ async function showDetectionTable(tn: TrueNorth): Promise<void> {
   console.log('  ' + '─'.repeat(70))
 
   for (const { text, expected } of SAMPLE_PHRASES) {
-    // ✅ FIX: tn.language.detect() doesn't exist — use local estimator only
     const detected = estimateLang(text)
     const tick     = detected.toLowerCase().includes(expected.toLowerCase())
       ? col('✅', GRN)
@@ -279,17 +278,11 @@ async function runDemo(
       console.log(`  ${col('Error:', YLW)} ${err}`)
       break
     }
-
-    // ✅ FIX: detectedLanguage is on Session, not MessageResult
-    // Use estimateLang as fallback — avoids extra API call each turn
     const detected = estimateLang(turn)
     console.log(`  Agent ${col(`[${detected}]`, CYN)}: ${result.text}\n`)
 
     if (result.isComplete && result.output) {
       const content = result.output.content as Record<string, unknown>
-
-      // ✅ FIX: fetch session to get detectedLanguage + collectedFields
-      // use sid not sessionId (sessionId was undefined)
       const fullSession = await tn.sessions.get(sid).catch(() => null)
       const langDetected = fullSession?.detectedLanguage ?? detected
       const fieldCount   = Object.keys(fullSession?.collectedFields ?? {}).length
