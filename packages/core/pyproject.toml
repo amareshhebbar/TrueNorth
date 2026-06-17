@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "truenorth-framework"
-version = "0.1.7"
+version = "0.1.8"
 description = "Conversation-first AI agent framework."
 authors = ["Amaresh Hebbar <truenorth.framework@gmail.com>"]
 readme = "README.md"
