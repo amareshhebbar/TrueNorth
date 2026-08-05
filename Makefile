@@ -16,6 +16,7 @@ DIM   := \033[2m
 
 SAMPLES_REPO := https://github.com/amareshhebbar/TrueNorth-samples.git
 SAMPLES_DIR  := samples
+SHELL := /bin/bash
 
 define PRINT_LOGO
 	@echo ""
@@ -279,8 +280,36 @@ sample-list: sample-clone
 	@echo "go-lang:" && ls $(SAMPLES_DIR)/go-lang
 
 sample-run: sample-clone
-	@read -p "Language (python/nodejs/go-lang): " lang; \
-	read -p "Sample name (e.g. kisansathi): " name; \
+	@lang=""; \
+	echo "Select language:"; \
+	echo "  a) python"; \
+	echo "  b) nodejs"; \
+	echo "  c) go-lang"; \
+	read -p "Choice: " lchoice; \
+	case "$$lchoice" in \
+		a) lang=python ;; \
+		b) lang=nodejs ;; \
+		c) lang=go-lang ;; \
+		*) echo "Invalid choice"; exit 1 ;; \
+	esac; \
+	names=($$(ls $(SAMPLES_DIR)/$$lang)); \
+	letters=(a b c d e f g h i j k l m n o p q r s t u v w x y z); \
+	echo "Select sample:"; \
+	i=0; \
+	for n in "$${names[@]}"; do \
+		echo "  $${letters[$$i]}) $$n"; \
+		i=$$((i+1)); \
+	done; \
+	read -p "Choice: " schoice; \
+	idx=-1; \
+	for j in "$${!letters[@]}"; do \
+		if [ "$${letters[$$j]}" = "$$schoice" ]; then idx=$$j; fi; \
+	done; \
+	if [ "$$idx" = "-1" ] || [ "$$idx" -ge "$${#names[@]}" ]; then \
+		echo "Invalid selection"; exit 1; \
+	fi; \
+	name="$${names[$$idx]}"; \
+	echo "Running $$lang/$$name..."; \
 	if [ "$$lang" = "python" ]; then \
 		cd packages/core && GOAL_YAML=../../$(SAMPLES_DIR)/python/$$name/goal.yaml \
 		poetry run python ../../$(SAMPLES_DIR)/python/$$name/app.py; \
@@ -288,6 +317,4 @@ sample-run: sample-clone
 		cd $(SAMPLES_DIR)/go-lang/$$name && go run main.go; \
 	elif [ "$$lang" = "nodejs" ]; then \
 		cd $(SAMPLES_DIR)/nodejs/$$name && npm install --silent && npx tsx app.ts; \
-	else \
-		echo "Unknown language: $$lang"; \
 	fi

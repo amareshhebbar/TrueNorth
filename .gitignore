@@ -245,3 +245,4 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?/samples/
+/samples/
