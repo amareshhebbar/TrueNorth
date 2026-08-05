@@ -43,10 +43,6 @@ from truenorth.core.graph_state import GraphState
 
 SCORER = ConfidenceScorer()
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Type validation
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTypeValidation:
 
     def test_valid_integer(self):
@@ -119,11 +115,6 @@ class TestTypeValidation:
         score, _ = _validate_type(None, {"type": "integer"})
         assert score == 0.0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Extraction method
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestExtractionMethod:
 
     def test_direct_quote_highest(self):
@@ -154,13 +145,8 @@ class TestExtractionMethod:
         s = SCORER.score("age", 28, {"type": "integer"},
                          extraction_confidence=0.9, source_text="I am pretty old",
                          method=ExtractionMethod.DIRECT_QUOTE)
-        # Should be penalised for claiming direct quote but value not in source
+
         assert any("verbatim" in i for i in s.issues)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Source quality
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSourceQuality:
 
@@ -180,19 +166,14 @@ class TestSourceQuality:
 
     def test_value_not_in_source_penalised(self):
         s = SCORER.score("age", 28, source_text="I am quite young actually")
-        # 28 is not in source text → lower source quality
+
         assert s.score < 0.85
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Temporal stability
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTemporalStability:
 
     def test_no_prior_extractions_neutral(self):
         s = SCORER.score("age", 28, prior_extractions=[])
-        # 0.75 stability contribution — neutral
+
         assert s.score > 0.0
 
     def test_consistent_prior_extractions_boost(self):
@@ -211,11 +192,6 @@ class TestTemporalStability:
                           user_confirmed=True,
                           prior_extractions=[28, 28, 28, 28])
         assert s.band == ConfidenceBand.HIGH
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. Conflict history
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConflictHistory:
 
@@ -239,15 +215,10 @@ class TestConflictHistory:
         s = SCORER.score("age", 28, conflict_history=3)
         assert any("conflict" in i.lower() for i in s.issues)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. Cross-field consistency
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCrossFieldConsistency:
 
     def test_valid_bmi_no_issue(self):
-        # BMI = 65 / 1.63^2 = 24.5 — normal
+
         s = SCORER.score(
             "weight_kg", 65,
             field_config={"type": "number"},
@@ -256,7 +227,7 @@ class TestCrossFieldConsistency:
         assert not any("bmi" in i.lower() for i in s.issues)
 
     def test_impossible_bmi_flagged(self):
-        # BMI = 10 / 1.63^2 = 3.8 — clearly wrong
+
         s = SCORER.score(
             "weight_kg", 10,
             field_config={"type": "number"},
@@ -276,11 +247,6 @@ class TestCrossFieldConsistency:
     def test_no_cross_field_data_passes(self):
         s = SCORER.score("age", 28, field_config={"type": "integer"})
         assert s.score > 0.0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Confidence bands
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConfidenceBands:
 
@@ -318,11 +284,6 @@ class TestConfidenceBands:
         assert "band" in d
         assert d["band"] in ("high", "medium", "low", "unconfident")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Session health report
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSessionHealth:
 
     COLLECTED = {"name": "Priya", "age": 28, "weight_kg": 65.0, "primary_goal": "lose weight"}
@@ -359,11 +320,6 @@ class TestSessionHealth:
         report = SCORER.session_health("s1", self.COLLECTED, self.FIELDS, self.REQUIRED, meta)
         assert len(report.needs_confirm) > 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. score_all + backward compat
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestScoreAll:
 
     def test_score_all_returns_dict(self):
@@ -388,11 +344,6 @@ class TestScoreAll:
         results_conflict = SCORER.score_all(collected, fields, conflict_history={"age": 3})
         assert results_clean["age"].score > results_conflict["age"].score
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. FieldTree — basic (no conditions)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldTreeBasic:
 
     def _ft(self, fields_config):
@@ -413,11 +364,6 @@ class TestFieldTreeBasic:
     def test_dependency_summary_empty_when_no_conditions(self):
         ft = self._ft({"age": {"type": "integer"}, "name": {"type": "text"}})
         assert ft.dependency_summary() == {}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. FieldTree — if_true
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldTreeIfTrue:
 
@@ -450,11 +396,6 @@ class TestFieldTreeIfTrue:
         deps = ft.dependency_summary()
         assert "injury_desc" in deps
         assert "has_injury" in deps["injury_desc"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. FieldTree — if_value_is
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldTreeIfValueIs:
 
@@ -490,11 +431,6 @@ class TestFieldTreeIfValueIs:
         assert ft.is_visible("quit_date", {"smoker": "NO"}) is True
         assert ft.is_visible("quit_date", {"smoker": "No"}) is True
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. FieldTree — if_value_in
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldTreeIfValueIn:
 
     FIELDS = {
@@ -522,11 +458,6 @@ class TestFieldTreeIfValueIn:
         ft = FieldTree(self.FIELDS)
         assert ft.is_visible("target_muscles", {}) is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. FieldTree — if_value_not
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldTreeIfValueNot:
 
     FIELDS = {
@@ -547,14 +478,9 @@ class TestFieldTreeIfValueNot:
         assert ft.is_visible("pain_treatment", {"pain_level": "none"}) is False
 
     def test_visible_when_gate_not_collected(self):
-        # Not set → not equal to "none" → condition passes
+
         ft = FieldTree(self.FIELDS)
         assert ft.is_visible("pain_treatment", {}) is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. FieldTree — if_numeric_gt / if_numeric_lt
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldTreeNumeric:
 
@@ -597,11 +523,6 @@ class TestFieldTreeNumeric:
     def test_hidden_when_gate_not_collected(self):
         ft = FieldTree(self.FIELDS_GT)
         assert ft.is_visible("recovery_focus", {}) is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. FieldTree — compound (if_all_of / if_any_of)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldTreeCompound:
 
@@ -647,11 +568,6 @@ class TestFieldTreeCompound:
         assert ft.is_visible("beginner_guide", {"activity_level": "very active"}) is False
         assert ft.is_visible("beginner_guide", {"activity_level": "moderately active"}) is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  17. FieldTree navigation
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldTreeNavigation:
 
     FIELDS = {
@@ -663,9 +579,9 @@ class TestFieldTreeNavigation:
 
     def test_next_required_respects_conditions(self):
         ft = FieldTree(self.FIELDS)
-        # injury_desc should NOT appear before has_injury is answered
+
         nxt = ft.next_required({"name": "Alex"})
-        assert nxt == "has_injury"   # not injury_desc
+        assert nxt == "has_injury"
 
     def test_injury_desc_appears_after_has_injury_true(self):
         ft = FieldTree(self.FIELDS)
@@ -674,7 +590,7 @@ class TestFieldTreeNavigation:
 
     def test_injury_desc_skipped_when_has_injury_false(self):
         ft = FieldTree(self.FIELDS)
-        # has_injury=false → injury_desc never visible → all_required_collected
+
         all_done = ft.all_required_collected({"name": "Alex", "has_injury": False})
         assert all_done is True
 
@@ -695,11 +611,6 @@ class TestFieldTreeNavigation:
             max_optional=1,
         )
         assert nxt is None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  18. Reasoner uses FieldTree
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestReasonerWithFieldTree:
 
@@ -757,7 +668,7 @@ class TestReasonerWithFieldTree:
         state    = self._make_state(fields, collected={"has_injury": "no"})
         reasoner = Reasoner()
         decision = reasoner.decide(state)
-        # has_injury=no → injury_desc never visible → generate output
+
         assert decision.action == ReasonerAction.GENERATE_OUTPUT
 
     def test_reasoner_asks_conditional_when_gate_true(self):
@@ -773,11 +684,6 @@ class TestReasonerWithFieldTree:
         decision = reasoner.decide(state)
         assert decision.action == ReasonerAction.ASK_FIELD
         assert decision.target_field == "injury_desc"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  19. End-to-end: fitness YAML with conditional fields
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFitnessYAMLConditions:
 

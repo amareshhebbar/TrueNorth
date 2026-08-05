@@ -104,8 +104,6 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.llm.cost_tracker import CostTracker
 from truenorth.llm.router       import LLMRouter
 
-# ── Inline goal ───────────────────────────────────────────────────────────────
-
 GOAL = {
     "id": "cost_demo",
     "name": "Cost Tracking Demo",
@@ -139,14 +137,10 @@ DEMO_TURNS = [
     "Bengaluru, open to remote",
 ]
 
-
 def divider(title: str, char: str = "─"):
     print(f"\n{'═' * 60}")
     print(f"  {title}")
     print(f"{'═' * 60}\n")
-
-
-# ── DEMO 1: Per-turn cost breakdown ──────────────────────────────────────────
 
 async def demo_per_turn_costs():
     divider("DEMO 1 — Per-turn cost breakdown")
@@ -184,7 +178,6 @@ async def demo_per_turn_costs():
         if resp.final_output:
             break
 
-    # Session summary from cost tracker
     session = ct.get_session_cost("cost_demo_001")
     print(f"\n{'─' * 75}")
     if session:
@@ -204,13 +197,10 @@ async def demo_per_turn_costs():
     print(f"\n  💡 Same session with all-Claude-Sonnet: ~$0.0082")
     print(f"  💡 TrueNorth smart routing: ~$0.0009 (89% cheaper)")
 
-
-# ── DEMO 2: Budget guard — hard stop ─────────────────────────────────────────
-
 async def demo_budget_guard():
     divider("DEMO 2 — Budget guard (hard stop when limit reached)")
 
-    BUDGET_USD = 0.0005   # very tight budget to demonstrate stopping quickly
+    BUDGET_USD = 0.0005
 
     ct     = CostTracker()
     router = LLMRouter()
@@ -221,7 +211,6 @@ async def demo_budget_guard():
         cost_tracker = ct,
     )
 
-    # Set a tight budget
     ct.set_budget("budget_demo_001", budget_usd=BUDGET_USD)
     print(f"Budget set: ${BUDGET_USD:.4f} for this session\n")
 
@@ -233,7 +222,7 @@ async def demo_budget_guard():
     cumulative = 0.0
 
     for i, turn_text in enumerate(DEMO_TURNS, 1):
-        # Check budget before processing
+
         remaining = ct.get_remaining_budget("budget_demo_001")
         if remaining is not None and remaining <= 0:
             print(f"\n🛑 BUDGET EXCEEDED before turn {i}!")
@@ -260,15 +249,11 @@ async def demo_budget_guard():
             print(f"\n✅ Session completed within budget!")
             break
 
-    # Final stats
     session = ct.get_session_cost("budget_demo_001")
     if session:
         print(f"\n  Final spend:  ${session.total_cost_usd:.6f}")
         print(f"  Budget was:   ${BUDGET_USD:.4f}")
         print(f"  Status:       {'Under budget ✅' if session.total_cost_usd <= BUDGET_USD else 'Over budget 🛑'}")
-
-
-# ── DEMO 3: Model routing cost comparison ────────────────────────────────────
 
 async def demo_routing_comparison():
     divider("DEMO 3 — Routing strategy cost comparison")
@@ -297,8 +282,6 @@ async def demo_routing_comparison():
         },
     ]
 
-    # NOTE: We estimate costs here instead of calling all APIs to save demo cost
-    # In a real comparison, you would run the same session with each strategy
     estimated_costs = {
         "Strategy A: All Claude Sonnet (naïve)":        0.0082,
         "Strategy B: TrueNorth smart routing":          0.0009,
@@ -330,15 +313,11 @@ async def demo_routing_comparison():
     Savings:  $73.00/month  ($876/year for 10K sessions)
     """)
 
-
-# ── DEMO 4: Cost dashboard aggregate ─────────────────────────────────────────
-
 async def demo_cost_dashboard():
     divider("DEMO 4 — Cost dashboard (aggregate analytics)")
 
     ct = CostTracker()
 
-    # Simulate 10 sessions to populate the dashboard
     print("  Simulating 10 sessions...", end="", flush=True)
 
     import random
@@ -362,7 +341,6 @@ async def demo_cost_dashboard():
         )
     print(" done.\n")
 
-    # Display dashboard
     summary = ct.get_aggregate_summary()
     if summary:
         print(f"  Total sessions analysed:  {summary.get('session_count', 10)}")
@@ -370,7 +348,7 @@ async def demo_cost_dashboard():
         print(f"  Avg cost per session:     ${summary.get('avg_cost_per_session', 0.00095):.5f}")
         print(f"  Total tokens processed:   {summary.get('total_tokens', 0):,}")
     else:
-        # Fallback display when method not available
+
         print(f"  Total sessions:           10")
         print(f"  Estimated total spend:    ~$0.0095")
         print(f"  Avg per session:          ~$0.00095")
@@ -385,9 +363,6 @@ async def demo_cost_dashboard():
     Set session budget: $0.50 (catches runaway sessions)
     Set monthly tenant limit: $50 (catches runaway deployments)
     """)
-
-
-# ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
     demo = os.environ.get("DEMO", "all").lower()
@@ -412,7 +387,6 @@ async def main():
     print("  Cost tracking is on by default in every TrueNorth session.")
     print("  Set DEMO=budget/routing/turns/dashboard to run one demo.")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

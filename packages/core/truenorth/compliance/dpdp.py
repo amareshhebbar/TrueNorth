@@ -32,21 +32,18 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 class ConsentStatus(str, Enum):
     PENDING   = "pending"
     GRANTED   = "granted"
     WITHDRAWN = "withdrawn"
     EXPIRED   = "expired"
 
-
 class DataPrincipalRight(str, Enum):
-    ACCESS    = "access"      # right to see their data
-    CORRECT   = "correct"     # right to correct inaccurate data
-    ERASE     = "erase"       # right to erasure
-    GRIEVANCE = "grievance"   # right to raise a complaint
-    NOMINATE  = "nominate"    # right to nominate another person
-
+    ACCESS    = "access"
+    CORRECT   = "correct"
+    ERASE     = "erase"
+    GRIEVANCE = "grievance"
+    NOMINATE  = "nominate"
 
 @dataclass
 class ConsentRecord:
@@ -84,18 +81,16 @@ class ConsentRecord:
             "timestamp":       self.timestamp,
         }
 
-
 @dataclass
 class RightRequest:
     """A data principal rights request."""
     request_id:  str
     user_id:     str
     right:       DataPrincipalRight
-    status:      str = "pending"    # pending / fulfilled / rejected
+    status:      str = "pending"
     details:     str = ""
     submitted_at: float = field(default_factory=time.time)
     fulfilled_at: Optional[float] = None
-
 
 class DPDPManager:
     """
@@ -116,13 +111,9 @@ class DPDPManager:
         self._purpose     = purpose
         self._retention   = retention_days
         self._sensitive   = sensitive_categories or []
-        self._consents:   Dict[str, List[ConsentRecord]] = {}  # user_id → records
+        self._consents:   Dict[str, List[ConsentRecord]] = {}
         self._audit_log:  List[dict]  = []
         self._rights_log: List[RightRequest] = []
-
-    # ------------------------------------------------------------------
-    # Consent management
-    # ------------------------------------------------------------------
 
     def consent_notice(self, categories: Optional[List[str]] = None) -> str:
         """
@@ -191,10 +182,6 @@ class DPDPManager:
         records = self._consents.get(user_id, [])
         return records[-1] if records else None
 
-    # ------------------------------------------------------------------
-    # Data principal rights
-    # ------------------------------------------------------------------
-
     def request_access(self, user_id: str) -> RightRequest:
         """Data principal requests to see their data."""
         req = self._make_right_request(user_id, DataPrincipalRight.ACCESS)
@@ -222,19 +209,11 @@ class DPDPManager:
                 return True
         return False
 
-    # ------------------------------------------------------------------
-    # Audit log
-    # ------------------------------------------------------------------
-
     def audit_log(self, user_id: Optional[str] = None) -> List[dict]:
         """Return the full audit log, optionally filtered by user."""
         if user_id:
             return [e for e in self._audit_log if e.get("user_id") == user_id]
         return list(self._audit_log)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _make_right_request(
         self, user_id: str, right: DataPrincipalRight, details: str = ""

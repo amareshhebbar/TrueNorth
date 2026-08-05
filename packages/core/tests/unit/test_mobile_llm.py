@@ -43,11 +43,6 @@ from truenorth.llm.router import (
 )
 from truenorth.testing.mock_llm import MockLLMClient
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Mock HTTP client helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _make_chat_response(content: str = "extracted: age=28") -> dict:
     return {
         "id":      "chatcmpl-mobile-001",
@@ -59,7 +54,6 @@ def _make_chat_response(content: str = "extracted: age=28") -> dict:
         ],
         "usage": {"prompt_tokens": 20, "completion_tokens": 10, "total_tokens": 30},
     }
-
 
 def _make_caps_response(
     battery: float = 1.0,
@@ -79,7 +73,6 @@ def _make_caps_response(
         "preferred_tasks":    ["extract", "classify"],
     }
 
-
 class MockHTTPResponse:
     def __init__(self, data: dict, status: int = 200):
         self._data   = data
@@ -91,7 +84,6 @@ class MockHTTPResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise Exception(f"HTTP {self.status_code}")
-
 
 class MockHTTPClient:
     """Simulates httpx.AsyncClient for mobile bridge testing."""
@@ -106,7 +98,7 @@ class MockHTTPClient:
         self.chat_data  = chat_data or _make_chat_response()
         self.caps_data  = caps_data or _make_caps_response()
         self.health_ok  = health_ok
-        self.fail_on    = fail_on  
+        self.fail_on    = fail_on
         self.calls:  List[tuple] = []
 
     async def post(self, path: str, json: dict = None, timeout=None) -> MockHTTPResponse:
@@ -133,7 +125,6 @@ class MockHTTPClient:
     async def aclose(self):
         pass
 
-
 class _StreamContextManager:
     def __init__(self, data: dict):
         self._data = data
@@ -153,17 +144,11 @@ class _StreamContextManager:
             yield f'data: {json.dumps({"choices":[{"delta":{"content":word+" "}}]})}'
         yield "data: [DONE]"
 
-
 def _client_with_mock(mock_http: MockHTTPClient) -> MobileLLMClient:
     """Create a MobileLLMClient with the mock HTTP backend injected."""
     client = MobileLLMClient(config={"platform": MobilePlatform.IOS})
     client._client = mock_http
     return client
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Platform resolution
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestPlatformResolution:
 
@@ -195,11 +180,6 @@ class TestPlatformResolution:
         c = MobileLLMClient.auto_detect()
         assert isinstance(c, MobileLLMClient)
         assert c.platform in (MobilePlatform.IOS, MobilePlatform.ANDROID, MobilePlatform.GENERIC)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Config
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConfig:
 
@@ -236,11 +216,6 @@ class TestConfig:
         c = MobileLLMClient(config={"platform": "ios", "max_tokens_override": 128})
         assert c._max_tok_cap == 128
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Payload building
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestPayloadBuilding:
 
     def _client(self) -> MobileLLMClient:
@@ -276,12 +251,7 @@ class TestPayloadBuilding:
         c = MobileLLMClient(config={"platform": "ios", "max_tokens_override": 64})
         msgs = [Message(role="user", content="Hi")]
         payload = c._build_payload(msgs, None, 512, 0.7)
-        assert payload["max_tokens"] == 512 
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Response parsing
-# ─────────────────────────────────────────────────────────────────────────────
+        assert payload["max_tokens"] == 512
 
 class TestResponseParsing:
 
@@ -309,11 +279,6 @@ class TestResponseParsing:
         data = {"choices": [], "usage": {}}
         resp = c._parse_response(data, 50)
         assert resp.content == ""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. DeviceCapabilities
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestDeviceCapabilities:
 
@@ -364,11 +329,6 @@ class TestDeviceCapabilities:
         assert "extract"  in caps.preferred_tasks
         assert "classify" in caps.preferred_tasks
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. Throttling
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestThrottling:
 
     @pytest.mark.asyncio
@@ -377,16 +337,15 @@ class TestThrottling:
             caps_data=_make_caps_response(battery=0.10, thermal="serious"),
         )
         c = _client_with_mock(mock_http)
-        c._capabilities = None   # force fresh fetch
+        c._capabilities = None
 
-        # Inject caps directly (avoid HTTP call in test)
         c._capabilities = DeviceCapabilities(
             platform="ios", model_name="apple/on-device-3b",
             battery_level=0.10, thermal_state="serious",
         )
 
         await c.generate([Message(role="user", content="hi")], max_tokens=1024)
-        # The POST should have been called with capped max_tokens
+
         post_calls = [call for call in mock_http.calls if call[0] == "POST"]
         assert len(post_calls) == 1
         payload = post_calls[0][2]
@@ -406,11 +365,6 @@ class TestThrottling:
         payload    = post_calls[0][2]
         assert payload["max_tokens"] == 512
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Health check
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestHealthCheck:
 
     @pytest.mark.asyncio
@@ -424,11 +378,6 @@ class TestHealthCheck:
         mock_http = MockHTTPClient(fail_on="/health")
         c = _client_with_mock(mock_http)
         assert await c.health_check() is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. List models
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestListModels:
 
@@ -446,11 +395,6 @@ class TestListModels:
         c = _client_with_mock(mock_http)
         models = await c.list_models()
         assert models == []
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. can_handle — task routing decisions
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCanHandle:
 
@@ -470,11 +414,6 @@ class TestCanHandle:
         assert "extract"  in MOBILE_PREFERRED_TASKS
         assert "classify" in MOBILE_PREFERRED_TASKS
         assert "output"  not in MOBILE_PREFERRED_TASKS
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Error handling
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestErrorHandling:
 
@@ -503,7 +442,7 @@ class TestErrorHandling:
         c._capabilities = DeviceCapabilities(
             platform="ios", model_name="m", battery_level=1.0, thermal_state="nominal"
         )
-        # Patch stream to raise
+
         original_stream = mock_http.stream
         def bad_stream(*args, **kwargs):
             raise ConnectionRefusedError("refused")
@@ -512,11 +451,6 @@ class TestErrorHandling:
         with pytest.raises((MobileUnavailableError, ConnectionRefusedError)):
             async for _ in c.generate_stream([Message(role="user", content="hi")]):
                 pass
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Router integration — provider detection
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRouterIntegration:
 
@@ -532,7 +466,7 @@ class TestRouterIntegration:
         assert LLMRouter._detect_provider("on-device")  == "mobile"
 
     def test_gemini_flash_still_cloud(self):
-        # gemini-3.5-flash → not gemini-nano → cloud gemini
+
         assert LLMRouter._detect_provider("gemini-3.5-flash") == "gemini"
 
     def test_router_builds_mobile_client(self):
@@ -562,11 +496,6 @@ class TestRouterIntegration:
             [Message(role="user", content="I am 28 years old")],
         )
         assert "28" in resp.content or "age" in resp.content
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Fallback to cloud when mobile unavailable
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFallbackToCloud:
 
@@ -609,11 +538,6 @@ class TestFallbackToCloud:
         stats = router.get_stats()
         assert stats["apple/on-device-3b"]["error_count"] >= 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Privacy-sensitive routing
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestPrivacySensitiveRouting:
     """
     Demonstrate the privacy routing pattern:
@@ -640,8 +564,8 @@ class TestPrivacySensitiveRouting:
 
         router = LLMRouter(
             routing={
-                TASK_EXTRACT: "apple/on-device-3b",  # PII stays on device
-                TASK_OUTPUT:  "claude-sonnet-4-20250514",  # report goes to cloud
+                TASK_EXTRACT: "apple/on-device-3b",
+                TASK_OUTPUT:  "claude-sonnet-4-20250514",
             },
             fallbacks={TASK_EXTRACT: [], TASK_OUTPUT: []},
             max_retries=0,

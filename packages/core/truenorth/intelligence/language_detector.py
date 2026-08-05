@@ -42,19 +42,14 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
-
 @dataclass
 class LanguageDetectionResult:
-    language_code: str          # BCP-47 code e.g. "hi", "ta", "en"
-    language_name: str          
-    confidence:    float        # 0.0–1.0
-    script:        str          # Unicode script family e.g. "Devanagari", "Latin"
-    is_indian:     bool         # True for the 7 Indian languages
-    is_romanized:  bool         # True when Indian lang written in Latin script (Hinglish)
+    language_code: str
+    language_name: str
+    confidence:    float
+    script:        str
+    is_indian:     bool
+    is_romanized:  bool
 
     def to_dict(self) -> dict:
         return {
@@ -66,29 +61,24 @@ class LanguageDetectionResult:
             "is_romanized":  self.is_romanized,
         }
 
-
-# ---------------------------------------------------------------------------
-# Unicode block ranges for South / Southeast Asian scripts
-# ---------------------------------------------------------------------------
-
 _UNICODE_SCRIPT_RANGES = {
-    # Indian scripts — exact Unicode block boundaries
-    "Devanagari": (0x0900, 0x097F),   # Hindi, Marathi, Sanskrit
-    "Bengali":    (0x0980, 0x09FF),   # Bengali, Assamese
+
+    "Devanagari": (0x0900, 0x097F),
+    "Bengali":    (0x0980, 0x09FF),
     "Gujarati":   (0x0A80, 0x0AFF),
-    "Gurmukhi":   (0x0A00, 0x0A7F),   # Punjabi
+    "Gurmukhi":   (0x0A00, 0x0A7F),
     "Tamil":      (0x0B80, 0x0BFF),
     "Telugu":     (0x0C00, 0x0C7F),
     "Kannada":    (0x0C80, 0x0CFF),
     "Malayalam":  (0x0D00, 0x0D7F),
     "Sinhala":    (0x0D80, 0x0DFF),
-    # Other world scripts
+
     "Arabic":     (0x0600, 0x06FF),
     "Hebrew":     (0x0590, 0x05FF),
     "Cyrillic":   (0x0400, 0x04FF),
     "Greek":      (0x0370, 0x03FF),
-    "CJK":        (0x4E00, 0x9FFF),   # covers most CJK unified ideographs
-    "Hangul":     (0xAC00, 0xD7AF),   # Korean
+    "CJK":        (0x4E00, 0x9FFF),
+    "Hangul":     (0xAC00, 0xD7AF),
     "Hiragana":   (0x3040, 0x309F),
     "Katakana":   (0x30A0, 0x30FF),
     "Thai":       (0x0E00, 0x0E7F),
@@ -116,10 +106,6 @@ _SCRIPT_TO_LANGUAGE: dict[str, tuple[str, str]] = {
 
 _INDIAN_CODES = {"hi", "ta", "te", "kn", "bn", "mr", "gu", "pa", "ml"}
 
-# ---------------------------------------------------------------------------
-# Vocabulary fingerprints for Latin-script languages
-# ---------------------------------------------------------------------------
-
 _LATIN_VOCAB_FINGERPRINTS: dict[str, list[str]] = {
     "hi": ["hai", "hain", "kya", "nahi", "mera", "meri", "aap", "tum", "yeh",
            "woh", "kar", "karo", "tha", "thi", "hoga", "bhi", "sirf", "lekin",
@@ -142,11 +128,6 @@ _LATIN_VOCAB_FINGERPRINTS: dict[str, list[str]] = {
     "pt": ["eu", "você", "ele", "nós", "são", "está", "tem", "tenho", "quero",
            "obrigado", "olá", "para", "com", "que", "não", "sim", "mais"],
 }
-
-
-# ---------------------------------------------------------------------------
-# LanguageDetector
-# ---------------------------------------------------------------------------
 
 class LanguageDetector:
     """
@@ -215,10 +196,6 @@ class LanguageDetector:
             return True
         return False
 
-    # ------------------------------------------------------------------
-    # Internal: Unicode block detection
-    # ------------------------------------------------------------------
-
     def _detect_by_unicode_block(self, text: str) -> Optional[LanguageDetectionResult]:
         """
         Count characters from each Unicode block. If any non-Latin script dominates
@@ -268,10 +245,6 @@ class LanguageDetector:
         marathi_markers = re.compile(r"\b(आहे|नाही|माझा|माझी|तुम्ही|आम्ही|काय|कुठे|केव्हा)\b")
         return bool(marathi_markers.search(text))
 
-    # ------------------------------------------------------------------
-    # Internal: Vocabulary fingerprint
-    # ------------------------------------------------------------------
-
     def _detect_by_vocab(self, text: str) -> Optional[LanguageDetectionResult]:
         """
         Match words against per-language vocabulary lists.
@@ -293,7 +266,7 @@ class LanguageDetector:
         best_score = scores[best_lang]
 
         if best_score < 0.04:
-            return None  
+            return None
 
         lang_names = {
             "hi": "Hindi", "ta": "Tamil", "te": "Telugu", "kn": "Kannada",
@@ -302,19 +275,15 @@ class LanguageDetector:
         }
         lang_name  = lang_names.get(best_lang, best_lang)
         is_indian  = best_lang in _INDIAN_CODES
-        is_roman   = is_indian  # Romanized because we're in the Latin branch
+        is_roman   = is_indian
 
-        confidence = min(0.35 + best_score * 3.0, 0.85)  # cap at 0.85 — vocab is imprecise
+        confidence = min(0.35 + best_score * 3.0, 0.85)
 
         logger.debug(
             "language_detector: vocab match=%s score=%.3f → %s",
             best_lang, best_score, lang_name,
         )
         return self._result(best_lang, lang_name, confidence, "Latin", is_indian, is_roman)
-
-    # ------------------------------------------------------------------
-    # Helper
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _result(
@@ -329,11 +298,6 @@ class LanguageDetector:
             is_indian     = is_indian,
             is_romanized  = is_romanized,
         )
-
-
-# ---------------------------------------------------------------------------
-# Convenience singleton
-# ---------------------------------------------------------------------------
 
 _default_detector = LanguageDetector()
 

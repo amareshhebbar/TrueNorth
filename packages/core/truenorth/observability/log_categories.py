@@ -35,7 +35,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
 class LogCategory(str, Enum):
     CONVERSATION   = "conversation"
     EXTRACTION     = "extraction"
@@ -44,15 +43,13 @@ class LogCategory(str, Enum):
     COST           = "cost"
     HALLUCINATION  = "hallucination"
     COMPLIANCE     = "compliance"
-    SYSTEM         = "system"        # engine lifecycle events
-
+    SYSTEM         = "system"
 
 class LogLevel(str, Enum):
     DEBUG   = "debug"
     INFO    = "info"
     WARNING = "warning"
     ERROR   = "error"
-
 
 @dataclass
 class LogEvent:
@@ -67,7 +64,7 @@ class LogEvent:
     goal_id:     str
     turn:        int
     timestamp:   float
-    data:        Dict[str, Any]       # category-specific payload
+    data:        Dict[str, Any]
     tags:        List[str] = field(default_factory=list)
     user_id:     Optional[str] = None
     tenant_id:   Optional[str] = None
@@ -101,7 +98,6 @@ class LogEvent:
             user_id    = d.get("user_id"),
         )
 
-
 def make_event(
     category:   LogCategory,
     session_id: str,
@@ -126,12 +122,9 @@ def make_event(
         user_id    = user_id,
     )
 
-
-# ─── Typed data builders for each category ───────────────────────────────────
-
 def conversation_event(
     session_id: str, goal_id: str, turn: int,
-    role:       str,   # "user" | "assistant"
+    role:       str,
     text:       str,
     language:   str    = "en",
     latency_ms: int    = 0,
@@ -147,7 +140,6 @@ def conversation_event(
             "latency_ms": latency_ms,
         }, **kw,
     )
-
 
 def extraction_event(
     session_id: str, goal_id: str, turn: int,
@@ -170,12 +162,11 @@ def extraction_event(
         }, **kw,
     )
 
-
 def emotion_event(
     session_id: str, goal_id: str, turn: int,
     emotion:    str,
-    valence:    float,   # -1..1
-    arousal:    float,   # 0..1
+    valence:    float,
+    arousal:    float,
     shifted:    bool     = False,
     **kw,
 ) -> LogEvent:
@@ -189,7 +180,6 @@ def emotion_event(
             "shifted": shifted,
         }, **kw,
     )
-
 
 def conflict_event(
     session_id:   str, goal_id: str, turn: int,
@@ -211,7 +201,6 @@ def conflict_event(
             "severity":     severity,
         }, **kw,
     )
-
 
 def cost_event(
     session_id:    str, goal_id: str, turn: int,
@@ -236,10 +225,9 @@ def cost_event(
         }, **kw,
     )
 
-
 def hallucination_event(
     session_id:    str, goal_id: str, turn: int,
-    verdict:       str,   # CLEAN | FLAGGED | BLOCKED
+    verdict:       str,
     claims_total:  int,
     claims_blocked: int,
     output_snippet: str = "",
@@ -260,11 +248,10 @@ def hallucination_event(
         }, **kw,
     )
 
-
 def compliance_event(
     session_id: str, goal_id: str, turn: int,
-    action:     str,   # "consent_granted" | "pii_detected" | "erasure_requested" | etc.
-    framework:  str,   # "dpdp" | "gdpr"
+    action:     str,
+    framework:  str,
     user_id:    Optional[str] = None,
     details:    Optional[dict] = None,
     **kw,

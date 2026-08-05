@@ -19,10 +19,8 @@ logger = logging.getLogger(__name__)
 _SCHEMA_PATH = Path(__file__).parent.parent.parent.parent.parent / \
                "specs" / "yaml-schema" / "goal.schema.json"
 
-
 class YAMLLoaderError(Exception):
     """Raised when a goal YAML fails to load or validate."""
-
 
 class YAMLLoader:
     """
@@ -84,10 +82,6 @@ class YAMLLoader:
     @classmethod
     def clear_cache(cls) -> None:
         cls._cache.clear()
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     @classmethod
     def _substitute_env_vars(cls, text: str) -> str:
@@ -171,7 +165,7 @@ class YAMLLoader:
         normalised = []
         for f in raw_fields:
             if isinstance(f, str):
-                # shorthand: just a name
+
                 f = {"name": f}
             f.setdefault("required", True)
             f.setdefault("type", "text")
@@ -180,10 +174,9 @@ class YAMLLoader:
             normalised.append(f)
         config["fields"] = normalised
 
-        # Read id: try explicit "id" key first, then derive from filename, then from "name"
         if "id" not in config:
             _raw_id = config.get("name", "unknown")
-            # Convert "Fitness Plan" → "fitness_plan"
+
             import re as _re
             _slug = _re.sub(r"[^a-z0-9]+", "_", _raw_id.lower()).strip("_")
             config["id"] = _slug or "unknown"
@@ -195,7 +188,7 @@ class YAMLLoader:
         normalised_mcp = []
         for server in raw_mcp:
             if isinstance(server, str):
-                # shorthand: "web_search" → {name: web_search, builtin: true}
+
                 normalised_mcp.append({"name": server, "builtin": True})
             elif isinstance(server, dict):
                 if "name" not in server:

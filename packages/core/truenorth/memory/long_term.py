@@ -32,17 +32,16 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class UserFact:
     """One piece of known information about a user."""
     user_id:      str
-    fact_key:     str       # e.g. "age", "weight_kg", "primary_goal"
+    fact_key:     str
     value:        Any
-    goal_id:      str       # which goal produced this fact
+    goal_id:      str
     session_id:   str
     confidence:   float     = 1.0
-    source:       str       = "extracted"   # "extracted" | "confirmed" | "inferred"
+    source:       str       = "extracted"
     created_at:   float     = field(default_factory=time.time)
     updated_at:   float     = field(default_factory=time.time)
 
@@ -57,7 +56,6 @@ class UserFact:
             "source":     self.source,
             "updated_at": self.updated_at,
         }
-
 
 class LongTermMemory:
     """
@@ -75,11 +73,7 @@ class LongTermMemory:
         self._pg          = postgres
         self._redis       = redis
         self._min_conf    = min_confidence
-        self._store:      Dict[str, Dict[str, UserFact]] = {} 
-
-    # ------------------------------------------------------------------
-    # Write
-    # ------------------------------------------------------------------
+        self._store:      Dict[str, Dict[str, UserFact]] = {}
 
     def store(self, fact: UserFact) -> bool:
         """Store one fact. Returns True if stored, False if confidence too low."""
@@ -138,10 +132,6 @@ class LongTermMemory:
         )
         return count
 
-    # ------------------------------------------------------------------
-    # Read
-    # ------------------------------------------------------------------
-
     def get(self, user_id: str, fact_key: str) -> Optional[Any]:
         """Get one fact value for a user."""
         fact = self._store.get(user_id, {}).get(fact_key)
@@ -165,10 +155,6 @@ class LongTermMemory:
         user_facts = self._store.get(user_id, {})
         return {k: f.value for k, f in user_facts.items() if f.goal_id == goal_id}
 
-    # ------------------------------------------------------------------
-    # Seeding into engine
-    # ------------------------------------------------------------------
-
     def seed_engine(self, engine: Any, user_id: str, min_confidence: float = 0.0) -> int:
         """
         Pre-fill an engine's collected_fields with known user facts.
@@ -184,10 +170,6 @@ class LongTermMemory:
                 engine.state.set_field(key, fact.value, confidence=fact.confidence)
                 count += 1
         return count
-
-    # ------------------------------------------------------------------
-    # Management
-    # ------------------------------------------------------------------
 
     def forget(self, user_id: str, fact_key: Optional[str] = None) -> int:
         """Delete facts (for GDPR erasure). Returns count deleted."""

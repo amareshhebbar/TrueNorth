@@ -1,7 +1,3 @@
-# ============================================================
-#  TrueNorth Goal: Farm Advisory (Go CLI)
-#  Used by: farm-advisor-cli — terminal tool for extension workers
-# ============================================================
 id: farm_advisory
 name: "Farm Advisory"
 version: "1.0.0"

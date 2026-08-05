@@ -42,23 +42,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Maximum result length injected into LLM context (chars)
 _MAX_RESULT_LENGTH = 2000
 
-# Regex to detect TOOL_CALL patterns in LLM output
 _TOOL_CALL_RE = re.compile(
     r"TOOL_CALL:\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\((\{.*?\})\)",
     re.DOTALL,
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Validation
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ToolValidationError(Exception):
     """Raised when tool arguments don't match the declared schema."""
-
 
 def _validate_arguments(
     arguments:    Dict[str, Any],
@@ -77,7 +69,7 @@ def _validate_arguments(
     for arg_name, arg_val in arguments.items():
         prop = props.get(arg_name)
         if prop is None:
-            continue  # extra args are allowed by default
+            continue
         expected_type = prop.get("type")
         if expected_type == "string"  and not isinstance(arg_val, str):
             return False, f"'{arg_name}' must be a string"
@@ -91,11 +83,6 @@ def _validate_arguments(
             return False, f"'{arg_name}' must be an array"
 
     return True, None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ToolExecutionLog — audit entry per tool call
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class ToolExecutionLog:
@@ -118,11 +105,6 @@ class ToolExecutionLog:
             "error":      self.result.error,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ToolExecutor
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ToolExecutor:
     """
     Scans LLM responses for TOOL_CALL patterns, executes them, and
@@ -132,7 +114,7 @@ class ToolExecutor:
     def __init__(
         self,
         registry:    "MCPRegistry",
-        max_per_turn: int   = 3,    
+        max_per_turn: int   = 3,
         max_result:   int   = _MAX_RESULT_LENGTH,
         validate:     bool  = True,
     ):
@@ -140,10 +122,6 @@ class ToolExecutor:
         self._max_per_turn = max_per_turn
         self._max_result   = max_result
         self._validate     = validate
-
-    # ------------------------------------------------------------------
-    # Main entry point — called from engine.py
-    # ------------------------------------------------------------------
 
     async def run(
         self,
@@ -250,10 +228,6 @@ class ToolExecutor:
             timeout    = timeout,
         )
 
-    # ------------------------------------------------------------------
-    # Tool call detection
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _extract_calls(
         text: str,
@@ -279,10 +253,6 @@ class ToolExecutor:
                 arguments = {}
             results.append((tool_name, arguments, original))
         return results
-
-    # ------------------------------------------------------------------
-    # Result formatting
-    # ------------------------------------------------------------------
 
     def _format_result(self, result: ToolResult) -> str:
         """Format a ToolResult for injection into the response text."""

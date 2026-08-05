@@ -29,29 +29,20 @@ from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Task type constants  (import these everywhere — never use raw strings)
-# ─────────────────────────────────────────────────────────────────────────────
-
-TASK_EXTRACT  = "extract"     # field extraction from user message
-TASK_CONVERSE = "converse"    # mid-conversation agent response
-TASK_OUTPUT   = "output"      # final report / structured output generation
-TASK_CLASSIFY = "classify"    # single-label classification (emotion, language)
-TASK_EMBED    = "embed"       # text embedding (semantic search, vector store)
-TASK_VERIFY   = "verify"      # hallucination firewall supervisor calls — always cloud
-TASK_OTHER    = "other"       # catch-all
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Rule: cheapest model that meets quality bar for each task.
-# ─────────────────────────────────────────────────────────────────────────────
+TASK_EXTRACT  = "extract"
+TASK_CONVERSE = "converse"
+TASK_OUTPUT   = "output"
+TASK_CLASSIFY = "classify"
+TASK_EMBED    = "embed"
+TASK_VERIFY   = "verify"
+TASK_OTHER    = "other"
 
 _DEFAULT_ROUTING: Dict[str, str] = {
-    TASK_EXTRACT:  "gemini-3.5-flash",        
-    TASK_CONVERSE: "claude-haiku-4-5-20251001", 
-    TASK_OUTPUT:   "claude-sonnet-4-20250514",  
-    TASK_CLASSIFY: "gemini-3.5-flash",         
-    TASK_VERIFY:   "claude-sonnet-4-20250514",  
+    TASK_EXTRACT:  "gemini-3.5-flash",
+    TASK_CONVERSE: "claude-haiku-4-5-20251001",
+    TASK_OUTPUT:   "claude-sonnet-4-20250514",
+    TASK_CLASSIFY: "gemini-3.5-flash",
+    TASK_VERIFY:   "claude-sonnet-4-20250514",
     TASK_OTHER:    "claude-haiku-4-5-20251001",
 }
 
@@ -69,11 +60,11 @@ _MODEL_PROVIDER: Dict[str, str] = {
     "gpt":            "openai",
     "o1":             "openai",
     "o3":             "openai",
-    "gemini-nano":    "mobile",     
+    "gemini-nano":    "mobile",
     "gemini":         "gemini",
-    "apple":          "mobile",  
-    "mobile":         "mobile",      
-    "on-device":      "mobile",     
+    "apple":          "mobile",
+    "mobile":         "mobile",
+    "on-device":      "mobile",
     "ollama":         "local",
     "local":          "local",
     "llama":          "local",
@@ -87,23 +78,14 @@ _MODEL_PROVIDER: Dict[str, str] = {
     "groq":           "groq",
 }
 
-# Max retries per request
 _DEFAULT_MAX_RETRIES: int = 2
 
-# Circuit breaker: provider skipped after this many consecutive errors
 _CIRCUIT_BREAKER_THRESHOLD: int = 5
 
-# Backoff delays (seconds) between retries
 _RETRY_DELAYS: List[float] = [0.5, 1.5, 3.0]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Exceptions
-# ─────────────────────────────────────────────────────────────────────────────
 
 class RouterError(Exception):
     """Routing or provider initialisation failure."""
-
 
 class BudgetExceededError(Exception):
     """Request rejected because it would exceed the per-request USD budget."""
@@ -114,14 +96,8 @@ class BudgetExceededError(Exception):
             f"Request estimated at ${estimated:.4f} exceeds budget ${budget:.4f}"
         )
 
-
 class AllProvidersFailedError(RouterError):
     """All providers in the fallback chain failed."""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Per-model stats
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class ModelStats:
@@ -160,7 +136,7 @@ class ModelStats:
         self.consecutive_errors = 0
         self.circuit_open       = False
         self.latencies_ms.append(latency_ms)
-        if len(self.latencies_ms) > 200:    # rolling window
+        if len(self.latencies_ms) > 200:
             self.latencies_ms = self.latencies_ms[-200:]
 
     def record_error(self, error: str) -> None:
@@ -188,11 +164,6 @@ class ModelStats:
             "circuit_open":   self.circuit_open,
             "last_error":     self.last_error,
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  LLMRouter  (hardened v2)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class LLMRouter:
     """
@@ -228,10 +199,6 @@ class LLMRouter:
         self._stats:     Dict[str, ModelStats] = {}
         self._budget_usd = budget_usd
         self._max_retries = max_retries
-
-    # ------------------------------------------------------------------
-    # Factories
-    # ------------------------------------------------------------------
 
     @classmethod
     def from_env(
@@ -305,10 +272,6 @@ class LLMRouter:
             max_retries = config.get("max_retries", _DEFAULT_MAX_RETRIES),
         )
 
-    # ------------------------------------------------------------------
-    # Main dispatch — generate()
-    # ------------------------------------------------------------------
-
     async def generate(
         self,
         task:        str,
@@ -345,7 +308,6 @@ class LLMRouter:
         for candidate_model in candidates:
             stats = self._get_stats(candidate_model)
 
-            # Skip circuit-broken providers
             if stats.circuit_open:
                 logger.warning("router: skipping circuit-open model=%s", candidate_model)
                 continue
@@ -372,10 +334,6 @@ class LLMRouter:
         raise AllProvidersFailedError(
             f"All providers failed for task={task}. Last error: {last_error}"
         )
-
-    # ------------------------------------------------------------------
-    # Streaming dispatch
-    # ------------------------------------------------------------------
 
     async def generate_stream(
         self,
@@ -411,7 +369,7 @@ class LLMRouter:
                     **kwargs,
                 ):
                     yield chunk
-                return  
+                return
             except Exception as e:
                 stats.record_error(str(e))
                 logger.warning(
@@ -420,10 +378,6 @@ class LLMRouter:
                 )
 
         raise AllProvidersFailedError(f"All streaming providers failed for task={task}")
-
-    # ------------------------------------------------------------------
-    # Retry logic
-    # ------------------------------------------------------------------
 
     async def _call_with_retry(
         self,
@@ -471,7 +425,7 @@ class LLMRouter:
                     "router: model=%s attempt=%d error=%s",
                     model, attempt + 1, err_str,
                 )
-                # Don't retry on auth errors or budget errors
+
                 if self._is_fatal_error(e):
                     stats.record_error(err_str)
                     return None
@@ -497,10 +451,6 @@ class LLMRouter:
         ]
         return any(sig in err_lower for sig in fatal_signals)
 
-    # ------------------------------------------------------------------
-    # Chain builder
-    # ------------------------------------------------------------------
-
     def _build_chain(
         self,
         task:  str,
@@ -519,10 +469,6 @@ class LLMRouter:
                 chain.append(fb)
 
         return chain
-
-    # ------------------------------------------------------------------
-    # Health check
-    # ------------------------------------------------------------------
 
     async def health_check(
         self,
@@ -553,10 +499,6 @@ class LLMRouter:
                 logger.warning("router: health check failed for model=%s: %s", model, e)
 
         return results
-
-    # ------------------------------------------------------------------
-    # Stats and introspection
-    # ------------------------------------------------------------------
 
     def get_stats(self) -> Dict[str, dict]:
         """Return per-model stats for monitoring / Studio dashboard."""
@@ -591,10 +533,6 @@ class LLMRouter:
             stats.circuit_open       = False
             stats.consecutive_errors = 0
             logger.info("router: circuit reset for model=%s", model)
-
-    # ------------------------------------------------------------------
-    # Client management
-    # ------------------------------------------------------------------
 
     def _get_client(self, model: str) -> LLMBase:
         if model in self._clients:
@@ -660,10 +598,6 @@ class LLMRouter:
             return OpenAIClient(config=model_config)
 
         raise RouterError(f"Unknown provider '{provider}' for model '{model}'")
-
-    # ------------------------------------------------------------------
-    # Cost estimation + tracking
-    # ------------------------------------------------------------------
 
     def _estimate_cost(
         self,

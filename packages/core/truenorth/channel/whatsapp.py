@@ -32,17 +32,16 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class WhatsAppMessage:
     """Normalised inbound WhatsApp message from Meta webhook payload."""
     message_id:  str
-    from_number: str           
-    text:        str        
+    from_number: str
+    text:        str
     timestamp:   float
-    message_type: str = "text" # text | image | audio | document | interactive
+    message_type: str = "text"
     media_url:   Optional[str] = None
-    button_reply: Optional[str] = None   
+    button_reply: Optional[str] = None
 
     @classmethod
     def from_webhook(cls, payload: dict) -> Optional["WhatsAppMessage"]:
@@ -57,7 +56,6 @@ class WhatsAppMessage:
             text  = msg.get("text", {}).get("body", "")
             mtype = msg.get("type", "text")
 
-            # Interactive button replies
             if mtype == "interactive":
                 btn = msg.get("interactive", {})
                 if btn.get("type") == "button_reply":
@@ -81,7 +79,6 @@ class WhatsAppMessage:
             "type":        self.message_type,
             "timestamp":   self.timestamp,
         }
-
 
 class WhatsAppChannel:
     """
@@ -114,22 +111,18 @@ class WhatsAppChannel:
 
     def __init__(
         self,
-        engine_factory: Callable[[str], Any],    
+        engine_factory: Callable[[str], Any],
         verify_token:   str,
         access_token:   str,
         phone_id:       str,
-        app_secret:     Optional[str] = None,    # for webhook signature verification
+        app_secret:     Optional[str] = None,
     ):
         self._factory      = engine_factory
         self._verify_token = verify_token
         self._token        = access_token
         self._phone_id     = phone_id
         self._secret       = app_secret
-        self._sessions:    Dict[str, Any] = {}   
-
-    # ------------------------------------------------------------------
-    # Webhook verification (GET)
-    # ------------------------------------------------------------------
+        self._sessions:    Dict[str, Any] = {}
 
     def verify_webhook(self, mode: str, token: str, challenge: str) -> Optional[str]:
         """
@@ -149,10 +142,6 @@ class WhatsAppChannel:
             return challenge
         logger.warning("whatsapp_channel: webhook verification failed")
         return None
-
-    # ------------------------------------------------------------------
-    # Inbound webhook (POST)
-    # ------------------------------------------------------------------
 
     async def handle_webhook(self, payload: dict, signature: str = "") -> dict:
         """
@@ -185,17 +174,12 @@ class WhatsAppChannel:
 
         await self._send_text(msg.from_number, response.text or "")
 
-        # If engine is complete, send final output and clean up
         if engine.state and engine.state.completion_pct >= 100:
             logger.info(
                 "whatsapp_channel: session complete for %s", msg.from_number
             )
 
         return {"status": "ok", "processed": True}
-
-    # ------------------------------------------------------------------
-    # Sending
-    # ------------------------------------------------------------------
 
     async def _send_text(self, to: str, text: str) -> dict:
         """Send a text message via WhatsApp Cloud API."""
@@ -252,10 +236,6 @@ class WhatsAppChannel:
                 return resp.json()
         except Exception as e:
             return {"error": str(e)}
-
-    # ------------------------------------------------------------------
-    # Session management
-    # ------------------------------------------------------------------
 
     async def _get_engine(self, from_number: str) -> Any:
         """Get existing engine or start a new session for this phone number."""

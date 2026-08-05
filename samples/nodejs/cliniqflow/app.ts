@@ -1,103 +1,9 @@
-/**
- * CliniqFlow (Node.js / TypeScript) — Clinic Intake via WhatsApp
- * ==============================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────
- * Production-ready clinic intake system in TypeScript.
- * Patient messages the clinic's WhatsApp number before their appointment.
- * TrueNorth collects: chief complaint, pain, medications, allergies, history.
- * Doctor sees a 30-second summary before the patient walks in.
- * Replaces the paper clipboard at every clinic.
- *
- * This is the TypeScript equivalent of cliniqflow/app.py.
- * Python used FastAPI; this uses Express.
- *
- * HOW IT WORKS
- * ──────────────────────────────────────────────────────────────
- *   Patient → WhatsApp → Meta Webhook → Express (this file)
- *                                            │
- *                                   TrueNorth Node SDK
- *                                            │
- *                               TrueNorth Python API (port 8000)
- *                                            │
- *                                     Anthropic / Gemini
- *                                            │
- *                               Response → WhatsApp → Patient
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────
- *   cliniqflow/
- *   ├── app.ts       ← this file
- *   ├── goal.yaml    ← copy from python/cliniqflow/goal.yaml
- *   ├── package.json
- *   └── tsconfig.json
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────
- *   {
- *     "scripts": { "dev": "ts-node app.ts", "build": "tsc", "start": "node dist/app.js" },
- *     "dependencies": { "express": "^4.18.0", "axios": "^1.6.0" },
- *     "devDependencies": {
- *       "@types/express": "^4.17.0", "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0", "typescript": "^5.3.0"
- *     }
- *   }
- *
- * tsconfig.json:
- * ──────────────────────────────────────────────────────────────
- *   {
- *     "compilerOptions": {
- *       "target": "ES2020", "module": "commonjs",
- *       "lib": ["ES2020"], "outDir": "./dist",
- *       "strict": true, "esModuleInterop": true,
- *       "skipLibCheck": true, "types": ["node"]
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────
- *   # Step 1: TrueNorth Python API
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *
- *   # Step 2:
- *   cd samples/nodejs/cliniqflow
- *   npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   export CLINIC_NAME="Dr. Sharma Clinic"
- *   export WA_VERIFY_TOKEN=cliniqflow-secret
- *   export WA_ACCESS_TOKEN=your-token       ← optional
- *   export WA_PHONE_NUMBER_ID=your-id       ← optional
- *   npx ts-node app.ts
- *
- *   # Local console test (no WhatsApp needed)
- *   npx ts-node app.ts   ← console mode auto-enabled when WA_ACCESS_TOKEN not set
- *
- *   # With ngrok for WhatsApp webhook testing
- *   ngrok http 3001
- *   # Set webhook URL in Meta Console: https://xxx.ngrok.io/webhook
- *
- * API ENDPOINTS
- * ──────────────────────────────────────────────────────────────
- *   GET  /              → Dashboard (active intakes + completed today)
- *   GET  /health        → Health check (JSON)
- *   GET  /completed     → All completed intakes (JSON)
- *   DELETE /sessions/:id → DPDP erasure endpoint
- *   GET  /webhook       → WhatsApp verification
- *   POST /webhook       → Incoming WhatsApp messages
- */
-
 import express, { Request, Response } from 'express'
 import axios   from 'axios'
 import crypto  from 'crypto'
 import readline from 'readline'
 
 import { TrueNorth, Session, MessageResult, Output } from '../../../packages/sdk-node'
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const CLINIC_NAME   = process.env.CLINIC_NAME          ?? 'Our Clinic'
 const GOAL_ID       = process.env.GOAL_ID              ?? 'patient_intake'
@@ -110,11 +16,7 @@ const PORT          = parseInt(process.env.PORT        ?? '3001')
 
 const WA_API = `https://graph.facebook.com/v19.0/${PHONE_ID}/messages`
 
-// ── TrueNorth SDK ─────────────────────────────────────────────────────────────
-
 const tn = new TrueNorth({ apiKey: TN_KEY, baseUrl: TN_URL, timeout: 90_000 })
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface PatientSession {
   sessionId:   string
@@ -134,15 +36,11 @@ interface CompletedIntake {
   intake:      unknown
 }
 
-// ── In-memory store ───────────────────────────────────────────────────────────
-
 const activeSessions = new Map<string, PatientSession>()
 const completed: CompletedIntake[] = []
 
 const sid = (phone: string) =>
   `cf_${crypto.createHash('md5').update(phone).digest('hex').slice(0, 12)}`
-
-// ── WhatsApp sender ───────────────────────────────────────────────────────────
 
 async function sendWA(phone: string, text: string): Promise<void> {
   if (!ACCESS_TOKEN || !PHONE_ID) {
@@ -161,13 +59,10 @@ async function sendWA(phone: string, text: string): Promise<void> {
   }
 }
 
-// ── Core message handler ──────────────────────────────────────────────────────
-
 async function handleMessage(phone: string, text: string): Promise<void> {
   const sessionId = sid(phone)
   const meta      = activeSessions.get(sessionId)
 
-  // ── New patient ────────────────────────────────────────────────────────────
   if (!meta) {
     const consentMsg =
       `*${CLINIC_NAME} Intake*\n\n` +
@@ -193,7 +88,6 @@ async function handleMessage(phone: string, text: string): Promise<void> {
     return
   }
 
-  // ── Consent handling ───────────────────────────────────────────────────────
   if (!meta.consented) {
     const lower = text.toLowerCase()
     if (['stop', 'no', 'cancel'].includes(lower)) {
@@ -206,7 +100,7 @@ async function handleMessage(phone: string, text: string): Promise<void> {
     await sendWA(phone, meta.session.agentMessage)
 
     if (!['agree', 'yes', 'ok', 'start', 'begin'].includes(lower)) {
-      // First message has content — process it too
+
       const result = await tn.sessions.message(sessionId, text)
       meta.pct = result.completionPct
       meta.turnCount++
@@ -217,7 +111,6 @@ async function handleMessage(phone: string, text: string): Promise<void> {
     return
   }
 
-  // ── Continue session ───────────────────────────────────────────────────────
   try {
     const result = await tn.sessions.message(sessionId, text)
     meta.lastActive = Date.now()
@@ -258,8 +151,6 @@ async function checkCompletion(phone: string, sessionId: string, result: Message
     console.log(`✅ Intake complete for ${phone}`)
   }
 }
-
-// ── Express app ───────────────────────────────────────────────────────────────
 
 const app = express()
 app.use(express.json())
@@ -341,8 +232,6 @@ app.post('/webhook', (req: Request, res: Response) => {
   })()
 })
 
-// ── Console demo ──────────────────────────────────────────────────────────────
-
 async function runConsoleDemo(): Promise<void> {
   console.log(`\n  CliniqFlow (Node.js) — ${CLINIC_NAME}`)
   console.log('  CONSOLE MODE — simulating a patient conversation')
@@ -382,8 +271,6 @@ async function runConsoleDemo(): Promise<void> {
     console.error(`Is TrueNorth API running at ${TN_URL}?`)
   }
 }
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log(`\n  CliniqFlow (Node.js / TypeScript)`)

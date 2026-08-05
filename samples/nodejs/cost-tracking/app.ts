@@ -1,87 +1,8 @@
-/**
- * cost-tracking (Node.js / TypeScript) — Cost Tracking & Budget Guard Demo
- * =========================================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────
- * Shows TrueNorth's complete cost management system in TypeScript:
- *   Demo 1 — Per-turn cost breakdown (model, task, latency, $)
- *   Demo 2 — Budget guard — hard stop when spending hits a limit
- *   Demo 3 — Model routing cost comparison (naive vs smart vs free)
- *   Demo 4 — Aggregate cost dashboard across simulated sessions
- *
- * This is the TypeScript equivalent of cost-tracking/app.py.
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────
- *   cost-tracking/
- *   ├── app.ts     ← this file (no goal.yaml — inline config)
- *   ├── package.json
- *   └── tsconfig.json
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────
- *   {
- *     "scripts": {
- *       "dev":        "ts-node app.ts",
- *       "demo:turns":     "DEMO=turns ts-node app.ts",
- *       "demo:budget":    "DEMO=budget ts-node app.ts",
- *       "demo:routing":   "DEMO=routing ts-node app.ts",
- *       "demo:dashboard": "DEMO=dashboard ts-node app.ts"
- *     },
- *     "devDependencies": {
- *       "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0",
- *       "typescript": "^5.3.0"
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *   cd samples/nodejs/cost-tracking && npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   npx ts-node app.ts                    ← all demos
- *   DEMO=turns     npx ts-node app.ts     ← per-turn breakdown
- *   DEMO=budget    npx ts-node app.ts     ← budget guard
- *   DEMO=routing   npx ts-node app.ts     ← routing comparison
- *   DEMO=dashboard npx ts-node app.ts     ← aggregate stats
- *
- * WHAT YOU SEE
- * ──────────────────────────────────────────────────────────────
- *   ══ DEMO 1 — Per-turn cost breakdown ══
- *
- *   Turn  Task          Model                   Cost USD    Latency
- *   ────────────────────────────────────────────────────────────────
- *   1     extract       gemini-3.5-flash        $0.000030   212ms
- *   2     converse      claude-haiku-4-5        $0.000150   441ms
- *   ...
- *   Session total: $0.000820 | 6 turns | avg $0.000137/turn
- *
- *   ══ DEMO 2 — Budget guard ══
- *   Budget: $0.0005
- *   Turn 1: $0.000150  [OK]
- *   Turn 2: $0.000320  [OK]
- *   Turn 3: $0.000510  [BUDGET EXCEEDED 🛑]
- *
- *   ══ DEMO 3 — Routing comparison ══
- *   Strategy A (all Sonnet):     $0.0082  baseline
- *   Strategy B (smart routing):  $0.0009  -89%
- *   Strategy C (local Ollama):   $0.0000  -100%
- */
-
 import { TrueNorth, MessageResult } from "../../../packages/sdk-node";
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const TN_URL = process.env.TRUENORTH_BASE_URL ?? "http://localhost:8000";
 const TN_KEY = process.env.TRUENORTH_API_KEY ?? "";
 const DEMO = (process.env.DEMO ?? "all").toLowerCase();
-
-// ── ANSI ──────────────────────────────────────────────────────────────────────
 
 const R = "\x1b[0m";
 const B = "\x1b[1m";
@@ -93,8 +14,6 @@ const RED = "\x1b[31m";
 
 const col = (s: string, ...codes: string[]) => codes.join("") + s + R;
 const div = (t: string) => console.log(`\n${col("══ " + t + " ══", B, CYN)}\n`);
-
-// ── Inline goal ───────────────────────────────────────────────────────────────
 
 const DEMO_GOAL = {
   id: "cost_demo",
@@ -153,8 +72,6 @@ const DEMO_TURNS = [
   "Bengaluru, open to remote",
 ];
 
-// ── Per-turn cost record ──────────────────────────────────────────────────────
-
 interface TurnCost {
   turn: number;
   taskType: string;
@@ -162,8 +79,6 @@ interface TurnCost {
   costUsd: number;
   latencyMs: number;
 }
-
-// ── Estimated outputs (shown when API is unreachable) ─────────────────────────
 
 function showEstimatedTurns(): void {
   const rows: Array<[number, string, string, number, number]> = [
@@ -195,8 +110,6 @@ function showEstimatedTurns(): void {
     ),
   );
 }
-
-// ── DEMO 1: Per-turn cost breakdown ──────────────────────────────────────────
 
 async function demo1PerTurnCosts(tn: TrueNorth): Promise<void> {
   div("DEMO 1 — Per-turn cost breakdown");
@@ -264,7 +177,6 @@ async function demo1PerTurnCosts(tn: TrueNorth): Promise<void> {
   await tn.sessions.end(sid).catch(() => {});
 }
 
-// ── DEMO 2: Budget guard ──────────────────────────────────────────────────────
 async function demo2BudgetGuard(tn: TrueNorth): Promise<void> {
   div('DEMO 2 — Budget guard (hard stop)')
   const BUDGET = 0.0005
@@ -278,10 +190,10 @@ async function demo2BudgetGuard(tn: TrueNorth): Promise<void> {
   try {
     await tn.sessions.create('cost_demo', {
       sessionId: sid,
-      budgetUsd: BUDGET,   // ✅ correct casing — budgetUsd not budgetUSD
+      budgetUsd: BUDGET,
     })
   } catch {
-    // API unreachable — show estimated output
+
     const est = [0.000150, 0.000320, 0.000510]
     let cum = 0
     est.forEach((cost, i) => {
@@ -304,7 +216,7 @@ async function demo2BudgetGuard(tn: TrueNorth): Promise<void> {
     try {
       result = await tn.sessions.message(sid, DEMO_TURNS[i])
     } catch (err: any) {
-      // ✅ FIX: catch budget error from API (no budgetExceeded field on result)
+
       const msg = String(err).toLowerCase()
       if (msg.includes('budget') || msg.includes('limit')) {
         console.log(col(`\n  🛑 BUDGET EXCEEDED before turn ${i + 1}!`, RED, B))
@@ -321,7 +233,6 @@ async function demo2BudgetGuard(tn: TrueNorth): Promise<void> {
       `  ${String(i+1).padEnd(6)} $${cumulative.toFixed(6).padEnd(13)} $${BUDGET.toFixed(4).padEnd(13)} ${status}`
     )
 
-    // ✅ FIX: no (false /* check cumulative > budget */) — check cumulative vs BUDGET manually
     if (result.isComplete || over) break
   }
 
@@ -335,7 +246,6 @@ async function demo2BudgetGuard(tn: TrueNorth): Promise<void> {
 
   await tn.sessions.end(sid).catch(() => {})
 }
-// ── DEMO 3: Routing comparison ────────────────────────────────────────────────
 
 function demo3RoutingComparison(): void {
   div("DEMO 3 — Routing strategy cost comparison");
@@ -394,8 +304,6 @@ function demo3RoutingComparison(): void {
 `);
 }
 
-// ── DEMO 4: Aggregate dashboard ───────────────────────────────────────────────
-
 function demo4CostDashboard(): void {
   div("DEMO 4 — Cost dashboard (aggregate analytics)");
   console.log("  Simulating 10 sessions...\n");
@@ -407,7 +315,6 @@ function demo4CostDashboard(): void {
     "crop_advisory",
   ];
 
-  // Seeded pseudo-random for reproducibility
   let seed = 42;
   const rand = () => {
     seed = (seed * 1664525 + 1013904223) & 0xffffffff;
@@ -456,8 +363,6 @@ function demo4CostDashboard(): void {
     Use smart routing    : saves 89% vs naive all-Sonnet
 `);
 }
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log();

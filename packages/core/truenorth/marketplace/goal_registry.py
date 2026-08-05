@@ -62,11 +62,6 @@ try:
 except ImportError:
     _HAS_YAML = False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Goal metadata
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class GoalPackage:
     """
@@ -77,15 +72,15 @@ class GoalPackage:
     version:      str
     author:       str
     description:  str
-    sector:       str              # fitness | medical | legal | hr | finance | other
+    sector:       str
     tags:         List[str]        = field(default_factory=list)
     license:      str              = "MIT"
     homepage:     str              = ""
     source_url:   str              = ""
-    yaml_content: str              = ""    # full YAML string
+    yaml_content: str              = ""
     downloads:    int              = 0
     published_at: float            = field(default_factory=time.time)
-    checksum:     str              = ""    # sha256 of yaml_content
+    checksum:     str              = ""
 
     @property
     def full_name(self) -> str:
@@ -134,11 +129,6 @@ class GoalPackage:
             raise ImportError("pyyaml required: pip install pyyaml")
         return _yaml.safe_load(self.yaml_content)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  GoalRegistry
-# ─────────────────────────────────────────────────────────────────────────────
-
 class GoalRegistry:
     """
     Package registry for TrueNorth goal YAMLs.
@@ -171,20 +161,14 @@ class GoalRegistry:
         install_dir:   Optional[str] = None,
         http_timeout:  float         = 10.0,
     ):
-        self._url        = registry_url    # None = in-memory only
+        self._url        = registry_url
         self._install_dir = Path(install_dir or self.INSTALL_DIR_DEFAULT).expanduser()
         self._timeout    = http_timeout
 
-        # In-memory store: {name: {version: GoalPackage}}
         self._store:     Dict[str, Dict[str, GoalPackage]] = {}
-        self._installed: Dict[str, str] = {}   # name → version
+        self._installed: Dict[str, str] = {}
 
-        # Pre-seed with curated official goals
         self._seed_official_goals()
-
-    # ------------------------------------------------------------------
-    # Publish
-    # ------------------------------------------------------------------
 
     def publish(
         self,
@@ -214,10 +198,6 @@ class GoalRegistry:
             self._remote_publish(pkg)
 
         return pkg
-
-    # ------------------------------------------------------------------
-    # Install
-    # ------------------------------------------------------------------
 
     def install(
         self,
@@ -255,10 +235,6 @@ class GoalRegistry:
         self._installed[pkg.name] = pkg.version
         return pkg.to_goal_config()
 
-    # ------------------------------------------------------------------
-    # Search
-    # ------------------------------------------------------------------
-
     def search(
         self,
         query:    str           = "",
@@ -283,7 +259,6 @@ class GoalRegistry:
             if tag and tag.lower() not in [t.lower() for t in pkg.tags]:
                 continue
 
-            # Score
             score = 0
             if query_lower:
                 if query_lower == pkg.name.lower():
@@ -295,18 +270,14 @@ class GoalRegistry:
                 if any(query_lower in t.lower() for t in pkg.tags):
                     score += 20
                 if score == 0:
-                    continue 
+                    continue
             else:
-                score = pkg.downloads  
+                score = pkg.downloads
 
             results.append((score + pkg.downloads * 0.01, pkg))
 
         results.sort(reverse=True)
         return [pkg.to_dict() for _, pkg in results[:limit]]
-
-    # ------------------------------------------------------------------
-    # Info
-    # ------------------------------------------------------------------
 
     def info(self, name: str, version: str = "latest") -> Optional[dict]:
         """Return full metadata for a goal (including all available versions)."""
@@ -336,10 +307,6 @@ class GoalRegistry:
             del self._installed[name]
             return True
         return False
-
-    # ------------------------------------------------------------------
-    # Resolution
-    # ------------------------------------------------------------------
 
     def _resolve(self, name: str, version: str) -> Optional[GoalPackage]:
         """Resolve name+version to a GoalPackage."""
@@ -377,10 +344,6 @@ class GoalRegistry:
             return n, v
         return name, default_version
 
-    # ------------------------------------------------------------------
-    # Local storage
-    # ------------------------------------------------------------------
-
     def _save_local(self, pkg: GoalPackage) -> None:
         """Save installed goal YAML to ~/.truenorth/goals/."""
         try:
@@ -388,11 +351,7 @@ class GoalRegistry:
             path = self._install_dir / f"{pkg.name}@{pkg.version}.yaml"
             path.write_text(pkg.yaml_content)
         except Exception:
-            pass  
-
-    # ------------------------------------------------------------------
-    # Remote registry (HTTP)
-    # ------------------------------------------------------------------
+            pass
 
     def _remote_fetch(self, name: str, version: str) -> Optional[GoalPackage]:
         """Fetch a goal package from the remote registry."""
@@ -423,10 +382,6 @@ class GoalRegistry:
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _validate_package(pkg: GoalPackage) -> None:
         """Basic sanity checks before publishing."""
@@ -443,10 +398,6 @@ class GoalRegistry:
             )
         if len(pkg.yaml_content) < 50:
             raise ValueError("Goal YAML content too short")
-
-    # ------------------------------------------------------------------
-    # Official curated goals (seed data)
-    # ------------------------------------------------------------------
 
     def _seed_official_goals(self) -> None:
         """Pre-load curated official goal packages."""

@@ -1,125 +1,14 @@
-/**
- * legal-aid-cli (Node.js / TypeScript) — Terminal Legal Intake for NGO Workers
- * ==============================================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────────────────────
- * A colour-formatted terminal app for legal aid workers at NGOs.
- * Worker sits with the client, runs this tool, gets a structured case brief.
- *
- * Output:
- *   • Colour case brief printed in the terminal
- *   • Saves  output/<session>_<name>.json   (for the database)
- *   • Saves  output/<session>_<name>.txt    (to hand to the advocate)
- *
- * NO SERVER. NO DATABASE. NO DEPLOYMENT.
- * Just Node + your API key. Runs on any machine.
- *
- * This is the TypeScript equivalent of legal-aid-cli/app.py
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────────────────────
- *   legal-aid-cli/
- *   ├── app.ts          ← this file
- *   ├── goal.yaml       ← copy from python/legal-aid-cli/goal.yaml
- *   ├── package.json
- *   └── tsconfig.json
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────────────────────
- *   {
- *     "scripts": {
- *       "dev":   "ts-node app.ts",
- *       "build": "tsc",
- *       "start": "node dist/app.js"
- *     },
- *     "dependencies": {},
- *     "devDependencies": {
- *       "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0",
- *       "typescript": "^5.3.0"
- *     }
- *   }
- *
- * tsconfig.json:
- * ──────────────────────────────────────────────────────────────────────────────
- *   {
- *     "compilerOptions": {
- *       "target": "ES2020", "module": "commonjs",
- *       "lib": ["ES2020"], "outDir": "./dist",
- *       "strict": true, "esModuleInterop": true,
- *       "skipLibCheck": true, "types": ["node"]
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────────────────────
- *   # Step 1: TrueNorth Python API
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *
- *   # Step 2:
- *   cd samples/nodejs/legal-aid-cli
- *   npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   npx ts-node app.ts
- *
- *   # With worker ID
- *   WORKER_ID=LW-042 npx ts-node app.ts
- *
- *   # Use a different goal
- *   GOAL_ID=farm_advisory npx ts-node app.ts
- *
- *   # Save output to custom directory
- *   OUTPUT_DIR=/home/worker/cases npx ts-node app.ts
- *
- * WHAT YOU SEE
- * ──────────────────────────────────────────────────────────────────────────────
- *   ╔══════════════════════════════════════════════════════╗
- *   ║      LEGAL AID INTAKE  —  TrueNorth  (Node.js)      ║
- *   ║      Free Legal Assistance Programme                 ║
- *   ╚══════════════════════════════════════════════════════╝
- *
- *     Worker : LW-042   Date : 15 June 2025   Session : la_20250615_143022
- *
- *   Assistant : Namaste! I am here to help prepare your legal matter.
- *   ──────────────────────────────────────────────────────────────────
- *   Client    :
- *
- *   [████████░░░░░░░░░░░░] 40%  Turn 5
- *
- *   ✓ client_name : Ramesh Kumar  (92%)
- *
- *   ┌── CASE BRIEF ─────────────────────────────────────────┐
- *   │ Case type    : Wage Theft                              │
- *   │ Strength     : STRONG                                  │
- *   │ Limitation   : File before 14 June 2027               │
- *   │ Free aid     : ✅ YES                                  │
- *   │ Est. amount  : ₹45,000 – ₹1,20,000                   │
- *   └────────────────────────────────────────────────────────┘
- *
- *   Saved: output/la_20250615_143022_ramesh-kumar.json
- *          output/la_20250615_143022_ramesh-kumar.txt
- */
-
 import * as fs       from 'fs'
 import * as path     from 'path'
 import * as readline from 'readline'
 
-// Import TrueNorth Node SDK
 import { TrueNorth, Session, MessageResult } from '../../../packages/sdk-node'
-
-// ── Config (from env) ─────────────────────────────────────────────────────────
 
 const WORKER_ID  = process.env.WORKER_ID         ?? 'LW-001'
 const GOAL_ID    = process.env.GOAL_ID           ?? 'legal_aid_intake'
 const OUTPUT_DIR = process.env.OUTPUT_DIR        ?? 'output'
 const TN_URL     = process.env.TRUENORTH_BASE_URL ?? 'http://localhost:8000'
 const TN_KEY     = process.env.TRUENORTH_API_KEY  ?? ''
-
-// ── ANSI ──────────────────────────────────────────────────────────────────────
 
 const R   = '\x1b[0m'
 const B   = '\x1b[1m'
@@ -131,8 +20,6 @@ const RED = '\x1b[31m'
 const WHT = '\x1b[97m'
 
 const col = (s: string, ...codes: string[]) => codes.join('') + s + R
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const progressBar = (pct: number, width = 22): string => {
   const filled = Math.min(Math.round(width * pct / 100), width)
@@ -163,8 +50,6 @@ const slug = (s: string) =>
 const titleCase = (s: string) =>
   s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
-// ── Banner ────────────────────────────────────────────────────────────────────
-
 function printBanner(sessionId: string): void {
   const W = 58
   const line = (s: string) => col(`  ║${s.padStart((W-2+s.length)/2).padEnd(W-2)}║`, B, CYN)
@@ -179,8 +64,6 @@ function printBanner(sessionId: string): void {
   console.log()
 }
 
-// ── Field extracted ───────────────────────────────────────────────────────────
-
 function printExtracted(field: string, value: unknown, confidence: number): void {
   const clr = confidence >= 0.85 ? GRN : confidence >= 0.60 ? YLW : RED
   console.log(col(
@@ -188,8 +71,6 @@ function printExtracted(field: string, value: unknown, confidence: number): void
     clr, DIM
   ))
 }
-
-// ── Case brief ────────────────────────────────────────────────────────────────
 
 function printCaseBrief(content: Record<string, unknown>): void {
   const W = 58
@@ -257,8 +138,6 @@ function printCaseBrief(content: Record<string, unknown>): void {
   console.log()
 }
 
-// ── Save output ───────────────────────────────────────────────────────────────
-
 function saveOutput(
   sessionId: string,
   content:   Record<string, unknown>,
@@ -311,16 +190,12 @@ function saveOutput(
   return { jsonPath, txtPath }
 }
 
-// ── Readline helper ───────────────────────────────────────────────────────────
-
 function createRL() {
   return readline.createInterface({ input: process.stdin, output: process.stdout })
 }
 
 const askLine = (rl: readline.Interface, prompt: string): Promise<string> =>
   new Promise(resolve => rl.question(prompt, resolve))
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const sessionId = `la_${new Date().toISOString().replace(/[-T:Z.]/g, '').slice(0, 15)}`
@@ -337,7 +212,6 @@ async function main(): Promise<void> {
   }
   console.log()
 
-  // ✅ track completionPct locally — Session object is read-only from API
   let completionPct = 0
   let complete      = false
 
@@ -378,7 +252,6 @@ async function main(): Promise<void> {
       continue
     }
 
-    // Show extracted fields
     for (const f of result.fieldsExtracted ?? []) {
       printExtracted(f.field, f.value, f.confidence)
     }
@@ -387,21 +260,18 @@ async function main(): Promise<void> {
     console.log(col('  Assistant : ', B, CYN) + result.text)
     console.log()
 
-    // ✅ track locally — don't try to mutate Session
     completionPct = result.completionPct
     complete      = result.isComplete
 
     if (result.isComplete && result.output) {
       const content = result.output.content as Record<string, unknown>
 
-      // ✅ FIX: collectedFields is on Session, not MessageResult
-      // Fetch full session state to get collected fields
       let collected: Record<string, unknown> = {}
       try {
         const fullSession = await tn.sessions.get(sessionId)
         collected = fullSession.collectedFields as Record<string, unknown>
       } catch {
-        // If fetch fails, build from output fields as fallback
+
         collected = (result.output.fields ?? {}) as Record<string, unknown>
       }
 

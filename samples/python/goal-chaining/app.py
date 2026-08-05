@@ -124,8 +124,6 @@ from truenorth.core.yaml_loader        import YAMLLoader
 from truenorth.agents.state_transfer   import StateTransfer, FieldMap, GoalChain, ChainStep
 from truenorth.llm.router              import LLMRouter
 
-# ── Goal definitions ─────────────────────────────────────────────────────────
-
 FITNESS_GOAL = {
     "id": "fitness_plan",
     "name": "Fitness Intake",
@@ -162,7 +160,7 @@ FITNESS_GOAL = {
             "Return JSON with bmi, bmi_category, fitness_profile_summary."
         ),
     },
-    # Goal chain configuration
+
     "chain": {
         "on_complete": [
             {
@@ -200,8 +198,7 @@ NUTRITION_GOAL = {
         ),
     },
     "fields": [
-        # name, age, weight_kg, height_cm, activity_level are carried from fitness
-        # Only ask NEW fields the nutrition plan needs
+
         {"name": "food_allergies",      "type": "text",    "required": True,
          "question": "Any food allergies or intolerances? (dairy / gluten / nuts / none)"},
         {"name": "diet_preference",     "type": "text",    "required": True,
@@ -230,34 +227,28 @@ NUTRITION_GOAL = {
     },
 }
 
-# ── Demo turns ────────────────────────────────────────────────────────────────
-
 FITNESS_TURNS = [
-    "Priya Sharma",   # name
-    "28",             # age
-    "65",             # weight_kg
-    "162",            # height_cm
-    "lose weight",    # primary_goal → triggers nutrition chain
-    "moderate",       # activity_level
-    "4",              # days_per_week
+    "Priya Sharma",
+    "28",
+    "65",
+    "162",
+    "lose weight",
+    "moderate",
+    "4",
 ]
 
 NUTRITION_TURNS = [
-    "lactose intolerant",   # food_allergies
-    "vegetarian",           # diet_preference
-    "3",                    # meals_per_day
-    "30",                   # cooking_time_mins
-    "300",                  # budget_per_day_inr
+    "lactose intolerant",
+    "vegetarian",
+    "3",
+    "30",
+    "300",
 ]
-
 
 def banner(title: str):
     print(f"\n{'═' * 60}")
     print(f"  {title}")
     print(f"{'═' * 60}\n")
-
-
-# ── DEMO 1: Automatic goal chaining ──────────────────────────────────────────
 
 async def demo_auto_chaining():
     banner("AUTO CHAINING — Fitness → Nutrition (seamless)")
@@ -266,7 +257,6 @@ async def demo_auto_chaining():
     fitness_output  = None
     nutrition_output = None
 
-    # ── Part 1: Run fitness goal ───────────────────────────────────────────
     print("── GOAL 1: Fitness Intake ──────────────────────────────\n")
 
     fitness_engine = TrueNorthEngine(
@@ -293,7 +283,6 @@ async def demo_auto_chaining():
 
     print("✅ Fitness intake complete!\n")
 
-    # ── Part 2: Detect next goal from chain config ─────────────────────────
     print("── CHAIN DETECTION ─────────────────────────────────────\n")
 
     collected = fitness_engine.state.collected_fields
@@ -308,7 +297,6 @@ async def demo_auto_chaining():
         print("  No chain defined — session would end here")
         return
 
-    # ── Part 3: State transfer ─────────────────────────────────────────────
     print("\n── STATE TRANSFER ──────────────────────────────────────\n")
 
     field_map = chain.field_map_for(next_step)
@@ -327,17 +315,15 @@ async def demo_auto_chaining():
     print(f"  Fields missing:   {result.missing_fields}")
     print(f"  Coverage:         {result.coverage_pct:.0f}%\n")
 
-    # ── Part 4: Run nutrition goal with pre-filled fields ──────────────────
     print("── GOAL 2: Nutrition Plan (pre-filled from fitness) ────\n")
 
     nutrition_engine = TrueNorthEngine(
         goal_config = NUTRITION_GOAL,
         session_id  = "chain_demo_nutrition",
         router      = router,
-        seed_fields = result.carried_fields,   # ← pre-filled from fitness
+        seed_fields = result.carried_fields,
     )
 
-    # Show what was pre-filled
     print(f"  Pre-filled (not asked again):")
     for k, v in result.carried_fields.items():
         print(f"    {k}: {v}")
@@ -359,9 +345,6 @@ async def demo_auto_chaining():
     if nutrition_output:
         print("✅ Nutrition plan complete!\n")
 
-
-# ── DEMO 2: Manual state transfer ────────────────────────────────────────────
-
 async def demo_manual_transfer():
     banner("MANUAL STATE TRANSFER — Code-level control")
 
@@ -369,7 +352,6 @@ async def demo_manual_transfer():
     print("  Carry: name, DOB, blood_group, allergies")
     print("  Rename: chief_complaint → reason_for_test\n")
 
-    # Simulate a completed medical session state
     medical_state = {
         "collected_fields": {
             "patient_name":   "Rahul Kumar",
@@ -384,14 +366,13 @@ async def demo_manual_transfer():
                                "blood_group", "known_allergies", "medications"]},
     }
 
-    # Build explicit field map
     fm = (
         FieldMap()
         .add("patient_name",    "patient_name")
         .add("date_of_birth",   "dob")
         .add("blood_group",     "blood_group")
         .add("known_allergies", "allergies")
-        .add("chief_complaint", "reason_for_test")   # rename on carry
+        .add("chief_complaint", "reason_for_test")
     )
 
     transfer = StateTransfer(field_map=fm, confidence_threshold=0.80)
@@ -414,9 +395,6 @@ async def demo_manual_transfer():
 
     d = result.to_dict()
     print(f"\n  to_dict() keys: {list(d.keys())}")
-
-
-# ── DEMO 3: GoalChain YAML config ────────────────────────────────────────────
 
 async def demo_chain_config():
     banner("GOAL CHAIN CONFIG — Reading from YAML")
@@ -461,9 +439,6 @@ async def demo_chain_config():
         else:
             print(f"  {collected['primary_goal']:<30} (no match)")
 
-
-# ── Main ─────────────────────────────────────────────────────────────────────
-
 async def main():
     demo  = os.environ.get("DEMO",  "all").lower()
     chain = os.environ.get("CHAIN", "fitness-nutrition").lower()
@@ -485,7 +460,6 @@ async def main():
     print("  Goal chaining turns single sessions into journeys.")
     print("  Each goal carries state — users never repeat themselves.")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

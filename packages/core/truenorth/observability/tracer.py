@@ -52,11 +52,6 @@ from truenorth.observability.log_categories import (
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  TurnTrace — everything that happened in one conversation turn
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class TurnTrace:
     """Complete trace for one conversation turn."""
@@ -66,32 +61,24 @@ class TurnTrace:
     started_at:       float = field(default_factory=time.time)
     finished_at:      Optional[float] = None
 
-    # User input
     user_text_chars:  int   = 0
     user_language:    str   = "en"
 
-    # PII
     pii_detected:     bool  = False
     pii_types:        List[str] = field(default_factory=list)
 
-    # Extractions
-    extractions:      List[dict] = field(default_factory=list)   # {field, value, conf, success}
+    extractions:      List[dict] = field(default_factory=list)
 
-    # Emotion
     emotion:          Optional[str]   = None
     emotion_valence:  Optional[float] = None
 
-    # Conflict
     conflicts:        List[dict] = field(default_factory=list)
 
-    # LLM calls
-    llm_calls:        List[dict] = field(default_factory=list)   # {model, task, tokens, cost, ms}
+    llm_calls:        List[dict] = field(default_factory=list)
 
-    # Hallucination
-    fw_verdict:       Optional[str]  = None   # CLEAN | FLAGGED | BLOCKED
+    fw_verdict:       Optional[str]  = None
     fw_blocked:       int            = 0
 
-    # Response
     response_chars:   int  = 0
 
     @property
@@ -134,11 +121,6 @@ class TurnTrace:
             "total_cost_usd":round(self.total_cost_usd, 8),
             "total_tokens":  self.total_tokens,
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  SessionTrace — all turns for one conversation
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class SessionTrace:
@@ -197,11 +179,6 @@ class SessionTrace:
             "extractions":        self.extraction_count,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Sinks — where events go
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TraceSink(ABC):
     """Abstract event sink. Implement emit() to route events anywhere."""
 
@@ -211,7 +188,6 @@ class TraceSink(ABC):
 
     async def flush(self) -> None:
         """Optional: flush buffered events. Called at session end."""
-
 
 class MemorySink(TraceSink):
     """Stores all events in memory. Used for testing and dry-runs."""
@@ -238,7 +214,6 @@ class MemorySink(TraceSink):
     def clear(self) -> None:
         self._events.clear()
 
-
 class StdoutSink(TraceSink):
     """Prints JSON events to stdout. For development and debugging."""
 
@@ -251,7 +226,6 @@ class StdoutSink(TraceSink):
             return
         indent = 2 if self._pretty else None
         print(json.dumps(event.to_dict(), default=str, indent=indent))
-
 
 class CallbackSink(TraceSink):
     """Calls a user-provided async function with each event."""
@@ -266,7 +240,6 @@ class CallbackSink(TraceSink):
                 await result
         except Exception as e:
             logger.debug("tracer: callback sink error: %s", e)
-
 
 class HTTPSink(TraceSink):
     """
@@ -309,11 +282,6 @@ class HTTPSink(TraceSink):
         except Exception as e:
             logger.warning("tracer: HTTP sink flush failed: %s", e)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  TrueNorthTracer — main entry point
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TrueNorthTracer:
     """
     Per-session structured event tracer for TrueNorth.
@@ -327,10 +295,6 @@ class TrueNorthTracer:
         self._sinks:    List[TraceSink] = []
         self._sessions: Dict[str, SessionTrace] = {}
 
-    # ------------------------------------------------------------------
-    # Sink management
-    # ------------------------------------------------------------------
-
     def add_sink(self, sink: TraceSink) -> "TrueNorthTracer":
         self._sinks.append(sink)
         return self
@@ -340,10 +304,6 @@ class TrueNorthTracer:
             if isinstance(s, sink_type):
                 return s
         return None
-
-    # ------------------------------------------------------------------
-    # Session / turn lifecycle
-    # ------------------------------------------------------------------
 
     def session_start(
         self,
@@ -390,10 +350,6 @@ class TrueNorthTracer:
             data    = {"action": "session_end",
                        "summary": sess.session_summary() if sess else {}},
         ))
-
-    # ------------------------------------------------------------------
-    # Record methods — called by engine pipeline stages
-    # ------------------------------------------------------------------
 
     def record_user_input(
         self,
@@ -548,10 +504,6 @@ class TrueNorthTracer:
             session_id, goal_id, turn, action, framework, user_id, details,
         ))
 
-    # ------------------------------------------------------------------
-    # Analytics queries
-    # ------------------------------------------------------------------
-
     def session_summary(self, session_id: str) -> Optional[dict]:
         sess = self._sessions.get(session_id)
         return sess.session_summary() if sess else None
@@ -565,10 +517,6 @@ class TrueNorthTracer:
     def all_session_ids(self) -> List[str]:
         return list(self._sessions.keys())
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     def _safe_emit(self, event: LogEvent) -> None:
         """Fire-and-forget emit that works inside and outside async contexts."""
         try:
@@ -578,7 +526,7 @@ class TrueNorthTracer:
             try:
                 asyncio.run(self._emit(event))
             except Exception:
-                pass  
+                pass
 
     async def _emit(self, event: LogEvent) -> None:
         for sink in self._sinks:

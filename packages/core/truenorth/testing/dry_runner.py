@@ -31,20 +31,14 @@ from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
-
 @dataclass
 class TurnRecord:
     turn:       int
     agent:      str
     user:       str
-    extracted:  List[str]      
+    extracted:  List[str]
     action:     str
     latency_ms: int = 0
-
 
 @dataclass
 class DryRunReport:
@@ -103,11 +97,6 @@ class DryRunReport:
             "errors":           self.errors,
         }
 
-
-# ---------------------------------------------------------------------------
-# Auto-answer generator
-# ---------------------------------------------------------------------------
-
 _AUTO_ANSWERS: Dict[str, Any] = {
     "name":           "Alex",
     "age":            28,
@@ -132,7 +121,6 @@ _AUTO_ANSWERS: Dict[str, Any] = {
     "allergies":      "No known allergies",
 }
 
-
 def _auto_answer(field_name: str, field_config: dict) -> str:
     """Generate a plausible auto-answer string for a field."""
     name_lower = field_name.lower()
@@ -155,11 +143,6 @@ def _auto_answer(field_name: str, field_config: dict) -> str:
 
     return "Yes, sounds good"
 
-
-# ---------------------------------------------------------------------------
-# DryRunner
-# ---------------------------------------------------------------------------
-
 class DryRunner:
     """
     Runs a complete simulated conversation against a goal YAML.
@@ -171,7 +154,7 @@ class DryRunner:
         verbose:       Print each turn to stdout
     """
 
-    MAX_TURNS = 30  # safety limit
+    MAX_TURNS = 30
 
     def __init__(
         self,
@@ -196,9 +179,7 @@ class DryRunner:
             return None
         with open(path) as f:
             data = json.load(f)
-        # Support two formats:
-        # 1. {"turns": [{"user": "..."}]}
-        # 2. {"answers": {"field_name": "value"}}
+
         if "turns" in data:
             return {"turns": [t.get("user", "") if isinstance(t, dict) else t for t in data["turns"]]}
         if "answers" in data:
@@ -213,10 +194,8 @@ class DryRunner:
         errors:     List[str] = []
         turns:      List[TurnRecord] = []
 
-        # ── Load scenario ──────────────────────────────────────────────
         scenario = self._load_scenario()
 
-        # ── Build engine ───────────────────────────────────────────────
         try:
             engine = await self._build_engine()
         except Exception as e:
@@ -231,7 +210,6 @@ class DryRunner:
 
         goal_id = engine.state.goal_id
 
-        # ── Start conversation ─────────────────────────────────────────
         try:
             start_resp = await engine.start()
             if self.verbose:
@@ -240,18 +218,16 @@ class DryRunner:
             errors.append(f"Engine start failed: {e}")
             start_resp = None
 
-        # ── Build answer queue ─────────────────────────────────────────
         answer_queue: List[str] = []
         if scenario and "turns" in scenario:
             answer_queue = list(scenario["turns"])
         elif scenario and "answers" in scenario:
-            answer_queue = []  # will use _get_answer_for_field instead
+            answer_queue = []
 
         field_answer_map: Dict[str, str] = {}
         if scenario and "answers" in scenario:
             field_answer_map = {k: str(v) for k, v in scenario["answers"].items()}
 
-        # ── Conversation loop ──────────────────────────────────────────
         last_target_field = start_resp.target_field if start_resp else None
 
         turn_num = 0
@@ -271,7 +247,6 @@ class DryRunner:
                 response = await engine.process_message(user_answer)
                 latency  = int((time.perf_counter() - t0) * 1000)
 
-                # Update target_field for NEXT turn from this response
                 last_target_field = response.target_field
 
                 record = TurnRecord(
@@ -300,7 +275,6 @@ class DryRunner:
 
         elapsed = time.perf_counter() - start_time
 
-        # ── Build report ───────────────────────────────────────────────
         collected = engine.get_collected_fields()
         missing   = engine.get_missing_fields()
         passed    = len(missing) == 0 and len(errors) == 0
@@ -325,10 +299,6 @@ class DryRunner:
 
         return report
 
-    # ------------------------------------------------------------------
-    # Answer selection
-    # ------------------------------------------------------------------
-
     def _get_next_answer(
         self,
         turn_num:        int,
@@ -351,11 +321,7 @@ class DryRunner:
     @staticmethod
     def _last_target(turns: List[TurnRecord]) -> Optional[str]:
         """Get the last target field from turn records."""
-        return None  # reasoner tracks this internally
-
-    # ------------------------------------------------------------------
-    # Engine factory
-    # ------------------------------------------------------------------
+        return None
 
     async def _build_engine(self):
         """Build the engine — mock LLM for dry-run, real for live mode."""
@@ -368,7 +334,7 @@ class DryRunner:
         from truenorth.testing.mock_llm import MockLLMClient
 
         if self.mock:
-            # Build a mock router that returns scripted answers
+
             mock_client = MockLLMClient(
                 responses={
                     "extract":   '{"extractions": []}',
@@ -389,10 +355,6 @@ class DryRunner:
 
         engine = await TrueNorthEngine.from_yaml(self.goal_path, router=router)
         return engine
-
-    # ------------------------------------------------------------------
-    # Display helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _print_turn(

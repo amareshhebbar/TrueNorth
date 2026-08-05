@@ -14,7 +14,6 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 
-# ── Add package root to path ───────────────────────────────────────────────
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -29,11 +28,6 @@ from truenorth.llm.cost_tracker   import CostTracker, BudgetExceededError
 from truenorth.llm.router         import LLMRouter
 from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.testing.mock_llm   import MockLLMClient
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Fixtures
-# ─────────────────────────────────────────────────────────────────────────────
 
 MINIMAL_GOAL = {
     "id": "test_goal",
@@ -50,7 +44,6 @@ MINIMAL_GOAL = {
 
 FITNESS_YAML = Path(__file__).parent.parent / "examples" / "goals" / "fitness_plan.yaml"
 
-
 def make_mock_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
     """Build a router backed by a mock LLM that returns predictable JSON."""
     mock = MockLLMClient(
@@ -65,20 +58,13 @@ def make_mock_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
         router.register_client(model, mock)
     return router
 
-
 @pytest.fixture
 def router():
     return make_mock_router()
 
-
 @pytest.fixture
 async def engine(router):
     return TrueNorthEngine(goal_config=MINIMAL_GOAL, router=router)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Engine lifecycle
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestEngineLifecycle:
 
@@ -111,11 +97,6 @@ class TestEngineLifecycle:
         assert "TrueNorthEngine" in r
         assert "test_goal" in r
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Message processing pipeline
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestMessageProcessing:
 
     @pytest.mark.asyncio
@@ -145,12 +126,7 @@ class TestMessageProcessing:
         await engine.start()
         await engine.process_message("Hi")
         agent_msgs = engine.state.agent_messages
-        assert len(agent_msgs) >= 2   # start + response
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Language detection
-# ─────────────────────────────────────────────────────────────────────────────
+        assert len(agent_msgs) >= 2
 
 class TestLanguageDetection:
 
@@ -170,7 +146,7 @@ class TestLanguageDetection:
     def test_detects_hinglish_romanized(self):
         ld = LanguageDetector()
         r  = ld.detect("main gym jaana chahta hoon lekin time nahi hai")
-        # Should detect as Hindi or English — both acceptable for Hinglish
+
         assert r.language_code in ("hi", "en")
 
     def test_detects_tamil_script(self):
@@ -185,11 +161,6 @@ class TestLanguageDetection:
         await e.start()
         await e.process_message("My name is Alex and I am 30 years old")
         assert e.state.detected_language in ("en", "hi")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Emotion detection
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestEmotionDetection:
 
@@ -218,11 +189,6 @@ class TestEmotionDetection:
         await engine.process_message("This is great, I love working out!")
         assert engine.state.current_emotion is not None
         assert "label" in engine.state.current_emotion
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. Conflict detection
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConflictDetection:
 
@@ -268,11 +234,6 @@ class TestConflictDetection:
         )
         assert len(conflicts) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. PII detection
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestPIIDetection:
 
     def test_detects_email(self):
@@ -307,13 +268,8 @@ class TestPIIDetection:
         await e.start()
         await e.process_message("I am Priya, email priya@secret.com, age 28")
         history = e.state.turn_history
-        # The stored user message is the ORIGINAL (not redacted — for display)
+
         assert any("Priya" in t.get("content", "") for t in history if t["role"] == "user")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Confidence scoring
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConfidenceScoring:
 
@@ -345,11 +301,6 @@ class TestConfidenceScoring:
         confirmed   = cs.score("goal", "lose weight", extraction_confidence=0.7, user_confirmed=True)
         assert confirmed.score > unconfirmed.score
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Cost tracking
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCostTracking:
 
     def test_records_call_cost(self):
@@ -368,7 +319,7 @@ class TestCostTracking:
 
     def test_budget_cap_raises_error(self):
         ct = CostTracker()
-        ct.set_budget("s2", 0.000001)   # absurdly low budget
+        ct.set_budget("s2", 0.000001)
         ct.record("s2", "claude-haiku-4-5-20251001", "converse", 1000, 500, 0)
         with pytest.raises(BudgetExceededError):
             ct.check_budget("s2")
@@ -378,17 +329,12 @@ class TestCostTracking:
         rec = ct.record("s3", "ollama", "converse", 1000, 1000, 50)
         assert rec.cost_usd == 0.0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Conversation quality monitor
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestConversationQuality:
 
     def test_short_filler_lowers_clarity_and_flags(self):
         qm = ConversationQualityMonitor()
         r  = qm.check(turn_number=3, user_message="ok", turn_history=[], fields_collected=1, total_required_fields=8)
-        # "ok" is a filler — clarity should be low and flag should be set
+
         assert r.clarity_score < 0.50
         assert "FILLER_ANSWER" in r.flags
 
@@ -401,11 +347,6 @@ class TestConversationQuality:
         qm = ConversationQualityMonitor()
         r  = qm.check(turn_number=2, user_message="I work out 3 times a week at the gym", turn_history=[], fields_collected=3, total_required_fields=8)
         assert r.is_healthy
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. GraphState round-trip + field collection
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestGraphState:
 

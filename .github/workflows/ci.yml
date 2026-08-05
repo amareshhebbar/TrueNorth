@@ -44,17 +44,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          
+
       - name: Install dependencies
         run: |
           pip install poetry
           poetry install
-          
+
       - name: Run checks and tests
         run: |
           poetry run ruff check .
@@ -66,13 +66,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # Upgraded to Node 22 to remove GitHub deprecation warnings
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          
+
       - name: Run Node checks
         run: make test-node
 
@@ -81,12 +80,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          
+
       - name: Run Go checks
         run: make test-go
 
@@ -95,6 +94,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Rust checks
         run: make test-rust

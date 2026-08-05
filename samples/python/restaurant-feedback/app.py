@@ -79,8 +79,6 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Config ────────────────────────────────────────────────────────────────────
-
 RESTAURANT_NAME = os.environ.get("RESTAURANT_NAME", "The Spice Garden")
 GOAL_YAML       = os.environ.get("GOAL_YAML",       "goal.yaml")
 SECRET_KEY      = os.environ.get("SECRET_KEY",      uuid.uuid4().hex)
@@ -96,17 +94,13 @@ def run_async(coro):
 
 threading.Thread(target=loop.run_forever, daemon=True).start()
 
-# ── Flask ─────────────────────────────────────────────────────────────────────
-
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
-
 
 @app.route("/")
 def index():
     session["session_id"] = session.get("session_id") or str(uuid.uuid4())[:12]
     return render_template("index.html", restaurant=RESTAURANT_NAME)
-
 
 @app.route("/api/start", methods=["POST"])
 def start():
@@ -119,7 +113,6 @@ def start():
     active_sessions[sid] = engine
     resp = run_async(engine.start())
     return jsonify({"text": resp.text, "session_id": sid, "completion": 0})
-
 
 @app.route("/api/message", methods=["POST"])
 def message():
@@ -158,7 +151,6 @@ def message():
         )
 
     return jsonify(result)
-
 
 @app.route("/dashboard")
 def dashboard():
@@ -218,7 +210,6 @@ def dashboard():
     <p><a href="/">← Guest feedback link</a></p>
     </body></html>
     """
-
 
 if __name__ == "__main__":
     print(f"\n  {RESTAURANT_NAME} — Feedback System")

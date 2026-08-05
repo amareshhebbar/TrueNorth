@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -e
 SAMPLES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SAMPLES_DIR")"
@@ -8,7 +7,6 @@ echo "Samples dir : $SAMPLES_DIR"
 echo "Repo root   : $ROOT_DIR"
 echo ""
 
-# Python core
 echo "── Python core ──────────────────────────────────────────"
 cd "$ROOT_DIR/packages/core"
 pip install -e . -q
@@ -16,7 +14,6 @@ pip install anthropic fastapi uvicorn flask httpx -q
 echo "  ✓ done"
 echo ""
 
-# Node SDK
 echo "── Node.js SDK ──────────────────────────────────────────"
 cd "$ROOT_DIR/packages/sdk-node"
 npm install -q
@@ -24,7 +21,6 @@ npm run build 2>/dev/null || echo "  (build skipped)"
 echo "  ✓ done"
 echo ""
 
-# tsconfig shared
 TSCONFIG='{
   "compilerOptions": {
     "target": "ES2020",

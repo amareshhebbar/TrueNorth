@@ -17,7 +17,6 @@ Usage (sync):
     output = tn.sessions.output(session.id)
     print(output.content)
 
-
 Same interface as sdk-node and sdk-go — one mental model across all languages.
 """
 
@@ -28,17 +27,12 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Response models — identical shape as Node SDK and Go SDK
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class Session:
     """A TrueNorth conversation session."""
     id:               str
     goal_id:          str
-    status:           str                 
+    status:           str
     current_turn:     int
     completion_pct:   float
     collected_fields: Dict[str, Any]
@@ -46,7 +40,7 @@ class Session:
     total_cost_usd:   float
     is_complete:      bool
     detected_language: Optional[str]      = None
-    agent_message:    str                 = ""   
+    agent_message:    str                 = ""
     created_at:       float               = 0.0
 
     @classmethod
@@ -65,13 +59,12 @@ class Session:
             created_at       = d.get("created_at", 0.0),
         )
 
-
 @dataclass
 class MessageResult:
     """Result of sending a message to a session."""
     session_id:       str
     turn:             int
-    text:             str          
+    text:             str
     is_complete:      bool
     completion_pct:   float
     fields_extracted: List[dict]
@@ -93,14 +86,13 @@ class MessageResult:
             emotion_detected= d.get("emotion_detected"),
         )
 
-
 @dataclass
 class Output:
     """The final structured output from a completed session."""
     session_id:  str
     goal_id:     str
-    format:      str         
-    content:     Any         
+    format:      str
+    content:     Any
     fields:      Dict[str, Any]
     metadata:    Dict[str, Any]
     generated_at: float
@@ -117,7 +109,6 @@ class Output:
             generated_at = d.get("generated_at", 0.0),
         )
 
-
 @dataclass
 class TrueNorthError(Exception):
     """API error with HTTP status and structured body."""
@@ -127,11 +118,6 @@ class TrueNorthError(Exception):
 
     def __str__(self) -> str:
         return f"TrueNorthError({self.status_code}): {self.error} — {self.message}"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  HTTP transport (sync)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _SyncTransport:
     def __init__(self, base_url: str, api_key: str, timeout: float):
@@ -183,11 +169,6 @@ class _SyncTransport:
         except urllib.error.HTTPError as e:
             if e.code != 204:
                 self._raise(e.code, e.read())
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  HTTP transport (async — uses httpx)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _AsyncTransport:
     def __init__(self, base_url: str, api_key: str, timeout: float):
@@ -243,11 +224,6 @@ class _AsyncTransport:
         client = await self._get_client()
         await client.delete(self._base + path)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Resource clients
-# ─────────────────────────────────────────────────────────────────────────────
-
 class _SessionsResource:
     def __init__(self, transport): self._t = transport
 
@@ -282,7 +258,6 @@ class _SessionsResource:
 
     def end(self, session_id: str) -> None:
         self._t.delete(f"/sessions/{session_id}")
-
 
 class _AsyncSessionsResource:
     def __init__(self, transport): self._t = transport
@@ -319,7 +294,6 @@ class _AsyncSessionsResource:
     async def end(self, session_id: str) -> None:
         await self._t.delete(f"/sessions/{session_id}")
 
-
 class _GoalsResource:
     def __init__(self, transport): self._t = transport
 
@@ -332,7 +306,6 @@ class _GoalsResource:
     def install(self, name: str, version: str = "latest") -> dict:
         return self._t.post(f"/goals/{name}/install", {"version": version})
 
-
 class _AsyncGoalsResource:
     def __init__(self, transport): self._t = transport
 
@@ -344,7 +317,6 @@ class _AsyncGoalsResource:
 
     async def install(self, name: str, version: str = "latest") -> dict:
         return await self._t.post(f"/goals/{name}/install", {"version": version})
-
 
 class _AnalyticsResource:
     def __init__(self, transport): self._t = transport
@@ -359,7 +331,6 @@ class _AnalyticsResource:
         return self._t.get("/analytics/cost/trend",
                            {"goal": goal, "period": period, "granularity": granularity})
 
-
 class _AsyncAnalyticsResource:
     def __init__(self, transport): self._t = transport
 
@@ -372,11 +343,6 @@ class _AsyncAnalyticsResource:
     async def cost_trend(self, goal: str, period: int = 30, granularity: str = "day") -> List[dict]:
         return await self._t.get("/analytics/cost/trend",
                                  {"goal": goal, "period": period, "granularity": granularity})
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  TrueNorth (sync client)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TrueNorth:
     """
@@ -413,11 +379,6 @@ class TrueNorth:
     def health(self) -> dict:
         return self._transport.get("/health")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  AsyncTrueNorth (async client)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class AsyncTrueNorth:
     """
     Async TrueNorth SDK client.
@@ -453,11 +414,6 @@ class AsyncTrueNorth:
     async def __aexit__(self, *args) -> None:
         await self._transport.close()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Convenience: run_session()  — one-call full conversation loop
-# ─────────────────────────────────────────────────────────────────────────────
-
 def run_session(
     goal_id:   str,
     messages:  List[str],
@@ -479,7 +435,6 @@ def run_session(
         if result.is_complete:
             return tn.sessions.output(session.id)
     return tn.sessions.force_output(session.id)
-
 
 async def arun_session(
     goal_id:   str,

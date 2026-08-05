@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "gpt-4o-mini"
 
-
 class OpenAIClient(LLMBase):
     """
     OpenAI GPT adapter.

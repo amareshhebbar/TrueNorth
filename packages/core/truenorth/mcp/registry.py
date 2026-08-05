@@ -34,11 +34,6 @@ from truenorth.mcp.types  import Tool, ToolResult, ToolResultStatus
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  RegisteredTool — one tool in the registry
-# ─────────────────────────────────────────────────────────────────────────────
-
 class RegisteredTool:
     """A tool known to the registry — wraps an MCP tool or a builtin."""
 
@@ -66,11 +61,6 @@ class RegisteredTool:
 
     def description_for_llm(self) -> str:
         return self.tool.llm_description()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MCPRegistry
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MCPRegistry:
     """
@@ -103,13 +93,9 @@ class MCPRegistry:
 
     def __init__(self):
         self._clients:  List[MCPClient] = []
-        self._tools:          Dict[str, RegisteredTool] = {}  # tool_name → RegisteredTool
-        self._server_configs: Dict[str, dict]          = {}  # name → server cfg
+        self._tools:          Dict[str, RegisteredTool] = {}
+        self._server_configs: Dict[str, dict]          = {}
         self._connected = False
-
-    # ------------------------------------------------------------------
-    # Configuration
-    # ------------------------------------------------------------------
 
     async def load_from_config(self, servers_config: List[dict]) -> None:
         """
@@ -164,10 +150,6 @@ class MCPRegistry:
         logger.debug("registry: registered builtin=%s", tool_name)
         return True
 
-    # ------------------------------------------------------------------
-    # Connection management
-    # ------------------------------------------------------------------
-
     async def connect_all(self) -> Dict[str, bool]:
         """
         Connect all registered (non-builtin) MCP servers.
@@ -210,17 +192,9 @@ class MCPRegistry:
     async def __aexit__(self, *args) -> None:
         await self.disconnect_all()
 
-    # ------------------------------------------------------------------
-    # Tool access
-    # ------------------------------------------------------------------
-
     def list_tools(self) -> List[Tool]:
         """Return all registered tools (builtin + external)."""
         return [rt.tool for rt in self._tools.values()]
-
-    # ------------------------------------------------------------------
-    # Convenience aliases for engine integration
-    # ------------------------------------------------------------------
 
     def register_builtins(self, server_name: str = "builtin") -> None:
         """Register a specific builtin tool by its name."""
@@ -249,10 +223,6 @@ class MCPRegistry:
 
     def external_names(self) -> List[str]:
         return [n for n, rt in self._tools.items() if not rt.is_builtin]
-
-    # ------------------------------------------------------------------
-    # Tool execution
-    # ------------------------------------------------------------------
 
     async def call_tool(
         self,
@@ -324,10 +294,6 @@ class MCPRegistry:
                 latency_ms = int((time.perf_counter() - t0) * 1000),
             )
 
-    # ------------------------------------------------------------------
-    # LLM prompt integration
-    # ------------------------------------------------------------------
-
     def system_prompt_block(self) -> str:
         """
         Generate a system prompt block describing all available tools.
@@ -363,10 +329,6 @@ class MCPRegistry:
             return f"{message}\n\n[Tool '{result.tool_name}' failed: {result.error}]"
         return f"{message}\n\n[Tool '{result.tool_name}' result: {result.text}]"
 
-    # ------------------------------------------------------------------
-    # Stats
-    # ------------------------------------------------------------------
-
     def stats(self) -> dict:
         return {
             "tool_count":    len(self._tools),
@@ -374,11 +336,6 @@ class MCPRegistry:
             "server_count":  len(self._clients),
             "tools":         [t.to_dict() for t in self.list_tools()],
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Built-in tool schema lookup
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _builtin_schema(tool_name: str) -> Dict[str, Any]:
     schemas = {

@@ -40,10 +40,6 @@ from truenorth.output.source_tracer import (
     TraceCompleteness,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Shared fixtures
-# ─────────────────────────────────────────────────────────────────────────────
-
 COLLECTED = {
     "name":                     "Priya",
     "age":                      28,
@@ -117,7 +113,6 @@ Consider tracking your meals.
 
 TRACER = SourceTracer()
 
-
 def _trace(output: str = CLEAN_OUTPUT) -> SourceMap:
     return TRACER.trace(
         output            = output,
@@ -129,11 +124,6 @@ def _trace(output: str = CLEAN_OUTPUT) -> SourceMap:
         goal_id           = "fitness_plan",
         field_turn_map    = FIELD_TURN_MAP,
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. SentenceParser
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSentenceParser:
 
@@ -184,11 +174,6 @@ class TestSentenceParser:
         assert "163" in strs
         assert "65" in strs
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. FieldMatcher — exact value match (tier 1)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldMatcherExact:
 
     def _sources(self) -> dict:
@@ -236,11 +221,6 @@ class TestFieldMatcherExact:
             s.field_name not in ("age", "weight_kg") for s in matched
         )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. FieldMatcher — field label/name match (tier 2)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFieldMatcherLabel:
 
     def _sources(self):
@@ -266,11 +246,6 @@ class TestFieldMatcherLabel:
         )
         fields = [s.field_name for s in matched]
         assert "workout_days_per_week" in fields or "workout_duration_minutes" in fields
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. FieldMatcher — numeric proximity match (tier 3)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldMatcherNumeric:
 
@@ -306,11 +281,6 @@ class TestFieldMatcherNumeric:
             COLLECTED, FIELDS_CONFIG, sources,
         )
         assert len(untraced) >= 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. TurnResolver
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTurnResolver:
 
@@ -353,11 +323,6 @@ class TestTurnResolver:
         assert "user_text" in d
         assert "confidence"in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. TraceCompleteness thresholds
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTraceCompleteness:
 
     def test_fully_traced_threshold(self):
@@ -379,11 +344,6 @@ class TestTraceCompleteness:
         tracer = SourceTracer()
         assert tracer._classify_completeness(0.30) == TraceCompleteness.UNTRACEABLE
         assert tracer._classify_completeness(0.00) == TraceCompleteness.UNTRACEABLE
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. SourceMap
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSourceMap:
 
@@ -420,11 +380,6 @@ class TestSourceMap:
             assert "collected_turn" in entry
             assert "confidence"     in entry
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Tracer — clean output traces fully
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTracerCleanOutput:
 
     def test_completeness_is_high(self):
@@ -434,7 +389,7 @@ class TestTracerCleanOutput:
 
     def test_traced_pct_above_threshold(self):
         sm = _trace()
-        assert sm.traced_pct >= 0.60   
+        assert sm.traced_pct >= 0.60
 
     def test_age_in_field_coverage(self):
         sm = _trace()
@@ -446,7 +401,7 @@ class TestTracerCleanOutput:
 
     def test_name_traced_to_correct_field(self):
         sm = _trace()
-        # Find the sentence mentioning Priya
+
         priya_sentences = [
             s for s in sm.sentences
             if "Priya" in s.sentence and s.is_traced
@@ -467,7 +422,7 @@ class TestTracerCleanOutput:
         for s in age_sentences:
             fields = [src.field_name for src in s.sources]
             if "age" in fields:
-                assert s.sources[0].turn == 2   
+                assert s.sources[0].turn == 2
                 return
 
     def test_weight_sentence_traced_to_weight_field(self):
@@ -479,12 +434,7 @@ class TestTracerCleanOutput:
         for s in weight_sentences:
             fields = [src.field_name for src in s.sources]
             if "weight_kg" in fields:
-                return   
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Tracer — generic output
-# ─────────────────────────────────────────────────────────────────────────────
+                return
 
 class TestTracerGenericOutput:
 
@@ -506,7 +456,7 @@ class TestTracerGenericOutput:
     def test_generic_sentences_marked_as_generic(self):
         sm = _trace()
         generic = [s for s in sm.sentences if s.is_generic]
-        assert len(generic) >= 2 
+        assert len(generic) >= 2
 
     def test_mixed_output_still_traces_factual(self):
         mixed = (
@@ -520,15 +470,10 @@ class TestTracerGenericOutput:
             session_id="s1", goal_id="fitness_plan",
             field_turn_map=FIELD_TURN_MAP,
         )
-        # The factual sentence "You are 28 years old" should be traced
+
         factual = [s for s in sm.sentences if not s.is_generic]
         traced_factual = [s for s in factual if s.is_traced]
         assert len(traced_factual) >= 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Tracer — untraced values detected
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTracerUntracedValues:
 
@@ -559,15 +504,10 @@ class TestTracerUntracedValues:
             session_id="s1", goal_id="fitness_plan",
             field_turn_map=FIELD_TURN_MAP,
         )
-        # Both values are in collected_fields — should be traced
+
         factual = [s for s in sm.sentences if not s.is_generic]
         for s in factual:
             assert s.is_traced
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Tracer — multi-field report
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTracerMultiField:
 
@@ -599,7 +539,7 @@ Stay hydrated and get enough sleep.
             session_id="s1", goal_id="fitness_plan",
             field_turn_map=FIELD_TURN_MAP,
         )
-        # Each field should appear at most once per sentence (deduplicated)
+
         for field_name, count in sm.field_coverage.items():
             assert count >= 1
 
@@ -629,11 +569,6 @@ Stay hydrated and get enough sleep.
             assert isinstance(entry["collected_turn"], int)
             assert entry["collected_turn"] >= 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Tracer — audit log for compliance
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTracerAuditLog:
 
     def test_audit_log_entry_structure(self):
@@ -651,7 +586,7 @@ class TestTracerAuditLog:
     def test_audit_log_excludes_generic_sentences(self):
         sm  = _trace()
         log = sm.audit_log()
-        # Audit log should not include generic advice like "stay hydrated"
+
         for entry in log:
             assert not any(
                 phrase in entry["claim"].lower()
@@ -661,21 +596,16 @@ class TestTracerAuditLog:
     def test_audit_log_references_user_statement(self):
         sm  = _trace()
         log = sm.audit_log()
-        # At least some entries should reference the user's actual words
+
         has_user_text = any(len(e["user_statement"]) > 0 for e in log)
         assert has_user_text
 
     def test_is_audit_ready_status(self):
         sm = _trace()
         assert isinstance(sm.is_audit_ready, bool)
-        # A well-traced output should be audit-ready
+
         if sm.completeness in (TraceCompleteness.FULLY_TRACED, TraceCompleteness.MOSTLY_TRACED):
             assert sm.is_audit_ready is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Tracer — edge cases
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTracerEdgeCases:
 
@@ -733,11 +663,6 @@ class TestTracerEdgeCases:
         assert "is_traced" in d
         assert "sources"   in d
         assert "type"      in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. OutputGenerator integration
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestGeneratorIntegration:
 
@@ -815,11 +740,6 @@ output:
             "fully_traced", "mostly_traced", "partially_traced", "untraceable"
         )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. Engine integration
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestEngineIntegration:
 
     @pytest.mark.asyncio
@@ -836,7 +756,7 @@ class TestEngineIntegration:
             "output": {"format": "json"},
         }
         engine = TrueNorthEngine(goal_config=goal)
-        # SourceTracer should be wired into OutputGenerator
+
         assert hasattr(engine._output, "_tracer")
         assert isinstance(engine._output._tracer, SourceTracer)
 

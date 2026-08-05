@@ -29,13 +29,13 @@ from truenorth.mcp.builtin import register
 logger = logging.getLogger(__name__)
 
 _ALIASES: Dict[str, str] = {
-    # Indian
+
     "ist":              "Asia/Kolkata",
     "india":            "Asia/Kolkata",
     "mumbai":           "Asia/Kolkata",
     "delhi":            "Asia/Kolkata",
     "bangalore":        "Asia/Kolkata",
-    # US
+
     "est":              "America/New_York",
     "edt":              "America/New_York",
     "cst":              "America/Chicago",
@@ -45,7 +45,7 @@ _ALIASES: Dict[str, str] = {
     "eastern":          "America/New_York",
     "central":          "America/Chicago",
     "pacific":          "America/Los_Angeles",
-    # UK / Europe
+
     "gmt":              "UTC",
     "bst":              "Europe/London",
     "london":           "Europe/London",
@@ -53,7 +53,7 @@ _ALIASES: Dict[str, str] = {
     "cet":              "Europe/Paris",
     "paris":            "Europe/Paris",
     "berlin":           "Europe/Berlin",
-    # Asia
+
     "jst":              "Asia/Tokyo",
     "japan":            "Asia/Tokyo",
     "tokyo":            "Asia/Tokyo",
@@ -63,16 +63,15 @@ _ALIASES: Dict[str, str] = {
     "singapore":        "Asia/Singapore",
     "sgt":              "Asia/Singapore",
     "dubai":            "Asia/Dubai",
-    # Australia
+
     "aest":             "Australia/Sydney",
     "sydney":           "Australia/Sydney",
     "melbourne":        "Australia/Melbourne",
     "perth":            "Australia/Perth",
-    # UTC
+
     "utc":              "UTC",
     "universal":        "UTC",
 }
-
 
 @register("datetime_tool")
 async def datetime_tool(
@@ -118,7 +117,6 @@ async def datetime_tool(
         "weekday":    now.strftime("%A"),
         "unix":       int(now.timestamp()),
     }
-
 
 def _resolve_timezone(tz: str) -> str:
     """Resolve a timezone string — handles aliases and loose names."""

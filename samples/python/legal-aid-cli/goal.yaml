@@ -1,7 +1,3 @@
-# ============================================================
-#  TrueNorth Goal: Legal Aid Intake
-#  Used by: legal-aid-cli — terminal app for NGO legal workers
-# ============================================================
 id: legal_aid_intake
 name: "Legal Aid Intake"
 version: "1.0.0"

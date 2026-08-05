@@ -39,7 +39,6 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from truenorth.observability.tracer import TrueNorthTracer, SessionTrace
 
-
 @dataclass
 class GoalHealthReport:
     """Health metrics for one goal over a time window."""
@@ -48,13 +47,13 @@ class GoalHealthReport:
     session_count:      int
     completed_count:    int
     abandoned_count:    int
-    completion_rate:    float          # 0–1
+    completion_rate:    float
     avg_turns:          float
     avg_cost_usd:       float
     p50_latency_ms:     int
     p95_latency_ms:     int
-    field_skip_rates:   Dict[str, float]   # field_name → 0..1
-    abandonment_map:    Dict[int, int]     # turn_number → sessions abandoned
+    field_skip_rates:   Dict[str, float]
+    abandonment_map:    Dict[int, int]
     pii_rate:           float
     conflict_rate:      float
     hallucination_rate: float
@@ -80,7 +79,6 @@ class GoalHealthReport:
             "generated_at":     self.generated_at,
         }
 
-
 class HealthMonitor:
     """
     Computes goal-level health metrics from session trace data.
@@ -93,10 +91,10 @@ class HealthMonitor:
     """
 
     DEFAULT_THRESHOLDS = {
-        "completion_rate_min":     0.60,  
-        "avg_turns_max":           12,    
-        "p95_latency_ms_max":      8000,  
-        "hallucination_rate_max":  0.05,  
+        "completion_rate_min":     0.60,
+        "avg_turns_max":           12,
+        "p95_latency_ms_max":      8000,
+        "hallucination_rate_max":  0.05,
     }
 
     def __init__(
@@ -106,10 +104,6 @@ class HealthMonitor:
     ):
         self._tracer     = tracer
         self._thresholds = {**self.DEFAULT_THRESHOLDS, **(thresholds or {})}
-
-    # ------------------------------------------------------------------
-    # Main report
-    # ------------------------------------------------------------------
 
     def goal_report(
         self,
@@ -168,10 +162,6 @@ class HealthMonitor:
             hallucination_rate = fw_rate,
         )
 
-    # ------------------------------------------------------------------
-    # Alerts
-    # ------------------------------------------------------------------
-
     def check_alerts(self, report: GoalHealthReport) -> List[dict]:
         """
         Compare report metrics against thresholds.
@@ -216,7 +206,6 @@ class HealthMonitor:
                 "message":   f"Hallucination rate {report.hallucination_rate:.1%} exceeds {t['hallucination_rate_max']:.1%}",
             })
 
-        # High-abandon fields
         for field_name, rate in report.field_skip_rates.items():
             if rate > 0.30:
                 alerts.append({
@@ -229,10 +218,6 @@ class HealthMonitor:
                 })
 
         return alerts
-
-    # ------------------------------------------------------------------
-    # Comparison
-    # ------------------------------------------------------------------
 
     def compare_periods(
         self,
@@ -277,10 +262,6 @@ class HealthMonitor:
                 "change_pct": _pct_change(len(curr_sessions), len(prev_sessions)),
             },
         }
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _sessions_for_goal(
         self,

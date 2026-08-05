@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "claude-sonnet-4-20250514"
 
-
 class AnthropicClient(LLMBase):
     """
     Anthropic Claude adapter.
@@ -28,7 +27,7 @@ class AnthropicClient(LLMBase):
         super().__init__(config)
         self.model_name = self.config.get("model", _DEFAULT_MODEL)
         self._api_key   = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
-        self._client    = None  # lazy-initialised
+        self._client    = None
 
     def _get_client(self):
         if self._client is None:

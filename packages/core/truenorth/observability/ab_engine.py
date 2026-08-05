@@ -23,18 +23,15 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-
 class ABVariant(str, Enum):
     A = "A"
     B = "B"
 
-
 class ABStatus(str, Enum):
-    RUNNING       = "running"        
-    SIGNIFICANT   = "significant"     
-    INCONCLUSIVE  = "inconclusive"    
-    STOPPED       = "stopped"        
-
+    RUNNING       = "running"
+    SIGNIFICANT   = "significant"
+    INCONCLUSIVE  = "inconclusive"
+    STOPPED       = "stopped"
 
 @dataclass
 class VariantStats:
@@ -67,7 +64,6 @@ class VariantStats:
             "avg_turns":       round(self.avg_turns, 2),
         }
 
-
 @dataclass
 class ABResult:
     """Final A/B test result."""
@@ -77,7 +73,7 @@ class ABResult:
     stats_a:       VariantStats
     stats_b:       VariantStats
     p_value:       Optional[float]
-    lift_pct:      Optional[float]    
+    lift_pct:      Optional[float]
     confidence:    Optional[float]
     min_sessions:  int
     created_at:    float = field(default_factory=time.time)
@@ -94,7 +90,6 @@ class ABResult:
             "confidence":   round(self.confidence, 4) if self.confidence else None,
             "min_sessions": self.min_sessions,
         }
-
 
 class ABEngine:
     """
@@ -113,8 +108,8 @@ class ABEngine:
         test_id:          str,
         variant_a_config: dict,
         variant_b_config: dict,
-        split_ratio:      float = 0.50,    
-        min_sessions:     int   = 50,      
+        split_ratio:      float = 0.50,
+        min_sessions:     int   = 50,
         success_metric:   str   = "completion_rate",
     ):
         self._test_id       = test_id
@@ -129,10 +124,6 @@ class ABEngine:
             ABVariant.B: VariantStats(variant=ABVariant.B),
         }
         self._assignments: Dict[str, ABVariant] = {}
-
-    # ------------------------------------------------------------------
-    # Assignment
-    # ------------------------------------------------------------------
 
     def assign(self, session_id: str) -> dict:
         """
@@ -154,10 +145,6 @@ class ABEngine:
         """Return the variant assigned to a session (None if not assigned)."""
         return self._assignments.get(session_id)
 
-    # ------------------------------------------------------------------
-    # Outcome recording
-    # ------------------------------------------------------------------
-
     def record_outcome(
         self,
         session_id: str,
@@ -174,10 +161,6 @@ class ABEngine:
             stats.completions += 1
             stats.total_cost  += cost_usd
             stats.total_turns += turns
-
-    # ------------------------------------------------------------------
-    # Result and significance
-    # ------------------------------------------------------------------
 
     def result(self) -> ABResult:
         """
@@ -212,7 +195,7 @@ class ABEngine:
         else:
             z = (p_b - p_a) / se
 
-        p_value    = 2 * (1 - self._normal_cdf(abs(z)))   # two-tailed
+        p_value    = 2 * (1 - self._normal_cdf(abs(z)))
         confidence = 1 - p_value
         significant = p_value < 0.05
 
@@ -244,27 +227,18 @@ class ABEngine:
     def current_stats(self) -> Dict[str, dict]:
         return {v.value: s.to_dict() for v, s in self._stats.items()}
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     def _hash_assign(self, session_id: str) -> ABVariant:
         """Deterministically assign a variant via hash of session_id."""
         digest = int(hashlib.md5(
             f"{self._test_id}:{session_id}".encode()
         ).hexdigest(), 16)
-        bucket = (digest % 10_000) / 10_000.0    # 0..1
+        bucket = (digest % 10_000) / 10_000.0
         return ABVariant.B if bucket < self._split_ratio else ABVariant.A
 
     @staticmethod
     def _normal_cdf(z: float) -> float:
         """Approximate CDF of the standard normal distribution."""
         return 0.5 * (1 + math.erf(z / math.sqrt(2)))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ABRegistry — manage multiple concurrent A/B tests
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ABRegistry:
     """

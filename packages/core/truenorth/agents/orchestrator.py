@@ -42,19 +42,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Execution plan
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class ExecutionStep:
     """One step in an orchestration plan."""
     task:        str
     payload:     Dict[str, Any]
-    agent_id:    Optional[str] = None   
+    agent_id:    Optional[str] = None
     priority:    Priority = Priority.NORMAL
-    depends_on:  List[str] = field(default_factory=list) 
+    depends_on:  List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -64,7 +59,6 @@ class ExecutionStep:
             "depends_on": self.depends_on,
         }
 
-
 @dataclass
 class OrchestrationResult:
     """Combined result of a multi-step orchestration."""
@@ -73,7 +67,7 @@ class OrchestrationResult:
     steps_ok:      int
     steps_failed:  int
     results:       List[AgentResponse]
-    merged:        Dict[str, Any]       
+    merged:        Dict[str, Any]
     latency_ms:    int
     plan:          List[ExecutionStep]
 
@@ -95,11 +89,6 @@ class OrchestrationResult:
             "latency_ms":   self.latency_ms,
             "merged":       self.merged,
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  AgentOrchestrator
-# ─────────────────────────────────────────────────────────────────────────────
 
 class AgentOrchestrator:
     """
@@ -124,12 +113,7 @@ class AgentOrchestrator:
         self._max_parallel = max_parallel
         self._default_timeout = default_timeout
 
-        # Execution log — all tasks dispatched this session
         self._log: List[dict] = []
-
-    # ------------------------------------------------------------------
-    # Agent registry
-    # ------------------------------------------------------------------
 
     def register(self, agent: BaseAgent, is_default: bool = False) -> None:
         """Register an agent with the orchestrator."""
@@ -161,10 +145,6 @@ class AgentOrchestrator:
     def list_agents(self) -> List[dict]:
         return [a.health() for a in self._agents.values()]
 
-    # ------------------------------------------------------------------
-    # Single task dispatch
-    # ------------------------------------------------------------------
-
     async def run_task(
         self,
         task:       str,
@@ -172,7 +152,7 @@ class AgentOrchestrator:
         session_id: str         = "",
         turn:       int         = 0,
         priority:   Priority    = Priority.NORMAL,
-        agent_id:   Optional[str] = None,    
+        agent_id:   Optional[str] = None,
         timeout_s:  Optional[float] = None,
     ) -> AgentResponse:
         """
@@ -240,10 +220,6 @@ class AgentOrchestrator:
 
         return response
 
-    # ------------------------------------------------------------------
-    # Parallel task dispatch
-    # ------------------------------------------------------------------
-
     async def run_parallel(
         self,
         tasks:      List[Tuple[str, Dict[str, Any]]],
@@ -299,10 +275,6 @@ class AgentOrchestrator:
             plan         = plan,
         )
 
-    # ------------------------------------------------------------------
-    # Sequential workflow
-    # ------------------------------------------------------------------
-
     async def run_sequential(
         self,
         steps:      List[ExecutionStep],
@@ -319,7 +291,7 @@ class AgentOrchestrator:
         context:   Dict[str, Any]      = {}
 
         for i, step in enumerate(steps):
-            # Inject accumulated context into this step's payload
+
             enriched_payload = {**step.payload, "__prior_results": context}
             resp = await self.run_task(
                 task       = step.task,
@@ -355,10 +327,6 @@ class AgentOrchestrator:
             plan         = steps,
         )
 
-    # ------------------------------------------------------------------
-    # Routing
-    # ------------------------------------------------------------------
-
     def _route(
         self,
         message:  AgentMessage,
@@ -379,16 +347,11 @@ class AgentOrchestrator:
         if not candidates:
             return self._default
 
-        # Score: success_rate (higher is better) × recency bonus
         def _score(agent: BaseAgent) -> float:
             m = agent._metrics
             return m.success_rate - (m.avg_latency_ms / 100_000)
 
         return max(candidates, key=_score)
-
-    # ------------------------------------------------------------------
-    # Result merging
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _merge_results(responses: List[AgentResponse]) -> Dict[str, Any]:
@@ -405,10 +368,6 @@ class AgentOrchestrator:
                 merged[resp.agent_id] = resp.result
         return merged
 
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
-
     def execution_log(self) -> List[dict]:
         return list(self._log)
 
@@ -419,5 +378,5 @@ class AgentOrchestrator:
             "total_tasks":   total,
             "success_rate":  round(ok / max(total, 1), 3),
             "agents":        len(self._agents),
-            "log":           self._log[-20:],   
+            "log":           self._log[-20:],
         }

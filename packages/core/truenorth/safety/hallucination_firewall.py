@@ -59,57 +59,44 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ClaimType(str, Enum):
-    FIELD_REFERENCE = "field_reference"   # directly cites a field value
-    DERIVED         = "derived"           # computed from fields (BMI, etc.)
-    GENERIC_ADVICE  = "generic_advice"    # no specific value, general guidance
-    UNKNOWN         = "unknown"           # cannot classify
-
+    FIELD_REFERENCE = "field_reference"
+    DERIVED         = "derived"
+    GENERIC_ADVICE  = "generic_advice"
+    UNKNOWN         = "unknown"
 
 class ClaimVerdict(str, Enum):
-    VERIFIED        = "verified"          # exact match to collected field
-    DERIVED_PASS    = "derived_pass"      # mathematically correct derivation
-    GENERIC_PASS    = "generic_pass"      # generic — no field to verify against
-    LOW_CONFIDENCE  = "low_confidence"    # probable hallucination (flag, allow)
-    BLOCKED         = "blocked"           # certain hallucination (remove)
-
+    VERIFIED        = "verified"
+    DERIVED_PASS    = "derived_pass"
+    GENERIC_PASS    = "generic_pass"
+    LOW_CONFIDENCE  = "low_confidence"
+    BLOCKED         = "blocked"
 
 class FirewallVerdict(str, Enum):
-    CLEAN   = "clean"    # all claims pass, safe to send as-is
-    FLAGGED = "flagged"  # some low-confidence claims, send with audit note
-    BLOCKED = "blocked"  # critical hallucination, do not send
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Data classes
-# ─────────────────────────────────────────────────────────────────────────────
+    CLEAN   = "clean"
+    FLAGGED = "flagged"
+    BLOCKED = "blocked"
 
 @dataclass
 class RawClaim:
     """One sentence/phrase from the LLM output, before verification."""
     text:        str
     claim_type:  ClaimType
-    field_refs:  List[str]       # field names this claim appears to reference
-    values_seen: List[str]       # numeric/text values extracted from the claim
-    start_char:  int             # position in original output (for replacement)
+    field_refs:  List[str]
+    values_seen: List[str]
+    start_char:  int
     end_char:    int
-
 
 @dataclass
 class VerifiedClaim:
     """A RawClaim with its verification result attached."""
     raw:           RawClaim
     verdict:       ClaimVerdict
-    traced_field:  Optional[str]    
-    expected_val:  Optional[Any]    
-    found_val:     Optional[str]    # what the claim says
-    confidence:    float            # 0.0–1.0 confidence in this verdict
-    reason:        str              # human-readable explanation
+    traced_field:  Optional[str]
+    expected_val:  Optional[Any]
+    found_val:     Optional[str]
+    confidence:    float
+    reason:        str
 
     def to_dict(self) -> dict:
         return {
@@ -122,21 +109,20 @@ class VerifiedClaim:
             "reason":       self.reason,
         }
 
-
 @dataclass
 class FirewallResult:
     """Complete firewall result for one LLM output."""
     session_id:     str
     verdict:        FirewallVerdict
-    safe_output:    str                    # cleaned output (hallucinations removed)
+    safe_output:    str
     original_output: str
     claims:         List[VerifiedClaim]
     blocked_count:  int
     flagged_count:  int
     verified_count: int
     latency_ms:     int
-    supervisor_used: bool                  # did we call the LLM supervisor?
-    audit_log:      List[dict]             # structured log for compliance
+    supervisor_used: bool
+    audit_log:      List[dict]
 
     @property
     def is_safe(self) -> bool:
@@ -183,11 +169,6 @@ class FirewallResult:
             "claims":           [c.to_dict() for c in self.claims],
             "audit_log":        self.audit_log,
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 1: ClaimExtractor
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ClaimExtractor:
     """
@@ -311,7 +292,6 @@ class ClaimExtractor:
                 refs.append(field_name)
                 continue
 
-            # ALL meaningful tokens of the field name/label appear in the sentence
             if all_tokens and all(t in sentence_lower for t in all_tokens):
                 refs.append(field_name)
                 continue
@@ -325,15 +305,10 @@ class ClaimExtractor:
             val  = m.group(1)
             unit = m.group(2) or ""
             values.append(f"{val}{unit}")
-        # Also extract quoted strings
+
         for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', sentence):
             values.append(m.group(1) or m.group(2))
         return values
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 2: ClaimVerifier
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ClaimVerifier:
     """
@@ -360,7 +335,7 @@ class ClaimVerifier:
 
     NUMERIC_TOLERANCE: float = 0.02
 
-    HALLUCINATION_TOLERANCE: float = 0.08   # 8% deviation = hallucination
+    HALLUCINATION_TOLERANCE: float = 0.08
 
     def __init__(self, router: Optional["LLMRouter"] = None):
         self._router = router
@@ -382,7 +357,6 @@ class ClaimVerifier:
         for claim in claims:
             result = self._rule_verify(claim, collected_fields, fields_config)
 
-            # Call LLM supervisor for ambiguous claims
             if (
                 self._router is not None
                 and result.confidence < self.SUPERVISOR_THRESHOLD
@@ -407,10 +381,6 @@ class ClaimVerifier:
             )
 
         return verified, supervisor_used
-
-    # ------------------------------------------------------------------
-    # Stage A: Rule-based verification
-    # ------------------------------------------------------------------
 
     def _rule_verify(
         self,
@@ -457,7 +427,6 @@ class ClaimVerifier:
                 except (ValueError, TypeError):
                     pass
 
-        # ── Step 1: Check numeric values against all fields ──────────────────
         if claim.values_seen:
             best_num_result = self._best_numeric_match(
                 claim, numeric_fields, fields_config,
@@ -466,7 +435,6 @@ class ClaimVerifier:
             if best_num_result is not None:
                 return best_num_result
 
-        # ── Step 2: Check text fields that were explicitly referenced ─────────
         for field_name in claim.field_refs:
             if field_name in collected_fields:
                 ftype = fields_config.get(field_name, {}).get("type", "text")
@@ -475,7 +443,6 @@ class ClaimVerifier:
                     if result.verdict != ClaimVerdict.LOW_CONFIDENCE or len(claim.field_refs) == 1:
                         return result
 
-        # ── Step 3: Field ref detected but nothing matched ────────────────────
         if claim.field_refs:
             return VerifiedClaim(
                 raw=claim, verdict=ClaimVerdict.LOW_CONFIDENCE,
@@ -494,9 +461,9 @@ class ClaimVerifier:
     def _best_numeric_match(
         self,
         claim:           RawClaim,
-        numeric_fields:  Dict[str, float],  
+        numeric_fields:  Dict[str, float],
         fields_config:   Dict[str, dict],
-        priority_fields: List[str],           # fields explicitly named in claim
+        priority_fields: List[str],
     ) -> Optional["VerifiedClaim"]:
         """
         For each numeric value in the claim, find the best matching field and
@@ -507,10 +474,10 @@ class ClaimVerifier:
         if not claim.values_seen or not numeric_fields:
             return None
 
-        worst_result: Optional[VerifiedClaim] = None   
+        worst_result: Optional[VerifiedClaim] = None
 
         for val_str in claim.values_seen:
-            # Parse the number (strip units)
+
             num_str = re.sub(r"[a-zA-Z%,]", "", val_str).strip()
             try:
                 found_num = float(num_str)
@@ -521,8 +488,6 @@ class ClaimVerifier:
                 fn for fn in numeric_fields if fn not in priority_fields
             ]
 
-            # Check explicitly referenced fields first
-            # Note: do NOT early-return even on verified match — other values may be hallucinated
             for fn in priority_fields:
                 if fn not in numeric_fields:
                     continue
@@ -538,9 +503,8 @@ class ClaimVerifier:
                     )
                     if worst_result is None or _verdict_severity(r.verdict) > _verdict_severity(worst_result.verdict):
                         worst_result = r
-                    break  
+                    break
 
-            # Check all numeric fields — find closest match
             best_diff  = float("inf")
             best_field = None
             for fn, expected in numeric_fields.items():
@@ -556,7 +520,7 @@ class ClaimVerifier:
             r: Optional[VerifiedClaim] = None
 
             if best_diff <= self.NUMERIC_TOLERANCE:
-                # Exact match to some field — verified
+
                 r = VerifiedClaim(
                     raw=claim, verdict=ClaimVerdict.VERIFIED,
                     traced_field=best_field,
@@ -565,7 +529,7 @@ class ClaimVerifier:
                     reason=f"{found_num} matches field '{best_field}'={best_expected}",
                 )
             elif best_diff <= self.HALLUCINATION_TOLERANCE:
-                # Close but not exact — suspicious
+
                 r = VerifiedClaim(
                     raw=claim, verdict=ClaimVerdict.LOW_CONFIDENCE,
                     traced_field=best_field,
@@ -574,8 +538,7 @@ class ClaimVerifier:
                     reason=f"{found_num} differs from '{best_field}'={best_expected} by {best_diff:.1%}",
                 )
             else:
-                # This number doesn't match any collected field closely.
-                # Only BLOCK if the claim clearly references a specific field value
+
                 if claim.field_refs or self._FIELD_CLAIM_SIGNALS.search(claim.text):
                     r = VerifiedClaim(
                         raw=claim, verdict=ClaimVerdict.BLOCKED,
@@ -745,7 +708,7 @@ class ClaimVerifier:
                         num_str  = re.sub(r"[a-zA-Z%]", "", val_str).strip()
                         bmi_found = float(num_str)
                         diff      = abs(bmi_found - bmi_expected) / max(bmi_expected, 1)
-                        if diff <= 0.05:   # 5% tolerance for BMI
+                        if diff <= 0.05:
                             return VerifiedClaim(
                                 raw=claim, verdict=ClaimVerdict.DERIVED_PASS,
                                 traced_field="weight_kg+height_cm",
@@ -776,10 +739,6 @@ class ClaimVerifier:
             reason="Derived value — formula not verified (cannot auto-check)",
         )
 
-    # ------------------------------------------------------------------
-    # Stage B: LLM Supervisor verification
-    # ------------------------------------------------------------------
-
     _SUPERVISOR_SYSTEM = """\
 You are a factual accuracy auditor for an AI health and fitness coach.
 Your job is to verify whether a statement in the AI's output is accurate
@@ -800,7 +759,7 @@ You must respond ONLY with valid JSON. No explanation, no preamble.
         Uses claude-sonnet (highest quality) for accuracy.
         """
         from truenorth.llm.base import Message
-        from truenorth.llm.router import TASK_OUTPUT  # use highest-quality model
+        from truenorth.llm.router import TASK_OUTPUT
 
         profile_str = json.dumps(
             {k: v for k, v in collected_fields.items()},
@@ -835,8 +794,8 @@ Respond with ONLY this JSON (no markdown, no explanation):
                 messages   = [Message(role="user", content=prompt)],
                 system     = self._SUPERVISOR_SYSTEM,
                 max_tokens  = 200,
-                temperature = 0.0,   # deterministic — this is safety-critical
-                model       = "claude-sonnet-4-20250514",  # always use best model
+                temperature = 0.0,
+                model       = "claude-sonnet-4-20250514",
             )
 
             raw = resp.content.strip()
@@ -870,11 +829,6 @@ Respond with ONLY this JSON (no markdown, no explanation):
             )
             return None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _verdict_severity(verdict: ClaimVerdict) -> int:
     """Numeric severity for comparing verdicts. Higher = more severe."""
     return {
@@ -884,11 +838,6 @@ def _verdict_severity(verdict: ClaimVerdict) -> int:
         ClaimVerdict.LOW_CONFIDENCE: 1,
         ClaimVerdict.BLOCKED:        2,
     }.get(verdict, 0)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 3: OutputSanitiser
-# ─────────────────────────────────────────────────────────────────────────────
 
 class OutputSanitiser:
     """
@@ -912,18 +861,18 @@ class OutputSanitiser:
             c for c in verified_claims
             if c.verdict == ClaimVerdict.BLOCKED
         ]
-        # Sort by position descending so we edit end-to-start
+
         blocked.sort(key=lambda c: c.raw.start_char, reverse=True)
 
         for claim in blocked:
             replacement = self._build_replacement(claim, collected_fields)
-            # Find the claim text in output and replace it
+
             start = claim.raw.start_char
             end   = claim.raw.end_char
             if start < len(output) and output[start:end].strip():
                 output = output[:start] + replacement + output[end:]
             else:
-                # Fallback: simple string replace (handles position drift)
+
                 if claim.raw.text in output:
                     output = output.replace(claim.raw.text, replacement, 1)
 
@@ -939,13 +888,8 @@ class OutputSanitiser:
             field_label = claim.traced_field.replace("_", " ")
             real_val    = collected_fields[claim.traced_field]
             return f"[your {field_label}: {real_val}]"
-        # Can't correct it — remove entirely
+
         return ""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Main: HallucinationFirewall
-# ─────────────────────────────────────────────────────────────────────────────
 
 class HallucinationFirewall:
     """
@@ -987,7 +931,6 @@ class HallucinationFirewall:
         self._verifier        = ClaimVerifier(router=router)
         self._sanitiser       = OutputSanitiser()
 
-        # Metrics (process-lifetime)
         self._total_checks:   int = 0
         self._total_blocked:  int = 0
         self._total_flagged:  int = 0
@@ -1022,7 +965,6 @@ class HallucinationFirewall:
         if not output or not output.strip():
             return self._pass_result(output, [], session_id, 0, False)
 
-        # Stage 1: Extract claims
         claims = self._extractor.extract(output, fields_config)
         logger.debug(
             "firewall: extracted %d claims from output", len(claims)
@@ -1057,7 +999,7 @@ class HallucinationFirewall:
                 session_id, len(blocked_claims), output[:100],
             )
         elif flagged_claims:
-            safe_output = output   # allow through but log
+            safe_output = output
             verdict     = FirewallVerdict.FLAGGED
             logger.info(
                 "firewall: FLAGGED session=%s flagged=%d",
@@ -1117,7 +1059,7 @@ class HallucinationFirewall:
         )
 
         if result.verdict == FirewallVerdict.BLOCKED:
-            # Don't block the conversation — just return a safe fallback
+
             logger.warning(
                 "firewall: mid-conversation hallucination blocked, using fallback. "
                 "session=%s", session_id
@@ -1125,10 +1067,6 @@ class HallucinationFirewall:
             return result.safe_output or "Let me continue with the next question."
 
         return result.safe_output
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _pass_result(
@@ -1176,10 +1114,6 @@ class HallucinationFirewall:
                     "latency_ms":    latency_ms,
                 })
         return log
-
-    # ------------------------------------------------------------------
-    # Metrics
-    # ------------------------------------------------------------------
 
     def metrics(self) -> dict:
         """Return lifetime metrics for this firewall instance."""

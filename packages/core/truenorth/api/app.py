@@ -1,2 +1,2 @@
-from truenorth.api.main import app  # noqa: F401
+from truenorth.api.main import app
 __all__ = ["app"]

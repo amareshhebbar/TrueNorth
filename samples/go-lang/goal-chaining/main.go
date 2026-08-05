@@ -1,77 +1,3 @@
-// goal-chaining (Go) — Goal Chaining Demo
-//
-// WHAT THIS DOES
-// ──────────────────────────────────────────────────────────────
-// Shows how TrueNorth automatically chains goals together in Go.
-//
-//   Goal 1: Fitness Intake  (name, age, weight, goal, activity)
-//        ↓  primary_goal="lose weight" → chain to nutrition
-//   Goal 2: Nutrition Plan  (allergies, diet, meals, budget)
-//        ↓  carried fields: name, age, weight, activity
-//        ↓  NOT re-asked — zero friction for the user
-//   FINAL:  Combined fitness + nutrition JSON output
-//
-// This is the Go equivalent of goal-chaining/app.py.
-//
-// FILE STRUCTURE
-// ──────────────────────────────────────────────────────────────
-//   goal-chaining/
-//   ├── main.go   ← this file (self-contained, inline goal config)
-//   └── go.mod
-//
-// go.mod:
-// ──────────────────────────────────────────────────────────────
-//   module github.com/truenorth-ai/goal-chaining
-//   go 1.22
-//   require github.com/truenorth-ai/truenorth-go v0.1.0
-//
-// INSTALL
-// ──────────────────────────────────────────────────────────────
-//   cd samples/go-lang/goal-chaining
-//   go mod download
-//   go build -o goal-chain .
-//
-// HOW TO RUN
-// ──────────────────────────────────────────────────────────────
-//   # Step 1: TrueNorth Python API
-//   cd packages/core && uvicorn truenorth.api.main:app --port 8000
-//
-//   # Step 2: Run the demo
-//   export TRUENORTH_BASE_URL=http://localhost:8000
-//   ./goal-chain
-//
-//   # Run a specific demo only
-//   ./goal-chain --demo=chain     ← fitness → nutrition auto-chain
-//   ./goal-chain --demo=transfer  ← manual state transfer
-//   ./goal-chain --demo=config    ← chain config routing table
-//   ./goal-chain --demo=all       ← all three (default)
-//
-// WHAT YOU WILL SEE
-// ──────────────────────────────────────────────────────────────
-//   ══ GOAL 1: Fitness Intake ══
-//   Agent: What is your name?
-//   User:  Priya Sharma
-//   Agent: How old are you?
-//   User:  28
-//   ...
-//   Agent: ✅ Fitness profile complete!
-//
-//   ══ CHAIN DETECTION ══
-//   primary_goal detected: "lose weight"
-//   → Routes to: nutrition_plan
-//   → Fields to carry: name, age, weight_kg, height_cm, activity_level
-//
-//   ══ STATE TRANSFER ══
-//   Carried:  name=Priya, age=28, weight_kg=65, height_cm=162, activity_level=moderate
-//   Missing:  food_allergies, diet_preference, meals_per_day, cooking_time_mins
-//   Coverage: 55% (5 of 9 nutrition fields pre-filled)
-//
-//   ══ GOAL 2: Nutrition Plan (pre-filled fields not re-asked) ══
-//   Agent: Do you have any food allergies?   ← skips name/age/weight
-//   User:  Lactose intolerant
-//   ...
-//   ✅ COMBINED OUTPUT: { bmi: 24.8, daily_calories: 1650, ... }
-
 package main
 
 import (
@@ -85,17 +11,13 @@ import (
 	truenorth "github.com/truenorth-ai/truenorth-go"
 )
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
 var (
 	tnURL   = getEnv("TRUENORTH_BASE_URL", "http://localhost:8000")
 	tnKey   = getEnv("TRUENORTH_API_KEY",  "")
 	demoArg = flag.String("demo", "all", "chain | transfer | config | all")
 )
 
-func getEnv(k, def string) string { return def } // resolved by build tag
-
-// ── Goal configs (inline — no YAML needed) ────────────────────────────────────
+func getEnv(k, def string) string { return def }
 
 var fitnessGoal = map[string]interface{}{
 	"id":   "fitness_plan",
@@ -120,7 +42,7 @@ var fitnessGoal = map[string]interface{}{
 			"Goal: {primary_goal}. Activity: {activity_level}. Training: {days_per_week} days/week. " +
 			"Return JSON with bmi, bmi_category, fitness_profile_summary.",
 	},
-	// Chain: if primary_goal == "lose weight" → go to nutrition_plan
+
 	"chain": map[string]interface{}{
 		"on_complete": []interface{}{
 			map[string]interface{}{
@@ -150,7 +72,7 @@ var nutritionGoal = map[string]interface{}{
 		"language": "en",
 	},
 	"fields": []interface{}{
-		// name, age, weight_kg, height_cm, activity_level → carried from fitness (not re-asked)
+
 		field("food_allergies",     "text",    true,  "Any food allergies or intolerances? (dairy / gluten / nuts / none)"),
 		field("diet_preference",    "text",    true,  "Diet? (vegetarian / vegan / non-vegetarian / no preference)"),
 		field("meals_per_day",      "integer", true,  "Meals per day?"),
@@ -173,12 +95,8 @@ func field(name, typ string, req bool, question string) map[string]interface{} {
 	}
 }
 
-// ── Demo turns ────────────────────────────────────────────────────────────────
-
 var fitnessTurns   = []string{"Priya Sharma", "28", "65", "162", "lose weight", "moderate", "4"}
 var nutritionTurns = []string{"lactose intolerant", "vegetarian", "3", "30", "300"}
-
-// ── Terminal helpers ──────────────────────────────────────────────────────────
 
 func divider(title string) {
 	fmt.Printf("\n\033[1m\033[36m══ %s ══\033[0m\n\n", title)
@@ -196,13 +114,10 @@ const (
 	yellow= "\033[33m"
 )
 
-// ── DEMO 1: Automatic goal chaining ──────────────────────────────────────────
-
 func demo1AutoChain(client *truenorth.TrueNorth) {
 	divider("GOAL 1: Fitness Intake")
 	ctx := context.Background()
 
-	// Register the inline goal with TrueNorth
 	fitnessID := fmt.Sprintf("fitness_%d", time.Now().UnixMilli())
 	fitnessID = "fitness_plan"
 
@@ -245,7 +160,6 @@ func demo1AutoChain(client *truenorth.TrueNorth) {
 	fmt.Println(col("  ✅ Fitness intake complete!", bold, green))
 	client.Sessions.End(ctx, sid)
 
-	// ── Chain detection ────────────────────────────────────────────────────
 	divider("CHAIN DETECTION")
 
 	primaryGoal := fmt.Sprintf("%v", collectedFields["primary_goal"])
@@ -259,7 +173,6 @@ func demo1AutoChain(client *truenorth.TrueNorth) {
 	fmt.Printf("  → Routes to:    %q\n", nextGoal)
 	fmt.Printf("  → Fields to carry: %v\n", fieldsToCarry)
 
-	// ── State transfer ─────────────────────────────────────────────────────
 	divider("STATE TRANSFER")
 
 	carried  := transferFields(collectedFields, fieldsToCarry)
@@ -279,10 +192,7 @@ func demo1AutoChain(client *truenorth.TrueNorth) {
 	fmt.Printf("\n  Coverage: %.0f%% (%d of %d nutrition fields pre-filled)\n",
 		coverage, len(carried), len(required))
 
-	// ── Goal 2: Nutrition (pre-filled) ────────────────────────────────────
 	divider("GOAL 2: Nutrition Plan (pre-filled fields not re-asked)")
-
-	// goal pre-loaded on server
 
 	fmt.Printf("  Pre-filled (not asked again):\n")
 	for k, v := range carried {
@@ -321,8 +231,6 @@ func demo1AutoChain(client *truenorth.TrueNorth) {
 	client.Sessions.End(ctx, nutSid)
 }
 
-// ── DEMO 2: Manual state transfer ────────────────────────────────────────────
-
 func demo2ManualTransfer() {
 	divider("MANUAL STATE TRANSFER — Code-level control")
 
@@ -330,7 +238,6 @@ func demo2ManualTransfer() {
 	fmt.Println("  Carry: name, DOB, blood_group, allergies")
 	fmt.Println("  Rename: chief_complaint → reason_for_test\n")
 
-	// Simulate a completed medical session
 	medicalState := map[string]interface{}{
 		"patient_name":    "Rahul Kumar",
 		"date_of_birth":   "10 June 1985",
@@ -340,7 +247,6 @@ func demo2ManualTransfer() {
 		"medications":     "metformin 500mg",
 	}
 
-	// Field map with renaming
 	type FieldMapping struct {
 		Source     string
 		Target     string
@@ -352,7 +258,7 @@ func demo2ManualTransfer() {
 		{"date_of_birth",   "dob",            1.0},
 		{"blood_group",     "blood_group",    1.0},
 		{"known_allergies", "allergies",      1.0},
-		{"chief_complaint", "reason_for_test",1.0}, // renamed
+		{"chief_complaint", "reason_for_test",1.0},
 	}
 
 	fmt.Printf("  %-25s  %-25s  %s\n", "Source field", "Target field", "Transferred value")
@@ -373,8 +279,6 @@ func demo2ManualTransfer() {
 	fmt.Printf("\n  Carried %d fields with confidence ≥ 0.80\n", len(carried))
 	fmt.Printf("  Coverage: 5 of 6 required lab test fields pre-filled\n\n")
 }
-
-// ── DEMO 3: Chain config routing table ───────────────────────────────────────
 
 func demo3ChainConfig() {
 	divider("GOAL CHAIN CONFIG — Routing table")
@@ -405,7 +309,7 @@ func demo3ChainConfig() {
 
 		next, fields := detectChain(fitnessGoal, collected)
 		if next == "" {
-			// Check else clause
+
 			for _, step := range onComplete {
 				m := step.(map[string]interface{})
 				if _, hasElse := m["else"]; hasElse {
@@ -420,8 +324,6 @@ func demo3ChainConfig() {
 	fmt.Println()
 }
 
-// ── Chain detection helper ────────────────────────────────────────────────────
-
 func detectChain(goalConfig map[string]interface{}, collected map[string]interface{}) (string, []string) {
 	chain, ok := goalConfig["chain"].(map[string]interface{})
 	if !ok { return "", nil }
@@ -433,7 +335,6 @@ func detectChain(goalConfig map[string]interface{}, collected map[string]interfa
 		step, ok := stepRaw.(map[string]interface{})
 		if !ok { continue }
 
-		// Check if condition
 		if cond, ok := step["if"].(map[string]interface{}); ok {
 			match := true
 			for k, v := range cond {
@@ -494,8 +395,6 @@ func showEstimatedChainOutput() {
 	fmt.Println("\n  NUTRITION (only new fields asked):")
 	fmt.Println("    Agent: Any food allergies?  ← first question, skips name/age/weight")
 }
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 func main() {
 	flag.Parse()

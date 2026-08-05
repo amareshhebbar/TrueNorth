@@ -27,11 +27,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Result type
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class DeliveryResult:
     success:    bool
@@ -50,11 +45,6 @@ class DeliveryResult:
             "latency_ms": self.latency_ms,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Abstract base
-# ─────────────────────────────────────────────────────────────────────────────
-
 class DeliveryChannel(ABC):
     """Abstract delivery channel. Implement send() for each provider."""
 
@@ -67,11 +57,6 @@ class DeliveryChannel(ABC):
     async def health_check(self) -> bool:
         """Check if the channel is reachable. Override in subclasses."""
         return True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  WhatsApp — Meta Business API
-# ─────────────────────────────────────────────────────────────────────────────
 
 class WhatsAppAdapter(DeliveryChannel):
     """
@@ -162,11 +147,6 @@ class WhatsAppAdapter(DeliveryChannel):
                 error=str(e), latency_ms=int((time.perf_counter() - t0) * 1000),
             )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Email — SMTP
-# ─────────────────────────────────────────────────────────────────────────────
-
 class EmailAdapter(DeliveryChannel):
     """
     SMTP email adapter.
@@ -247,11 +227,6 @@ class EmailAdapter(DeliveryChannel):
                 error=str(e), latency_ms=int((time.perf_counter() - t0) * 1000),
             )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  SMS — Twilio
-# ─────────────────────────────────────────────────────────────────────────────
-
 class SMSAdapter(DeliveryChannel):
     """Twilio SMS adapter."""
 
@@ -295,11 +270,6 @@ class SMSAdapter(DeliveryChannel):
                 error=str(e), latency_ms=int((time.perf_counter() - t0) * 1000),
             )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Console — dry-run / testing
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ConsoleAdapter(DeliveryChannel):
     """
     Prints reminders to stdout. For dry-runs, testing, local dev.
@@ -318,11 +288,6 @@ class ConsoleAdapter(DeliveryChannel):
         return DeliveryResult(
             success=True, channel=self.channel_name, message_id="console"
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MultiChannelDelivery — routes to the right adapter
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MultiChannelDelivery:
     """

@@ -84,11 +84,8 @@ from truenorth.llm.router              import LLMRouter
 from truenorth.output.source_tracer    import SourceTracer
 from truenorth.safety.hallucination_firewall import HallucinationFirewall
 
-# ── Config ─────────────────────────────────────────────────────────────────
-
 GOAL_YAML = os.environ.get("GOAL_YAML", "01-patient-intake.yaml")
 
-# Simulate a patient conversation — same inputs used in both sessions
 DEMO_CONVERSATION = [
     "Hi, I am Sita Patel",
     "My date of birth is 10 June 1985",
@@ -97,13 +94,11 @@ DEMO_CONVERSATION = [
     "It started about 4 hours ago, came on suddenly",
     "It gets worse when I climb stairs",
     "Rest helps a little",
-    "I take some medicine for high blood pressure, I do not remember the exact name",  # intentionally vague
+    "I take some medicine for high blood pressure, I do not remember the exact name",
     "No known allergies",
     "I have hypertension diagnosed 2 years ago, nothing else",
     "My husband Rahul Patel, number 9876543210",
 ]
-
-# ── Pretty printing helpers ─────────────────────────────────────────────────
 
 def header(title: str, char: str = "─"):
     width = 60
@@ -120,9 +115,6 @@ def box(title: str, content: str, colour: str = ""):
         print(f"{c}│  {line:<56}│{reset}")
     print(f"{c}└{'─' * 58}┘{reset}")
 
-
-# ── Run a session with no firewall ─────────────────────────────────────────
-
 async def run_without_firewall(config: dict) -> Optional[dict]:
     header("SESSION A — WITHOUT HALLUCINATION FIREWALL", "═")
     print("  No checks. LLM output goes straight through.\n")
@@ -132,7 +124,7 @@ async def run_without_firewall(config: dict) -> Optional[dict]:
         goal_config = config,
         session_id  = "demo_no_firewall",
         router      = router,
-        firewall    = None,       # explicitly disabled
+        firewall    = None,
     )
 
     response = await engine.start()
@@ -148,7 +140,6 @@ async def run_without_firewall(config: dict) -> Optional[dict]:
             content = response.final_output.content
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
-            # Highlight the danger: did the LLM invent medication details?
             if isinstance(content, dict):
                 meds = str(content.get("current_medications", "")).lower()
                 if any(word in meds for word in ["mg", "metformin", "amlodipine", "specific"]):
@@ -164,9 +155,6 @@ async def run_without_firewall(config: dict) -> Optional[dict]:
             print(f"Agent: {response.text}\n")
 
     return None
-
-
-# ── Run a session WITH firewall ─────────────────────────────────────────────
 
 async def run_with_firewall(config: dict) -> Optional[dict]:
     header("SESSION B — WITH HALLUCINATION FIREWALL", "═")
@@ -198,7 +186,6 @@ async def run_with_firewall(config: dict) -> Optional[dict]:
             content = response.final_output.content
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
-            # Show source traces
             if hasattr(response.final_output, "source_traces") and response.final_output.source_traces:
                 print("\n📍 SOURCE TRACES (every claim → the turn it came from):")
                 for trace in response.final_output.source_traces[:5]:
@@ -213,9 +200,6 @@ async def run_with_firewall(config: dict) -> Optional[dict]:
             print(f"Agent: {response.text}\n")
 
     return None
-
-
-# ── Compare the two outputs side by side ────────────────────────────────────
 
 def compare_outputs(without: Optional[dict], with_fw: Optional[dict]):
     header("COMPARISON", "═")
@@ -238,9 +222,6 @@ def compare_outputs(without: Optional[dict], with_fw: Optional[dict]):
         else:
             print(f"\nField: {field} — identical ✓")
 
-
-# ── Statistics ──────────────────────────────────────────────────────────────
-
 async def show_statistics():
     header("FIREWALL STATISTICS", "═")
     print("""
@@ -257,15 +238,11 @@ async def show_statistics():
     (Source: TrueNorth internal evaluation dataset v0.1)
     """)
 
-
-# ── Main ────────────────────────────────────────────────────────────────────
-
 async def main():
     print("=" * 60)
     print("  TrueNorth Hallucination Firewall Demo")
     print("=" * 60)
 
-    # Load goal config
     try:
         config = YAMLLoader.load(GOAL_YAML)
         print(f"✅ Goal loaded: {config.get('name', GOAL_YAML)}")
@@ -274,11 +251,9 @@ async def main():
         print("   Please run: cp 01-patient-intake.yaml .")
         return
 
-    # Run both sessions
     output_without = await run_without_firewall(config)
     output_with    = await run_with_firewall(config)
 
-    # Compare
     compare_outputs(output_without, output_with)
     await show_statistics()
 
@@ -287,7 +262,6 @@ async def main():
     print("  The firewall is enabled by default in production.")
     print("  Tune confidence_threshold and block_on_fail per use case.")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class WriterAgent(BaseAgent):
     """
     Generates final structured output from collected field values.

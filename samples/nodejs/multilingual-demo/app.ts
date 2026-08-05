@@ -1,91 +1,9 @@
-/**
- * multilingual-demo (Node.js / TypeScript) — Auto Language Detection Demo
- * =========================================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────────────────────
- * Shows TrueNorth detecting and responding in 5 Indian languages automatically.
- * No configuration, no language selection screen — the user just types.
- *
- * Scripted demos for:
- *   Hindi     → agent responds in Hindi
- *   Kannada   → agent responds in Kannada
- *   Tamil     → agent responds in Tamil
- *   Hinglish  → agent responds in Hinglish (mixed)
- *   English   → agent responds in English
- *
- * This is the TypeScript equivalent of multilingual-demo/app.py
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────────────────────
- *   multilingual-demo/
- *   ├── app.ts          ← this file (no goal.yaml — inline config)
- *   ├── package.json
- *   └── tsconfig.json
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────────────────────
- *   {
- *     "scripts": { "dev": "ts-node app.ts" },
- *     "devDependencies": {
- *       "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0",
- *       "typescript": "^5.3.0"
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────────────────────
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *   cd samples/nodejs/multilingual-demo && npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *
- *   npx ts-node app.ts                     ← all 5 languages
- *   DEMO_LANG=hindi npx ts-node app.ts     ← Hindi only
- *   DEMO_LANG=kannada npx ts-node app.ts   ← Kannada only
- *   DEMO_LANG=tamil npx ts-node app.ts     ← Tamil only
- *   DEMO_LANG=hinglish npx ts-node app.ts  ← Hinglish only
- *   DEMO_LANG=interactive npx ts-node app.ts ← type your own messages
- *
- * WHAT YOU SEE
- * ──────────────────────────────────────────────────────────────────────────────
- *   LANGUAGE DETECTION — Sample phrases
- *   ─────────────────────────────────────────────────────────────────
- *   Phrase                                    Expected    Detected
- *   नमस्ते, मेरा नाम राहुल है                  Hindi       hindi     ✅
- *   ನನ್ನ ಹೆಸರು ರವಿ                            Kannada     kannada   ✅
- *   Mera weight 65 kg hai                     Hinglish    hinglish  ✅
- *   Hello, my name is Sarah                   English     english   ✅
- *
- *   ══ DEMO — HINDI (हिंदी) ══
- *   Agent: नमस्ते! / Hello! / ನಮಸ್ಕಾರ!
- *   User:  नमस्ते
- *   User:  मेरा नाम राहुल शर्मा है
- *   Agent [hindi]: बहुत अच्छा! आपकी उम्र क्या है?
- *   ...
- *   ✅ Language: HINDI | Fields: 6 | BMI: 23.5
- *
- *   SUMMARY
- *   HINDI (हिंदी)      ✅ PASS
- *   KANNADA (ಕನ್ನಡ)   ✅ PASS
- *   TAMIL (தமிழ்)     ✅ PASS
- *   HINGLISH (Mixed)   ✅ PASS
- *   ENGLISH            ✅ PASS
- */
-
 import * as readline from 'readline'
 import { TrueNorth, Session, MessageResult } from '../../../packages/sdk-node'
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const TN_URL    = process.env.TRUENORTH_BASE_URL ?? 'http://localhost:8000'
 const TN_KEY    = process.env.TRUENORTH_API_KEY  ?? ''
 const DEMO_LANG = (process.env.DEMO_LANG        ?? 'all').toLowerCase()
-
-// ── ANSI ──────────────────────────────────────────────────────────────────────
 
 const R   = '\x1b[0m'
 const B   = '\x1b[1m'
@@ -97,8 +15,6 @@ const YLW = '\x1b[33m'
 const col = (s: string, ...codes: string[]) => codes.join('') + s + R
 const div = (t: string) => console.log(`\n${col('══ DEMO — ' + t + ' ══', B, CYN)}\n`)
 
-// ── Inline goal config (no YAML file needed) ──────────────────────────────────
-
 const GOAL_ID = 'multilingual_health_demo'
 
 const INLINE_GOAL = {
@@ -107,7 +23,7 @@ const INLINE_GOAL = {
   persona: {
     name:     'Health Assistant',
     tone:     'warm',
-    language: 'auto',           // ← key: auto-detect from user input
+    language: 'auto',
     greeting: 'Hello! / नमस्ते! / ನಮಸ್ಕಾರ! / வணக்கம்!\n' +
               'I can speak your language. Reply in Hindi, Kannada, Tamil, or English.',
   },
@@ -135,8 +51,6 @@ const INLINE_GOAL = {
       'personalised_message (in the user\'s language), next_steps (3 items).',
   },
 }
-
-// ── Language demo scripts ─────────────────────────────────────────────────────
 
 interface LangDemo { label: string; turns: string[] }
 
@@ -203,8 +117,6 @@ const DEMOS: Record<string, LangDemo> = {
   },
 }
 
-// ── Sample phrases for detection table ───────────────────────────────────────
-
 const SAMPLE_PHRASES = [
   { text: 'नमस्ते, मेरा नाम राहुल है',       expected: 'Hindi'    },
   { text: 'ನನ್ನ ಹೆಸರು ರವಿ',                  expected: 'Kannada'  },
@@ -215,8 +127,6 @@ const SAMPLE_PHRASES = [
   { text: 'माझे नाव सुनील आहे',              expected: 'Marathi'  },
   { text: 'আমার নাম সুমিত',                  expected: 'Bengali'  },
 ]
-
-// ── Language estimator (Unicode range fallback) ───────────────────────────────
 
 function estimateLang(text: string): string {
   if (/[\u0900-\u097F]/.test(text)) {
@@ -230,7 +140,6 @@ function estimateLang(text: string): string {
   return 'english'
 }
 
-// ── Show detection table ──────────────────────────────────────────────────────
 async function showDetectionTable(tn: TrueNorth): Promise<void> {
   console.log(`\n${col('LANGUAGE DETECTION — Sample phrases', B, CYN)}\n`)
   console.log(`  ${'Phrase'.padEnd(42)} ${'Expected'.padEnd(12)} ${'Detected'.padEnd(12)} `)
@@ -332,8 +241,6 @@ async function runInteractive(tn: TrueNorth): Promise<void> {
 
     const result = await tn.sessions.message(sid, text)
 
-    // ✅ FIX: use sid not sessionId (was undefined)
-    // ✅ FIX: rename variable so it doesn't shadow startSession
     const currentSession = await tn.sessions.get(sid).catch(() => null)
     const lang           = currentSession?.detectedLanguage ?? estimateLang(text)
 
@@ -349,7 +256,6 @@ async function runInteractive(tn: TrueNorth): Promise<void> {
   rl.close()
   await tn.sessions.end(sid).catch(() => {})
 }
-// ── Summary ───────────────────────────────────────────────────────────────────
 
 function printSummary(results: Record<string, string>): void {
   console.log(`\n${col('SUMMARY', B, CYN)}\n`)
@@ -361,8 +267,6 @@ function printSummary(results: Record<string, string>): void {
   console.log()
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
 async function main(): Promise<void> {
   console.log()
   console.log(col('  TrueNorth Multilingual Demo (Node.js / TypeScript)', B, CYN))
@@ -370,7 +274,6 @@ async function main(): Promise<void> {
 
   const tn = new TrueNorth({ apiKey: TN_KEY, baseUrl: TN_URL, timeout: 90_000 })
 
-  // Always show detection table first
   await showDetectionTable(tn)
 
   if (DEMO_LANG === 'interactive') {

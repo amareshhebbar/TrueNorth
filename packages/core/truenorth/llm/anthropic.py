@@ -2,7 +2,6 @@ from __future__ import annotations
 import anthropic
 from truenorth.llm.base import BaseLLMClient, LLMResponse
 
-
 class AnthropicClient(BaseLLMClient):
     def __init__(self, api_key: str):
         self._client = anthropic.AsyncAnthropic(api_key=api_key)

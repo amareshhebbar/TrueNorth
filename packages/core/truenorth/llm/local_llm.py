@@ -35,7 +35,6 @@ _PROVIDER_DEFAULTS = {
     "openai_compat": ("http://localhost:8000",   "/chat/completions"),
 }
 
-
 class LocalLLMClient(LLMBase):
     """
     Local LLM via Ollama or OpenAI-compatible HTTP API.
@@ -66,7 +65,7 @@ class LocalLLMClient(LLMBase):
             or os.environ.get("LOCAL_LLM_URL")
             or default_url
         )
-        self._client    = None   # lazy: httpx.AsyncClient
+        self._client    = None
 
     def _get_client(self):
         if self._client is None:
@@ -106,10 +105,6 @@ class LocalLLMClient(LLMBase):
         else:
             async for chunk in self._openai_compat_stream(messages, system, max_tokens, temperature):
                 yield chunk
-
-    # ------------------------------------------------------------------
-    # Ollama API
-    # ------------------------------------------------------------------
 
     async def _ollama_generate(
         self,
@@ -196,10 +191,6 @@ class LocalLLMClient(LLMBase):
             },
         }
 
-    # ------------------------------------------------------------------
-    # OpenAI-compatible API (llama.cpp, LM Studio, etc.)
-    # ------------------------------------------------------------------
-
     async def _openai_compat_generate(
         self,
         messages:    List[Message],
@@ -279,10 +270,6 @@ class LocalLLMClient(LLMBase):
             "temperature": temperature,
             "stream":      stream,
         }
-
-    # ------------------------------------------------------------------
-    # Health check
-    # ------------------------------------------------------------------
 
     async def health_check(self) -> bool:
         """Check if the local LLM server is reachable."""

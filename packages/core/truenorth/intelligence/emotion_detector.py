@@ -21,11 +21,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Emotion categories
-# ---------------------------------------------------------------------------
-
 class Emotion:
     NEUTRAL     = "neutral"
     HAPPY       = "happy"
@@ -37,13 +32,12 @@ class Emotion:
     ANXIOUS     = "anxious"
     DISENGAGED  = "disengaged"
 
-
 @dataclass
 class EmotionResult:
-    label:      str    # Emotion.*
-    score:      float  # 0.0–1.0 confidence in this label
-    is_negative: bool  # shortcut for engine routing
-    raw_signals: list  # which heuristic signals fired
+    label:      str
+    score:      float
+    is_negative: bool
+    raw_signals: list
 
     def to_dict(self) -> dict:
         return {
@@ -51,11 +45,6 @@ class EmotionResult:
             "score":       round(self.score, 3),
             "is_negative": self.is_negative,
         }
-
-
-# ---------------------------------------------------------------------------
-# Heuristic word banks
-# ---------------------------------------------------------------------------
 
 _PATTERNS = {
     Emotion.FRUSTRATED: re.compile(
@@ -101,11 +90,6 @@ _DISENGAGEMENT_SIGNS = re.compile(
 
 _NEGATIVE_EMOTIONS = {Emotion.FRUSTRATED, Emotion.ANGRY, Emotion.DISTRESSED, Emotion.ANXIOUS}
 
-
-# ---------------------------------------------------------------------------
-# EmotionDetector
-# ---------------------------------------------------------------------------
-
 class EmotionDetector:
     """
     Detect user emotion from message text.
@@ -137,10 +121,8 @@ class EmotionDetector:
 
         text = text.strip()
 
-        # Stage 1: Heuristic
         heuristic = self._heuristic(text)
 
-        # Stage 2: LLM fallback when uncertain
         if (
             use_llm
             and self._router is not None
@@ -156,10 +138,6 @@ class EmotionDetector:
     def detect_sync(self, text: str) -> EmotionResult:
         """Synchronous heuristic-only detection (for dry-run / testing)."""
         return self._heuristic(text or "")
-
-    # ------------------------------------------------------------------
-    # Stage 1: Heuristics
-    # ------------------------------------------------------------------
 
     def _heuristic(self, text: str) -> EmotionResult:
         signals: list[str] = []
@@ -194,10 +172,6 @@ class EmotionDetector:
             is_negative  = top_label in _NEGATIVE_EMOTIONS,
             raw_signals  = signals,
         )
-
-    # ------------------------------------------------------------------
-    # Stage 2: LLM classification
-    # ------------------------------------------------------------------
 
     async def _llm_classify(self, text: str) -> Optional[EmotionResult]:
         from truenorth.llm.base import Message

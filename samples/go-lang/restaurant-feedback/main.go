@@ -173,5 +173,4 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
-// keep strings import used
 var _ = strings.Contains

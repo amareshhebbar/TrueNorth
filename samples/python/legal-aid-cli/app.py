@@ -109,8 +109,6 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Config ────────────────────────────────────────────────────────────────────
-
 GOAL_YAML   = os.environ.get("GOAL_YAML",   "goal.yaml")
 DRY_RUN     = os.environ.get("DRY_RUN",     "0") == "1"
 LANG_HINT   = os.environ.get("LANG_HINT",   "")
@@ -118,8 +116,6 @@ WORKER_ID   = os.environ.get("WORKER_ID",   "LW-001")
 SESSION_ID  = os.environ.get("SESSION_ID",  "")
 OUTPUT_DIR  = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
-
-# ── Terminal colours ──────────────────────────────────────────────────────────
 
 RESET  = "\033[0m"
 BOLD   = "\033[1m"
@@ -175,8 +171,6 @@ def print_field_extracted(field: str, value: str, confidence: float):
     colour = GREEN if confidence >= 0.85 else YELLOW if confidence >= 0.60 else RED
     print(clr(f"  ✓ Extracted  {field}: {str(value)[:60]}  ({confidence:.0%})", colour, DIM))
 
-# ── Case brief display ────────────────────────────────────────────────────────
-
 def print_case_brief(content: dict):
     width = 62
     print()
@@ -231,13 +225,10 @@ def print_case_brief(content: dict):
 
     print()
 
-# ── Save output ───────────────────────────────────────────────────────────────
-
 def save_output(session_id: str, content: dict, collected: dict):
     name = collected.get("client_name", "unknown").lower().replace(" ", "-")
     stem = f"{session_id}_{name}"
 
-    # JSON — full structured data
     json_path = OUTPUT_DIR / f"{stem}.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump({
@@ -248,7 +239,6 @@ def save_output(session_id: str, content: dict, collected: dict):
             "case_brief":      content,
         }, f, indent=2, ensure_ascii=False)
 
-    # Plain text — for printing / sharing
     txt_path = OUTPUT_DIR / f"{stem}.txt"
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(f"LEGAL AID INTAKE\n")
@@ -277,12 +267,9 @@ def save_output(session_id: str, content: dict, collected: dict):
 
     return json_path, txt_path
 
-# ── Main conversation loop ────────────────────────────────────────────────────
-
 async def run():
     banner()
 
-    # Load goal
     try:
         config = YAMLLoader.load(GOAL_YAML)
     except FileNotFoundError:
@@ -294,7 +281,6 @@ async def run():
     print()
     print_separator()
 
-    # Build engine
     router = LLMRouter()
     if DRY_RUN:
         from truenorth.testing.mock_llm import MockLLMClient
@@ -306,11 +292,9 @@ async def run():
         router      = router,
     )
 
-    # Start
     resp = await engine.start()
     print_agent(resp.text)
 
-    # Conversation loop
     while not engine.state.is_complete:
         print_progress(engine.state.completion_pct, engine.state.current_turn)
 
@@ -326,11 +310,10 @@ async def run():
             print(clr("\n  Exiting. Partial session not saved.\n", YELLOW))
             return
 
-        print_client(raw.strip())  # echo styled
+        print_client(raw.strip())
 
         resp = await engine.process_message(raw.strip())
 
-        # Show what was extracted this turn
         for field_data in resp.fields_extracted:
             if isinstance(field_data, dict):
                 print_field_extracted(
@@ -344,7 +327,6 @@ async def run():
         if resp.final_output:
             break
 
-    # Done — display and save
     if engine.state.is_complete:
         output = engine.state.final_output
         content = {}

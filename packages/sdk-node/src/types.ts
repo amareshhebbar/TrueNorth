@@ -101,5 +101,4 @@ export class TrueNorthError extends Error {
   }
 }
 
-// Utility: typed guard
 function int(n: number): number { return n }

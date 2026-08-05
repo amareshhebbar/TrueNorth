@@ -15,36 +15,29 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums and result types
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ExtractionMethod(str, Enum):
-    DIRECT_QUOTE = "direct_quote"   # user literally said the value verbatim
-    LLM_EXTRACT  = "llm_extract"    # LLM inferred the value from natural language
-    RULE_BASED   = "rule_based"     # regex / heuristic extraction
-    USER_CONFIRM = "user_confirm"   # user said "yes" to a clarification question
-    MANUAL       = "manual"         # set programmatically (e.g. from prior session)
-
+    DIRECT_QUOTE = "direct_quote"
+    LLM_EXTRACT  = "llm_extract"
+    RULE_BASED   = "rule_based"
+    USER_CONFIRM = "user_confirm"
+    MANUAL       = "manual"
 
 class ConfidenceBand(str, Enum):
-    HIGH        = "high"        # ≥ 0.80  — accept, no clarification needed
-    MEDIUM      = "medium"      # 0.60–0.79 — accept, soft note in output
-    LOW         = "low"         # 0.40–0.59 — ask for confirmation next turn
-    UNCONFIDENT = "unconfident" # < 0.40  — re-ask immediately
-
+    HIGH        = "high"
+    MEDIUM      = "medium"
+    LOW         = "low"
+    UNCONFIDENT = "unconfident"
 
 @dataclass
 class ConfidenceScore:
     """Per-field confidence result."""
     field:         str
     value:         Any
-    score:         float           # 0.0–1.0 composite
-    factors:       Dict[str, float]# factor_name → contribution (summing to score)
+    score:         float
+    factors:       Dict[str, float]
     band:          ConfidenceBand
-    needs_confirm: bool            # True when score < CONFIRM_THRESHOLD
-    issues:        List[str]       # human-readable warnings (for dry-run / dashboard)
+    needs_confirm: bool
+    issues:        List[str]
 
     def to_dict(self) -> dict:
         return {
@@ -57,7 +50,6 @@ class ConfidenceScore:
             "issues":        self.issues,
         }
 
-
 @dataclass
 class ConfidenceReport:
     """Session-level confidence health summary."""
@@ -65,11 +57,11 @@ class ConfidenceReport:
     overall_score:      float
     overall_band:       ConfidenceBand
     field_scores:       Dict[str, ConfidenceScore]
-    needs_confirm:      List[str]   # field names needing confirmation
+    needs_confirm:      List[str]
     high_confidence:    List[str]
     low_confidence:     List[str]
     unconfident:        List[str]
-    ready_for_output:   bool        # True if all required fields are HIGH/MEDIUM
+    ready_for_output:   bool
 
     def to_dict(self) -> dict:
         return {
@@ -83,13 +75,8 @@ class ConfidenceReport:
             "ready_for_output": self.ready_for_output,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Type validators (expanded from v1)
-# ─────────────────────────────────────────────────────────────────────────────
-
 _EMAIL_RE   = re.compile(r"^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$")
-_PHONE_IN   = re.compile(r"^[\+]?[6-9]\d{9}$")           # Indian mobile
+_PHONE_IN   = re.compile(r"^[\+]?[6-9]\d{9}$")
 _PHONE_INTL = re.compile(r"^[\+]?[\d\s\-\(\)]{7,15}$")
 _DATE_RE    = re.compile(
     r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}"
@@ -99,7 +86,6 @@ _NUMBER_RE  = re.compile(r"^-?\d+(?:\.\d+)?$")
 _INT_RE     = re.compile(r"^-?\d+$")
 _BOOL_RE    = re.compile(r"^(yes|no|true|false|y|n|1|0)$", re.IGNORECASE)
 _URL_RE     = re.compile(r"^https?://\S+$")
-
 
 def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
     """
@@ -113,7 +99,6 @@ def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
     ftype = field_cfg.get("type", "text")
     v     = str(value).strip()
 
-    # ── Type-specific validation ───────────────────────────────────────────
     type_scores = {
         "email":   (_EMAIL_RE.match(v),                       0.95, 0.15),
         "phone":   (_PHONE_IN.match(v) or _PHONE_INTL.match(v), 0.90, 0.20),
@@ -132,8 +117,8 @@ def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
         if not match:
             issues.append(f"Value {v!r} fails {ftype} format validation")
     else:
-        type_score = 0.65  
-    # ── Range validation (integer / number) ───────────────────────────────
+        type_score = 0.65
+
     if ftype in ("integer", "int", "number", "float"):
         try:
             num = float(v.replace(",", ""))
@@ -148,7 +133,6 @@ def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
         except (ValueError, TypeError):
             pass
 
-    # ── Allowed values validation (categorical) ───────────────────────────
     allowed = field_cfg.get("allowed_values") or field_cfg.get("enum", [])
     if allowed:
         normalized = [str(a).strip().lower() for a in allowed]
@@ -161,11 +145,6 @@ def _validate_type(value: Any, field_cfg: dict) -> Tuple[float, List[str]]:
 
     return round(type_score, 4), issues
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Cross-field consistency checks
-# ─────────────────────────────────────────────────────────────────────────────
-
 _CONSISTENCY_CHECKS = [
     ("age", "work_experience_years",
      lambda a, b: float(a) > float(b) + 10,
@@ -173,12 +152,11 @@ _CONSISTENCY_CHECKS = [
     ("weight_kg", "height_cm",
      lambda w, h: 10 < float(w) / ((float(h) / 100) ** 2) < 70,
      "BMI (weight/height²) should be between 10 and 70"),
-    # Age boundaries
+
     ("age", "age",
      lambda a, _: 5 < float(a) < 120,
      "age should be between 5 and 120"),
 ]
-
 
 def _check_consistency(
     field:            str,
@@ -208,27 +186,17 @@ def _check_consistency(
                 score   = min(score, 0.55)
                 issues.append(f"Consistency check failed: {description}")
         except (TypeError, ValueError, ZeroDivisionError):
-            pass   # can't compute — skip
+            pass
 
     return round(score, 4), issues
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Extraction method scoring
-# ─────────────────────────────────────────────────────────────────────────────
-
 _METHOD_SCORES: Dict[str, float] = {
-    ExtractionMethod.DIRECT_QUOTE: 0.98,   # "I am 28" → verbatim
-    ExtractionMethod.USER_CONFIRM: 0.97,   # user said "yes, that's right"
-    ExtractionMethod.LLM_EXTRACT:  0.80,   # LLM inferred from natural language
-    ExtractionMethod.RULE_BASED:   0.65,   # regex / heuristic
-    ExtractionMethod.MANUAL:       0.85,   # programmatic set
+    ExtractionMethod.DIRECT_QUOTE: 0.98,
+    ExtractionMethod.USER_CONFIRM: 0.97,
+    ExtractionMethod.LLM_EXTRACT:  0.80,
+    ExtractionMethod.RULE_BASED:   0.65,
+    ExtractionMethod.MANUAL:       0.85,
 }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ConfidenceScorer (hardened)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ConfidenceScorer:
     """
@@ -241,12 +209,11 @@ class ConfidenceScorer:
       UNCONFIDENT < 0.40  — re-ask immediately
     """
 
-    # Score thresholds for confidence bands
     BAND_HIGH        = 0.80
     BAND_MEDIUM      = 0.60
     BAND_LOW         = 0.40
-    CONFIRM_THRESHOLD = 0.60   
-    
+    CONFIRM_THRESHOLD = 0.60
+
     WEIGHTS = {
         "extraction":      0.25,
         "type_validation": 0.15,
@@ -292,62 +259,53 @@ class ConfidenceScorer:
         issues: List[str] = []
         factors: Dict[str, float] = {}
 
-        # ── 1. Extraction confidence (25%) ─────────────────────────────────
         factors["extraction"] = _clamp(extraction_confidence) * self.WEIGHTS["extraction"]
 
-        # ── 2. Type validation (15%) ────────────────────────────────────────
         type_score, type_issues = _validate_type(value, cfg)
         issues.extend(type_issues)
         factors["type_validation"] = type_score * self.WEIGHTS["type_validation"]
 
-        # ── 3. Source quality (15%) ─────────────────────────────────────────
         src_score = self._source_quality(value, source_text)
         factors["source_quality"] = src_score * self.WEIGHTS["source_quality"]
 
-        # ── 4. User confirmation (15%) ──────────────────────────────────────
         if user_confirmed:
             confirm_score = 1.0
         elif method == ExtractionMethod.USER_CONFIRM:
             confirm_score = 0.95
         else:
-            confirm_score = 0.40    # not confirmed — medium penalty
+            confirm_score = 0.40
         factors["confirmation"] = confirm_score * self.WEIGHTS["confirmation"]
 
-        # ── 5. Conflict history (10%) ───────────────────────────────────────
         if in_conflict:
-            conflict_score = 0.05   # severe: active conflict
+            conflict_score = 0.05
         elif conflict_history == 1:
-            conflict_score = 0.55   # mild: one past conflict, now resolved
+            conflict_score = 0.55
         elif conflict_history >= 2:
-            conflict_score = 0.30   # bad: repeatedly conflicted field
+            conflict_score = 0.30
             issues.append(f"Field has been in conflict {conflict_history} times")
         else:
-            conflict_score = 1.0    # no conflict history
+            conflict_score = 1.0
         factors["conflict"] = conflict_score * self.WEIGHTS["conflict"]
 
-        # ── 6. Cross-field consistency (10%) ───────────────────────────────
         if collected_fields:
             consistency_score, cs_issues = _check_consistency(
                 field, value, collected_fields
             )
             issues.extend(cs_issues)
         else:
-            consistency_score = 0.80   
+            consistency_score = 0.80
         factors["consistency"] = consistency_score * self.WEIGHTS["consistency"]
 
-        # ── 7. Extraction method (5%) ───────────────────────────────────────
         method_score = _METHOD_SCORES.get(method, 0.75)
         if method == ExtractionMethod.DIRECT_QUOTE and source_text:
             if str(value).lower() not in source_text.lower():
-                method_score = 0.70   
+                method_score = 0.70
                 issues.append("Direct quote claimed but value not found verbatim in source")
         factors["method"] = method_score * self.WEIGHTS["method"]
 
-        # ── 8. Temporal stability (5%) ──────────────────────────────────────
         stability_score = self._stability(value, prior_extractions or [])
         factors["stability"] = stability_score * self.WEIGHTS["stability"]
 
-        # ── Composite ───────────────────────────────────────────────────────
         raw    = sum(factors.values())
         final  = round(_clamp(raw), 4)
         band   = self._band(final)
@@ -366,10 +324,6 @@ class ConfidenceScorer:
             needs_confirm = final < self.CONFIRM_THRESHOLD,
             issues        = issues,
         )
-
-    # ------------------------------------------------------------------
-    # Batch scoring
-    # ------------------------------------------------------------------
 
     def score_all(
         self,
@@ -469,10 +423,6 @@ class ConfidenceScorer:
             ready_for_output = ready,
         )
 
-    # ------------------------------------------------------------------
-    # Convenience aliases (backward compatibility with v1 tests)
-    # ------------------------------------------------------------------
-
     def overall_session_confidence(
         self, scores: Dict[str, ConfidenceScore]
     ) -> float:
@@ -482,10 +432,6 @@ class ConfidenceScorer:
         if not scores:
             return 0.0
         return round(sum(s.score for s in scores.values()) / len(scores), 3)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _band(self, score: float) -> ConfidenceBand:
         if score >= self.BAND_HIGH:
@@ -511,13 +457,13 @@ class ConfidenceScorer:
         if value_str in source_str:
             word_count = len(source_str.split())
             if word_count >= 8:
-                return 0.95     # rich context
+                return 0.95
             elif word_count >= 4:
                 return 0.80
             elif word_count >= 2:
                 return 0.65
             else:
-                return 0.50 
+                return 0.50
         try:
             num = float(str(value).replace(",", ""))
             if str(int(num)) in source_str or f"{num:.1f}" in source_str:
@@ -530,7 +476,7 @@ class ConfidenceScorer:
         if words and in_src / len(words) >= 0.5:
             return 0.60
 
-        return 0.40   
+        return 0.40
 
     @staticmethod
     def _stability(value: Any, prior_extractions: List[Any]) -> float:
@@ -539,7 +485,7 @@ class ConfidenceScorer:
         Consistent values across turns = higher confidence.
         """
         if not prior_extractions:
-            return 0.75   # first extraction — neutral
+            return 0.75
 
         value_str = str(value).strip().lower()
         matches   = sum(
@@ -550,18 +496,13 @@ class ConfidenceScorer:
         consistency = matches / total
 
         if consistency >= 0.80:
-            return 1.0   
+            return 1.0
         elif consistency >= 0.50:
             return 0.75
         elif consistency > 0:
-            return 0.55   
+            return 0.55
         else:
-            return 0.20   
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+            return 0.20
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(v)))

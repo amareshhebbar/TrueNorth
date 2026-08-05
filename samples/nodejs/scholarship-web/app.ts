@@ -1,72 +1,13 @@
-/**
- * ScholarFinder Web — Express + Built-in Chat UI
- * ================================================
- *
- * WHAT THIS IS
- * ─────────────────────────────────────────────────
- * A self-contained Express server that serves both
- * the REST API and the frontend HTML chat.
- *
- * Student opens the URL in any browser, chats with
- * ScholarBot, and gets a personalised scholarship list.
- * No React. No build step. Zero npm installs beyond express.
- *
- * PROJECT STRUCTURE
- * ─────────────────────────────────────────────────
- *   scholarship-web/
- *   ├── app.ts             ← this file (server + routes)
- *   ├── goal.yaml          ← scholarship questionnaire
- *   ├── package.json
- *   ├── tsconfig.json
- *   └── public/
- *       └── index.html     ← chat UI (served statically)
- *
- * package.json:
- * ─────────────────────────────────────────────────
- *   {
- *     "scripts": { "dev": "ts-node app.ts" },
- *     "dependencies": { "express": "^4.18.0" },
- *     "devDependencies": {
- *       "@types/express": "^4.17.0",
- *       "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0",
- *       "typescript": "^5.3.0"
- *     }
- *   }
- *
- * INSTALL
- * ─────────────────────────────────────────────────
- *   cd packages/sdk-node && npm install && npm run build
- *   cd sample-projects-node/scholarship-web
- *   npm install
- *
- * HOW TO RUN
- * ─────────────────────────────────────────────────
- *   # Terminal 1: TrueNorth Python API
- *   cd packages/core
- *   uvicorn truenorth.api.main:app --port 8000
- *
- *   # Terminal 2: this server
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   npx ts-node app.ts
- *
- *   open http://localhost:3003
- */
-
 import express, { Request, Response } from 'express'
 import path   from 'path'
 import crypto from 'crypto'
 import { TrueNorth, Session } from '../../../packages/sdk-node'
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const PORT  = parseInt(process.env.PORT              ?? '3003')
 const TN_URL= process.env.TRUENORTH_BASE_URL         ?? 'http://localhost:8000'
 const TN_KEY= process.env.TRUENORTH_API_KEY          ?? ''
 
 const tn = new TrueNorth({ apiKey: TN_KEY, baseUrl: TN_URL })
-
-// ── In-memory stores ──────────────────────────────────────────────────────────
 
 interface ScholarSession {
   session:    Session
@@ -87,13 +28,9 @@ interface ScholarResult {
 const sessions = new Map<string, ScholarSession>()
 const results:  ScholarResult[] = []
 
-// ── Express ───────────────────────────────────────────────────────────────────
-
 const app = express()
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
-
-// ── API: start session ────────────────────────────────────────────────────────
 
 app.post('/api/start', async (_req: Request, res: Response) => {
   const sessionId = `sw_${crypto.randomBytes(6).toString('hex')}`
@@ -109,8 +46,6 @@ app.post('/api/start', async (_req: Request, res: Response) => {
     res.status(500).json({ error: String(err) })
   }
 })
-
-// ── API: send message ─────────────────────────────────────────────────────────
 
 app.post('/api/message', async (req: Request, res: Response) => {
   const { sessionId, text } = req.body as { sessionId: string; text: string }
@@ -138,7 +73,7 @@ app.post('/api/message', async (req: Request, res: Response) => {
 
       results.push({
         sessionId,
-        name:          meta.session.agentMessage.slice(0, 30), // placeholder
+        name:          meta.session.agentMessage.slice(0, 30),
         state:         '—',
         matched,
         topScholarship: topPick,
@@ -174,8 +109,6 @@ app.post('/api/message', async (req: Request, res: Response) => {
   }
 })
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
-
 app.get('/api/stats', (_req: Request, res: Response) => {
   res.json({
     activeSessions: sessions.size,
@@ -193,8 +126,6 @@ app.get('/health', async (_req: Request, res: Response) => {
     res.status(503).json({ status: 'truenorth_unreachable' })
   }
 })
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`\n  ScholarFinder Web`)

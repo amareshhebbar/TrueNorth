@@ -47,27 +47,21 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums and result types
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TraceCompleteness(str, Enum):
-    FULLY_TRACED     = "fully_traced"      # ≥ 95% factual sentences traced
-    MOSTLY_TRACED    = "mostly_traced"     # 75–94%
-    PARTIALLY_TRACED = "partially_traced"  # 40–74%
-    UNTRACEABLE      = "untraceable"       # < 40%
-
+    FULLY_TRACED     = "fully_traced"
+    MOSTLY_TRACED    = "mostly_traced"
+    PARTIALLY_TRACED = "partially_traced"
+    UNTRACEABLE      = "untraceable"
 
 @dataclass
 class FieldSource:
     """The session source for one field value."""
     field_name:     str
     value:          Any
-    turn:           int         # which conversation turn this was collected
-    user_text:      str         # the user message that contained the value
-    confidence:     float       # confidence score at time of extraction
-    extracted_at:   float       # timestamp
+    turn:           int
+    user_text:      str
+    confidence:     float
+    extracted_at:   float
 
     def to_dict(self) -> dict:
         return {
@@ -78,17 +72,16 @@ class FieldSource:
             "confidence": round(self.confidence, 3),
         }
 
-
 @dataclass
 class TracedSentence:
     """One sentence from the output with its field attribution."""
     sentence:        str
     sentence_index:  int
-    sentence_type:   str            # "factual" | "generic" | "heading" | "derived"
+    sentence_type:   str
     sources:         List[FieldSource]
-    is_traced:       bool           # True if at least one source found
-    is_generic:      bool           # True if generic advice needing no attribution
-    untraced_values: List[str]      # numeric/text values in sentence with no source
+    is_traced:       bool
+    is_generic:      bool
+    untraced_values: List[str]
 
     @property
     def attribution_str(self) -> str:
@@ -113,7 +106,6 @@ class TracedSentence:
             "untraced_values":self.untraced_values,
         }
 
-
 @dataclass
 class SourceMap:
     """
@@ -124,10 +116,10 @@ class SourceMap:
     session_id:      str
     goal_id:         str
     completeness:    TraceCompleteness
-    traced_pct:      float              # 0–1
+    traced_pct:      float
     sentences:       List[TracedSentence]
-    field_coverage:  Dict[str, int]     # field_name → how many sentences it sourced
-    untraced_sentences: List[str]       # sentences that couldn't be attributed
+    field_coverage:  Dict[str, int]
+    untraced_sentences: List[str]
     generated_at:    float = field(default_factory=time.time)
 
     @property
@@ -192,12 +184,6 @@ class SourceMap:
                 lines.append(f"    ... and {len(self.untraced_sentences)-5} more")
         return "\n".join(lines)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 1: SentenceParser
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Patterns that indicate a sentence is generic advice (needs no field attribution)
 _GENERIC_PATTERNS = re.compile(
     r"\b(should|recommend|suggest|consider|try|aim for|make sure|"
     r"important to|remember to|keep in mind|generally|typically|"
@@ -207,12 +193,10 @@ _GENERIC_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-# Patterns that indicate a heading or structural text (not a factual claim)
 _HEADING_PATTERNS = re.compile(
     r"^#+\s|^[A-Z][A-Z\s]{3,}:?\s*$|^\*\*[^*]+\*\*\s*$"
 )
 
-# Patterns that indicate a derived/calculated value
 _DERIVED_PATTERNS = re.compile(
     r"\b(bmi|body mass index|tdee|bmr|total daily|calculated|"
     r"based on these|which gives|equates to|therefore your|"
@@ -220,14 +204,12 @@ _DERIVED_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-# Numeric value extractor
 _NUMBER_RE = re.compile(
     r"(\d+(?:\.\d+)?)\s*"
     r"(kg|lbs?|cm|m\b|ft|inches?|years?|days?|weeks?|months?|"
     r"minutes?|hours?|kcal|calories?|%|km|miles?|reps?|sets?)?",
     re.IGNORECASE,
 )
-
 
 class SentenceParser:
     """Splits output text into typed sentence units."""
@@ -240,10 +222,9 @@ class SentenceParser:
         if not text or not text.strip():
             return []
 
-        # Split on sentence boundaries + list items + headings
         raw = re.split(r"(?<=[.!?])\s+(?=[A-Z\-*#•])|(?=^#+\s)|(?<=\n)(?=[*\-•]\s)",
                        text, flags=re.MULTILINE)
-        # Also handle markdown bullet points
+
         expanded = []
         for part in raw:
             sub = re.split(r"\n[-*•]\s+|\n\d+\.\s+", part)
@@ -281,16 +262,11 @@ class SentenceParser:
         for m in _NUMBER_RE.finditer(sentence):
             num  = m.group(1)
             unit = m.group(2) or ""
-            if unit or len(num) <= 6:  # skip very long bare numbers (timestamps etc)
+            if unit or len(num) <= 6:
                 values.append(f"{num}{unit}")
         for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', sentence):
             values.append(m.group(1) or m.group(2))
         return values
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 2: FieldMatcher
-# ─────────────────────────────────────────────────────────────────────────────
 
 class FieldMatcher:
     """
@@ -319,14 +295,12 @@ class FieldMatcher:
         matched:  List[FieldSource] = []
         matched_fields: Set[str] = set()
 
-        # Tier 1: exact value match
         for field_name, source in field_sources.items():
             val_str = str(source.value).strip().lower()
             if val_str and val_str in sentence_lower:
                 matched.append(source)
                 matched_fields.add(field_name)
 
-        # Tier 2: field name / label match in sentence
         for field_name, cfg in fields_config.items():
             if field_name in matched_fields:
                 continue
@@ -342,7 +316,6 @@ class FieldMatcher:
                     matched.append(source)
                     matched_fields.add(field_name)
 
-        # Tier 3: numeric proximity match
         numeric_fields = {
             fn: float(str(v).replace(",", ""))
             for fn, v in collected_fields.items()
@@ -374,10 +347,9 @@ class FieldMatcher:
                     matched.append(source)
                     matched_fields.add(best_field)
             elif best_field and best_diff > 0.12:
-                # Value in sentence doesn't match any field — potentially untraced
+
                 untraced.append(val_str)
 
-        # Deduplicate matched (same field can match multiple tiers)
         seen: Set[str] = set()
         deduped: List[FieldSource] = []
         for s in matched:
@@ -386,11 +358,6 @@ class FieldMatcher:
                 deduped.append(s)
 
         return deduped, untraced
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Stage 3: TurnResolver
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TurnResolver:
     """
@@ -421,7 +388,6 @@ class TurnResolver:
         turn_map = field_turn_map or {}
         sources: Dict[str, FieldSource] = {}
 
-        # Build turn-indexed user messages for quick lookup
         user_messages: Dict[int, str] = {}
         for entry in turn_history:
             if entry.get("role") == "user":
@@ -458,12 +424,10 @@ class TurnResolver:
         if not value_str:
             return 0
 
-        # Search for exact value in user messages
         for turn_num, msg in sorted(user_messages.items()):
             if value_str in msg.lower():
                 return turn_num
 
-        # Search for numeric value
         try:
             num = float(value_str.replace(",", ""))
             num_str = str(int(num)) if num == int(num) else str(num)
@@ -473,7 +437,7 @@ class TurnResolver:
         except (ValueError, TypeError):
             pass
 
-        return 0   # unknown turn
+        return 0
 
     @staticmethod
     def _turn_timestamp(turn: int, turn_history: List[Dict]) -> float:
@@ -481,11 +445,6 @@ class TurnResolver:
             if entry.get("turn") == turn:
                 return entry.get("timestamp", time.time())
         return time.time()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  SourceTracer — main entry point
-# ─────────────────────────────────────────────────────────────────────────────
 
 class SourceTracer:
     """
@@ -515,7 +474,6 @@ class SourceTracer:
         result["source_trace"] = source_map.to_dict()
     """
 
-    # Thresholds for completeness classification
     FULLY_TRACED_THRESHOLD     = 0.95
     MOSTLY_TRACED_THRESHOLD    = 0.75
     PARTIALLY_TRACED_THRESHOLD = 0.40
@@ -560,12 +518,10 @@ class SourceTracer:
         if not output or not output.strip():
             return self._empty_map(session_id, goal_id)
 
-        # Stage 1: Parse output into sentences
         parsed = self._parser.parse(output)
         if not parsed:
             return self._empty_map(session_id, goal_id)
 
-        # Stage 2: Build field source lookup from session state
         field_sources = self._resolver.build_sources(
             collected_fields  = collected_fields,
             field_confidences = field_confidences,
@@ -573,7 +529,6 @@ class SourceTracer:
             field_turn_map    = field_turn_map,
         )
 
-        # Stage 3: Match each sentence to its sources
         traced_sentences: List[TracedSentence] = []
         field_coverage:   Dict[str, int] = {}
         untraced_text:    List[str] = []
@@ -589,7 +544,7 @@ class SourceTracer:
                     sentence_index = idx,
                     sentence_type  = sentence_type,
                     sources        = [],
-                    is_traced      = True,   # headings are always "traced" (not factual claims)
+                    is_traced      = True,
                     is_generic     = True,
                     untraced_values = [],
                 ))
@@ -623,7 +578,6 @@ class SourceTracer:
                 untraced_values = untraced_vals,
             ))
 
-        # Compute completeness
         traced_pct = traced_count / factual_count if factual_count > 0 else 1.0
         completeness = self._classify_completeness(traced_pct)
 
@@ -679,10 +633,6 @@ class SourceTracer:
             is_generic      = is_generic,
             untraced_values = untraced,
         )
-
-    # ------------------------------------------------------------------
-    # Completeness classifier
-    # ------------------------------------------------------------------
 
     def _classify_completeness(self, traced_pct: float) -> TraceCompleteness:
         if traced_pct >= self.FULLY_TRACED_THRESHOLD:

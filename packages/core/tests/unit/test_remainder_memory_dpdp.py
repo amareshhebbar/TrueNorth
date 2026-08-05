@@ -44,23 +44,15 @@ from truenorth.scheduler.delivery import (
     DeliveryResult, DeliveryChannel, ConsoleAdapter, MultiChannelDelivery,
 )
 from truenorth.memory.long_term      import LongTermMemory, UserFact
-# from truenorth.memory.session_resume import SessionResume, ResumeResult
-# from truenorth.memory.vector_store   import VectorStore, SemanticSearchResult
+
 from truenorth.compliance.dpdp import (
     DPDPManager, ConsentStatus, DataPrincipalRight,
 )
-# from truenorth.compliance.dpdp import (
-#     GDPRManager, GDPRConsentRecord, GDPRLegalBasis, DataSubjectRight,
-# )
+
 from truenorth.memory.session_resume import SessionResume
 from truenorth.memory.vector_store import VectorStore
 from truenorth.compliance.gdpr import GDPRManager, GDPRLegalBasis, DataSubjectRight
 from truenorth.channel.whatsapp import WhatsAppMessage, WhatsAppChannel
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 NOW_UTC = datetime.now(timezone.utc)
 
@@ -81,15 +73,9 @@ def _rule(
         condition      = condition,
     )
 
-
 def _engine_with_console() -> ReminderEngine:
     delivery = MultiChannelDelivery({"email": ConsoleAdapter(), "whatsapp": ConsoleAdapter()})
     return ReminderEngine(delivery=delivery)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. FollowUpRule
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFollowUpRule:
 
@@ -159,8 +145,8 @@ class TestFollowUpRule:
             rule_id="r", trigger="after 1 day", channel="email",
             message_prompt="", check_field="exercise_done", check_value=None,
         )
-        assert rule.condition_met({})                            is True  
-        assert rule.condition_met({"exercise_done": "yes"})     is False  
+        assert rule.condition_met({})                            is True
+        assert rule.condition_met({"exercise_done": "yes"})     is False
 
     def test_condition_met_check_value_matches(self):
         rule = FollowUpRule(
@@ -174,11 +160,6 @@ class TestFollowUpRule:
         rule = _rule(condition={"primary_goal": "lose weight"})
         assert rule.condition_met({"primary_goal": "lose weight"}) is True
         assert rule.condition_met({"primary_goal": "other"})       is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. ScheduledReminder
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestScheduledReminder:
 
@@ -214,11 +195,6 @@ class TestScheduledReminder:
         d = r.to_dict()
         for k in ["reminder_id", "rule_id", "session_id", "channel", "fire_at", "status"]:
             assert k in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. ReminderEngine — scheduling
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestReminderEngineSchedule:
 
@@ -287,11 +263,6 @@ class TestReminderEngineSchedule:
         s2_rems = engine.get_pending("s2")
         assert len(s2_rems) == 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. ReminderEngine — due and state transitions
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestReminderEngineDue:
 
     def _past_reminder(self, engine: ReminderEngine) -> ScheduledReminder:
@@ -349,11 +320,6 @@ class TestReminderEngineDue:
         assert s["total"] == 1
         assert "pending" in s["by_status"]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. ReminderEngine — background tick
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestReminderEngineLoop:
 
     @pytest.mark.asyncio
@@ -391,11 +357,6 @@ class TestReminderEngineLoop:
         await engine._tick()
         assert engine._reminders[rem.reminder_id].status == ReminderStatus.FAILED
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. DeliveryResult
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestDeliveryResult:
 
     def test_success_result(self):
@@ -412,11 +373,6 @@ class TestDeliveryResult:
         d = DeliveryResult(success=True, channel="sms").to_dict()
         for k in ["success", "channel", "message_id", "error", "latency_ms"]:
             assert k in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. MultiChannelDelivery
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestMultiChannelDelivery:
 
@@ -460,11 +416,6 @@ class TestMultiChannelDelivery:
         result   = await delivery.send(self._reminder_for("email"))
         assert not result.success
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. ConsoleAdapter
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestConsoleAdapter:
 
     @pytest.mark.asyncio
@@ -478,11 +429,6 @@ class TestConsoleAdapter:
         result = await adapter.send(rem)
         assert result.success
         assert result.channel == "console"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. LongTermMemory — store
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestLongTermMemoryStore:
 
@@ -523,11 +469,6 @@ class TestLongTermMemoryStore:
         mem.store(UserFact("u1", "age", 29, "g", "s2", confidence=0.95))
         assert mem.get("u1", "age") == 29
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. LongTermMemory — read
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestLongTermMemoryRead:
 
     def _mem(self) -> LongTermMemory:
@@ -566,11 +507,6 @@ class TestLongTermMemoryRead:
         assert mem.get_all("unknown_user") == {}
         assert mem.get_all_facts("unknown_user") == []
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. LongTermMemory — seed engine + forget
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestLongTermMemorySeed:
 
     def test_forget_one_field(self):
@@ -602,11 +538,6 @@ class TestLongTermMemorySeed:
         s = mem.stats()
         assert s["total_users"] == 2
         assert s["total_facts"] == 2
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. SessionResume
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSessionResume:
 
@@ -659,11 +590,6 @@ class TestSessionResume:
         )
         assert "Priya" in msg
         assert "1" in msg or "weight" in msg.lower() or "1 more" in msg
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. VectorStore
-# # ─────────────────────────────────────────────────────────────────────────────
 
 class TestVectorStore:
 
@@ -723,11 +649,6 @@ class TestVectorStore:
         assert "session_id" in d
         assert "score"      in d
         assert "snippet"    in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. DPDP Manager
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestDPDPManager:
 
@@ -795,11 +716,6 @@ class TestDPDPManager:
                    "data_fiduciary", "status", "is_valid"]:
             assert k in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. GDPR Manager
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGDPRManager:
 
     def _gdpr(self) -> GDPRManager:
@@ -852,11 +768,6 @@ class TestGDPRManager:
         d      = record.to_dict()
         for k in ["record_id", "user_id", "legal_basis", "is_active"]:
             assert k in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. WhatsAppMessage
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestWhatsAppMessage:
 
@@ -923,11 +834,6 @@ class TestWhatsAppMessage:
         assert msg is not None
         assert msg.text         == "Yes"
         assert msg.message_type == "interactive"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  17. WhatsAppChannel
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestWhatsAppChannel:
 
@@ -1011,11 +917,6 @@ class TestWhatsAppChannel:
         await channel.handle_webhook(payload("second message"))
         assert len(channel._sessions) == 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  18. Sector compliance — DPDP + GDPR across domains
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSectorCompliance:
 
     SECTORS = [
@@ -1041,7 +942,7 @@ class TestSectorCompliance:
         assert req.right == DataPrincipalRight.ERASE
 
         log = dpdp.audit_log(f"user_{sector}")
-        assert len(log) >= 2  
+        assert len(log) >= 2
 
     @pytest.mark.parametrize("sector,fiduciary,purpose", SECTORS)
     def test_gdpr_consent_cycle_all_sectors(self, sector, fiduciary, purpose):

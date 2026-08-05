@@ -20,7 +20,6 @@ from truenorth.agents.messages import AgentMessage, AgentResponse, AgentRole, Ta
 
 logger = logging.getLogger(__name__)
 
-
 class ValidationAgent(BaseAgent):
     """
     Validates extracted field values against the goal YAML schema.

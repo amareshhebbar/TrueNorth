@@ -46,29 +46,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  A2A Task states (mirrors the spec)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class A2ATaskState(str, Enum):
     SUBMITTED  = "submitted"
     WORKING    = "working"
     COMPLETED  = "completed"
     FAILED     = "failed"
     CANCELLED  = "cancelled"
-    INPUT_REQUIRED = "input-required"   
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  A2A data types
-# ─────────────────────────────────────────────────────────────────────────────
+    INPUT_REQUIRED = "input-required"
 
 @dataclass
 class A2APart:
     """One part of a multi-part message (text, data, file)."""
-    type:     str          # "text" | "data" | "file"
-    content:  Any          # str | dict | bytes
+    type:     str
+    content:  Any
     mime_type: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -87,11 +77,10 @@ class A2APart:
     def data(cls, content: dict) -> "A2APart":
         return cls(type="data", content=content)
 
-
 @dataclass
 class A2AMessage:
     """A message in an A2A conversation."""
-    role:   str              # "user" | "agent"
+    role:   str
     parts:  List[A2APart]
 
     def to_dict(self) -> dict:
@@ -114,14 +103,13 @@ class A2AMessage:
             str(p.content) for p in self.parts if p.type == "text"
         )
 
-
 @dataclass
 class A2ATask:
     """An A2A task — the unit of work between two agents."""
     id:           str
     state:        A2ATaskState
     messages:     List[A2AMessage] = field(default_factory=list)
-    artifacts:    List[dict]       = field(default_factory=list)  # outputs
+    artifacts:    List[dict]       = field(default_factory=list)
     metadata:     Dict[str, Any]   = field(default_factory=dict)
     session_id:   Optional[str]    = None
     created_at:   float            = field(default_factory=time.time)
@@ -150,7 +138,6 @@ class A2ATask:
             session_id= d.get("sessionId"),
         )
 
-
 @dataclass
 class AgentCard:
     """
@@ -159,11 +146,11 @@ class AgentCard:
     """
     name:         str
     description:  str
-    url:          str           # the agent's A2A endpoint
+    url:          str
     version:      str = "1.0.0"
     skills:       List[dict] = field(default_factory=list)
     capabilities: dict         = field(default_factory=dict)
-    auth:         Optional[dict] = None    # auth requirements
+    auth:         Optional[dict] = None
 
     def to_dict(self) -> dict:
         d = {
@@ -189,11 +176,6 @@ class AgentCard:
             capabilities = d.get("capabilities", {}),
             auth         = d.get("authentication"),
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  A2ATaskBridge — converts TrueNorth ↔ A2A formats
-# ─────────────────────────────────────────────────────────────────────────────
 
 class A2ATaskBridge:
     """
@@ -250,7 +232,7 @@ class A2ATaskBridge:
             agent_id   = "a2a_external",
             status     = status,
             result     = result,
-            confidence = 0.85,   
+            confidence = 0.85,
             error      = task.error,
             metadata   = task.metadata,
         )
@@ -264,11 +246,6 @@ class A2ATaskBridge:
             messages   = [A2AMessage(role="user", parts=[A2APart.text(task_text)])],
             session_id = session_id or str(uuid.uuid4())[:8],
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  A2AClient — calls external A2A agents
-# ─────────────────────────────────────────────────────────────────────────────
 
 class A2AClient:
     """
@@ -299,10 +276,6 @@ class A2AClient:
         if api_key:
             self._headers["Authorization"] = f"Bearer {api_key}"
         self._client        = None
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     async def get_agent_card(self) -> Optional[AgentCard]:
         """Fetch the agent's capability descriptor."""
@@ -377,10 +350,6 @@ class A2AClient:
             logger.warning("a2a: get_task failed: %s", e)
             return None
 
-    # ------------------------------------------------------------------
-    # Internal transport
-    # ------------------------------------------------------------------
-
     async def _send_and_poll(self, task: A2ATask) -> A2ATask:
         """Submit a task then poll until it reaches a terminal state."""
         client = self._get_client()
@@ -400,7 +369,6 @@ class A2AClient:
                 messages=task.messages, error=str(e),
             )
 
-        # Poll until terminal
         terminal = {A2ATaskState.COMPLETED, A2ATaskState.FAILED, A2ATaskState.CANCELLED}
         for _ in range(self._max_polls):
             if current.state in terminal:
@@ -432,7 +400,7 @@ class A2AClient:
                         ev_data = json.loads(line[5:].strip())
                         result  = ev_data.get("result", {})
                         state   = A2ATaskState(result.get("state", "working"))
-                        # Collect any new messages/artifacts
+
                         for m in result.get("messages", []):
                             messages.append(A2AMessage.from_dict(m))
                         final_state = state
@@ -474,11 +442,6 @@ class A2AClient:
             "params":  params,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  A2AServer — exposes TrueNorth agents as an A2A endpoint
-# ─────────────────────────────────────────────────────────────────────────────
-
 class A2AServer:
     """
     Wraps a TrueNorth BaseAgent and exposes it as an A2A-compliant HTTP endpoint.
@@ -493,17 +456,12 @@ class A2AServer:
         self._card   = card or self._default_card(agent)
         self._tasks: Dict[str, A2ATask] = {}
 
-    # ------------------------------------------------------------------
-    # Core handlers (framework-agnostic)
-    # ------------------------------------------------------------------
-
     async def handle_send(self, task_dict: dict) -> dict:
         """Handle tasks/send — run the agent and return the completed task."""
         task = A2ATask.from_dict(task_dict)
         task.state = A2ATaskState.WORKING
         self._tasks[task.id] = task
 
-        # Convert to TrueNorth AgentMessage
         from truenorth.agents.messages import AgentMessage
         text    = " ".join(m.text_content() for m in task.messages if m.role == "user")
         payload = {}
@@ -561,10 +519,6 @@ class A2AServer:
         """Return the AgentCard as a dict (for /.well-known/agent.json)."""
         return self._card.to_dict()
 
-    # ------------------------------------------------------------------
-    # FastAPI integration
-    # ------------------------------------------------------------------
-
     def fastapi_router(self):
         """
         Return a FastAPI APIRouter that exposes this agent as an A2A endpoint.
@@ -602,10 +556,6 @@ class A2AServer:
             return JSONResponse(result)
 
         return router
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _default_card(agent: "BaseAgent") -> AgentCard:

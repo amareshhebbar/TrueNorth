@@ -36,11 +36,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Agent metrics
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class AgentMetrics:
     agent_id:       str
@@ -78,11 +73,6 @@ class AgentMetrics:
             "avg_latency_ms": round(self.avg_latency_ms),
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  BaseAgent
-# ─────────────────────────────────────────────────────────────────────────────
-
 class BaseAgent(ABC):
     """
     Abstract base for all TrueNorth specialist agents.
@@ -112,9 +102,8 @@ class BaseAgent(ABC):
 
     agent_id:     str      = "base_agent"
     role:         AgentRole = AgentRole.CUSTOM
-    capabilities: Set[str] = set()   
+    capabilities: Set[str] = set()
 
-    # Optional overrides
     max_retries:  int   = 2
     default_timeout_s: float = 30.0
 
@@ -128,20 +117,12 @@ class BaseAgent(ABC):
         self._metrics = AgentMetrics(agent_id=self.agent_id)
         self._ready   = True
 
-    # ------------------------------------------------------------------
-    # Abstract interface — subclasses MUST implement
-    # ------------------------------------------------------------------
-
     @abstractmethod
     async def handle(self, message: AgentMessage) -> AgentResponse:
         """
         Process an AgentMessage and return an AgentResponse.
         This is the main work method. Keep it focused.
         """
-
-    # ------------------------------------------------------------------
-    # Routing interface — subclasses MAY override
-    # ------------------------------------------------------------------
 
     def can_handle(self, message: AgentMessage) -> bool:
         """
@@ -153,10 +134,6 @@ class BaseAgent(ABC):
             return True
         task_lower = message.task.lower()
         return any(cap in task_lower for cap in self.capabilities)
-
-    # ------------------------------------------------------------------
-    # Lifecycle — call execute() from Orchestrator (not handle() directly)
-    # ------------------------------------------------------------------
 
     async def execute(self, message: AgentMessage) -> AgentResponse:
         """
@@ -213,12 +190,7 @@ class BaseAgent(ABC):
                 self._metrics.record(TaskStatus.FAILED, latency)
                 return self._error_response(message, e)
 
-        # Should not reach here
         return self._error_response(message, RuntimeError("max retries exceeded"))
-
-    # ------------------------------------------------------------------
-    # Health
-    # ------------------------------------------------------------------
 
     def is_ready(self) -> bool:
         return self._ready
@@ -230,10 +202,6 @@ class BaseAgent(ABC):
             "ready":      self._ready,
             "metrics":    self._metrics.to_dict(),
         }
-
-    # ------------------------------------------------------------------
-    # Response factories
-    # ------------------------------------------------------------------
 
     @staticmethod
     def ok(message: AgentMessage, result: Any, confidence: float = 1.0) -> AgentResponse:

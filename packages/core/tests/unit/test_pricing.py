@@ -33,13 +33,8 @@ from truenorth.llm.pricing import (
     list_models,
     cheapest_for_task,
 )
-# from truenorth.cli.main import cli
+
 from cli.main import cli
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Pricing table correctness
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestPricingTable:
 
@@ -99,14 +94,9 @@ class TestPricingTable:
         assert all(isinstance(v, float) for v in FALLBACK)
 
     def test_fallback_is_nonzero(self):
-        # Conservative estimate — should not be zero
+
         assert FALLBACK[0] > 0
         assert FALLBACK[1] > 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Free/local models always $0.00
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFreeModels:
 
@@ -118,7 +108,7 @@ class TestFreeModels:
         assert cost_usd(model, 100_000, 100_000) == 0.0, f"{model} should be free"
 
     def test_ollama_with_colon_prefix_free(self):
-        # "ollama:llama3.1" format
+
         assert cost_usd("ollama:llama3.1", 10_000, 10_000) == 0.0
 
     def test_mobile_prefix_free(self):
@@ -128,34 +118,24 @@ class TestFreeModels:
     def test_empty_model_zero_cost(self):
         assert cost_usd("", 1000, 1000) == 0.0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Fallback pricing for unknown models
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFallbackPricing:
 
     def test_unknown_model_uses_fallback(self):
         cost = cost_usd("completely-unknown-model-xyz", 1_000_000, 0)
-        expected = FALLBACK[0]   # $1.00/M input
+        expected = FALLBACK[0]
         assert cost == pytest.approx(expected, abs=0.01)
 
     def test_fallback_more_expensive_than_cheapest_real(self):
-        # Fallback should be more expensive than Gemini Flash (conservative)
+
         fallback_cost = cost_usd("mystery-model", 1_000_000, 0)
         flash_cost    = cost_usd("gemini-3.5-flash", 1_000_000, 0)
         assert fallback_cost > flash_cost
 
     def test_fallback_less_than_most_expensive(self):
-        # Fallback should be cheaper than Claude Opus (not crazy high)
+
         fallback_cost = cost_usd("mystery-model", 1_000_000, 0)
         opus_cost     = cost_usd("claude-opus-4-20250514", 1_000_000, 0)
         assert fallback_cost < opus_cost
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Helper functions
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestHelperFunctions:
 
@@ -208,7 +188,7 @@ class TestHelperFunctions:
 
     def test_list_models_free_flagged(self):
         models = list_models(provider="local")
-        # All local models should be free
+
         for m in models:
             if m["provider"] == "local":
                 assert m["free"] is True
@@ -217,18 +197,13 @@ class TestHelperFunctions:
         model = cheapest_for_task("extract", exclude_local=True)
         assert model is not None
         pin, _ = get_model_price(model)
-        assert pin < 1.0   # cheaper than $1/M
+        assert pin < 1.0
 
     def test_cheapest_for_task_output(self):
         model = cheapest_for_task("output", exclude_local=True)
         assert model is not None
         pin, _ = get_model_price(model)
-        assert pin >= 1.0   # output needs quality tier
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. cost_usd function correctness
-# ─────────────────────────────────────────────────────────────────────────────
+        assert pin >= 1.0
 
 class TestCostUsd:
 
@@ -247,14 +222,14 @@ class TestCostUsd:
 
     def test_gemini_flash_tiny_call(self):
         cost = cost_usd("gemini-3.5-flash", 150, 80)
-        assert 0 < cost < 0.001   # very cheap
+        assert 0 < cost < 0.001
 
     def test_zero_tokens_zero_cost(self):
         for model in ["claude-haiku-4-5-20251001", "gpt-4o", "gemini-3.5-flash"]:
             assert cost_usd(model, 0, 0) == 0.0
 
     def test_pricing_ordered_correctly(self):
-        # Gemini Flash should be cheaper than Claude Haiku
+
         flash = cost_usd("gemini-3.5-flash",          1_000, 500)
         haiku = cost_usd("claude-haiku-4-5-20251001", 1_000, 500)
         assert flash < haiku
@@ -269,11 +244,6 @@ class TestCostUsd:
         o = cost_usd("claude-opus-4-20250514",    1_000, 500)
         assert s < o
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. CLI — truenorth cost
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCliCost:
 
     def test_cost_no_args_shows_error(self):
@@ -284,7 +254,7 @@ class TestCliCost:
     def test_cost_session_table_output(self):
         runner = CliRunner()
         result = runner.invoke(cli, ["cost", "--session", "test-sess-123"])
-        # Should not crash
+
         assert result.exit_code == 0
 
     def test_cost_session_json_output(self):
@@ -299,7 +269,7 @@ class TestCliCost:
         runner = CliRunner()
         result = runner.invoke(cli, ["cost", "--session", "no-calls-sess", "--format", "csv"])
         assert result.exit_code == 0
-        # Empty session → empty CSV is ok
+
         assert isinstance(result.output, str)
 
     def test_cost_with_real_data_json(self):
@@ -311,8 +281,6 @@ class TestCliCost:
         ct.record("cli-test-sess", "gemini-3.5-flash", "converse",
                   150, 80, goal_id="fitness_plan")
 
-        # CLI reads its own CostTracker — it won't have our data unless we
-        # mock it. Just verify the CLI runs without crashing.
         runner = CliRunner()
         result = runner.invoke(cli, ["cost", "--session", "cli-test-sess", "--format", "json"])
         assert result.exit_code == 0
@@ -326,11 +294,6 @@ class TestCliCost:
         runner = CliRunner()
         result = runner.invoke(cli, ["cost", "--session", "s1", "--top", "3"])
         assert result.exit_code == 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. CLI — truenorth pricing
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCliPricing:
 
@@ -390,11 +353,6 @@ class TestCliPricing:
         result = runner.invoke(cli, ["pricing", "--provider", "nonexistent"])
         assert result.exit_code != 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. CLI — truenorth estimate
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCliEstimate:
 
     def test_estimate_claude_haiku(self):
@@ -448,11 +406,6 @@ class TestCliEstimate:
         assert result.exit_code == 0
         assert "$" in result.output
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. CLI — truenorth version
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCliVersion:
 
     def test_version_outputs_version_string(self):
@@ -465,7 +418,7 @@ class TestCliVersion:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0." in result.output   # version number format
+        assert "0." in result.output
 
     def test_help_flag_works(self):
         runner = CliRunner()
@@ -474,11 +427,6 @@ class TestCliVersion:
         assert "cost"     in result.output
         assert "pricing"  in result.output
         assert "estimate" in result.output
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Cross-module consistency
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCrossModuleConsistency:
 
@@ -518,5 +466,5 @@ class TestCrossModuleConsistency:
         """Every model in PROVIDERS should be in PRICING (or vice versa)."""
         all_provider_models = {m for models in PROVIDERS.values() for m in models}
         for model in all_provider_models:
-            # Some models may not be in PRICING (aliases), that's ok.
+
             assert isinstance(model, str) and len(model) > 0

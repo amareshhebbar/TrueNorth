@@ -1,31 +1,4 @@
-/**
- * truenorth-rn — TrueNorth SDK for React Native & Expo
- *
- * Works in: Expo (SDK 49+) · React Native 0.71+ · Expo Go · EAS Build · Expo Web
- *
- * Install:
- *   npx expo install truenorth-rn
- *
- * Usage:
- *   import { useTrueNorthSession } from 'truenorth-rn'
- *
- *   function IntakeScreen() {
- *     const { agentText, send, isComplete, output, isLoading } =
- *       useTrueNorthSession('fitness-coach', { apiKey, baseUrl })
- *
- *     if (isComplete) return <OutputView output={output} />
- *     return (
- *       <View>
- *         <Text>{agentText}</Text>
- *         <TextInput onSubmitEditing={e => send(e.nativeEvent.text)} />
- *       </View>
- *     )
- *   }
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Session {
   id: string; goalId: string; status: 'active' | 'complete' | 'error'
@@ -63,8 +36,6 @@ export class TrueNorthError extends Error {
   }
 }
 
-// ─── HTTP helpers ─────────────────────────────────────────────────────────────
-
 async function apiRequest<T>(
   config: Required<Config>,
   method: string,
@@ -99,7 +70,6 @@ function resolved(c: Config): Required<Config> {
   return { baseUrl: 'http://localhost:8000', timeout: 60_000, ...c }
 }
 
-// Raw API types
 interface RawSession { session_id: string; goal_id: string; status: string; current_turn?: number; turn?: number; completion_pct: number; collected_fields?: Record<string, unknown>; missing_required?: string[]; total_cost_usd?: number; is_complete?: boolean; agent_message?: string }
 interface RawMsg { session_id: string; turn: number; text: string; is_complete: boolean; completion_pct: number; cost_usd: number; latency_ms: number; output?: RawOutput | null }
 interface RawOutput { session_id: string; goal_id?: string; format?: string; content?: unknown; fields?: Record<string, unknown>; metadata?: Record<string, unknown>; generated_at?: number }
@@ -110,8 +80,6 @@ function mapSess(r: RawSession): Session {
 function mapMsg(r: RawMsg): MessageResult {
   return { sessionId: r.session_id, turn: r.turn, text: r.text ?? '', isComplete: r.is_complete, completionPct: r.completion_pct, costUsd: r.cost_usd, latencyMs: r.latency_ms, output: r.output ? { sessionId: r.session_id, goalId: r.output.goal_id ?? '', format: r.output.format ?? 'json', content: r.output.content, fields: r.output.fields ?? {}, metadata: r.output.metadata ?? {}, generatedAt: r.output.generated_at ?? 0 } : null }
 }
-
-// ─── useTrueNorthSession ──────────────────────────────────────────────────────
 
 export interface UseSessionReturn {
   agentText:       string
@@ -135,20 +103,6 @@ export interface UseSessionOptions extends Config {
   onError?:     (err: Error) => void
 }
 
-/**
- * The primary React Native / Expo hook for TrueNorth conversations.
- *
- * @param goalId  - The goal to run (e.g. 'fitness-coach', 'medical-intake')
- * @param options - Config + callbacks
- *
- * @example
- * const { agentText, send, isComplete, output, isLoading, error } =
- *   useTrueNorthSession('fitness-coach', {
- *     apiKey:  Constants.expoConfig.extra.tnApiKey,
- *     baseUrl: 'https://api.myapp.com',
- *     onComplete: output => router.push('/results'),
- *   })
- */
 export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): UseSessionReturn {
   const config = resolved(opts)
   const [sessionId,       setSessionId]       = useState<string | null>(null)
@@ -181,7 +135,7 @@ export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): Us
       if (!cancelled) { setError(e as Error); onErrorRef.current?.(e as Error) }
     }).finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
-  }, [goalId, resetKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [goalId, resetKey])
 
   const send = useCallback(async (text: string) => {
     if (!sessionId || isLoading || isComplete) return
@@ -204,7 +158,7 @@ export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): Us
     } finally {
       setIsLoading(false)
     }
-  }, [sessionId, isLoading, isComplete, config]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId, isLoading, isComplete, config])
 
   const restart = useCallback(() => {
     setSessionId(null); setAgentText(''); setIsComplete(false)
@@ -216,9 +170,6 @@ export function useTrueNorthSession(goalId: string, opts: UseSessionOptions): Us
   return { agentText, send, isComplete, output, collectedFields, completionPct, isLoading, error, sessionId, totalCostUsd, restart }
 }
 
-/**
- * Bare client for use outside React components (background tasks, push notifications).
- */
 export class TrueNorthClient {
   private readonly config: Required<Config>
   constructor(config: Config) { this.config = resolved(config) }

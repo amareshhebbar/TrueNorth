@@ -22,22 +22,12 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Session status enum
-# ---------------------------------------------------------------------------
-
 class SessionStatus:
     ACTIVE    = "active"
-    PAUSED    = "paused"       # user left mid-conversation
-    COMPLETE  = "complete"     # output generated
-    FAILED    = "failed"       # unrecoverable error
-    EXPIRED   = "expired"      # TTL exceeded
-
-
-# ---------------------------------------------------------------------------
-# Lightweight session envelope (wraps GraphState for storage purposes)
-# ---------------------------------------------------------------------------
+    PAUSED    = "paused"
+    COMPLETE  = "complete"
+    FAILED    = "failed"
+    EXPIRED   = "expired"
 
 class SessionEnvelope:
     """
@@ -62,8 +52,8 @@ class SessionEnvelope:
         self.user_id     = user_id
         self.tenant_id   = tenant_id
         self.status      = status
-        self.state_data  = state_data   
-        self.metadata    = metadata    
+        self.state_data  = state_data
+        self.metadata    = metadata
         self.created_at  = created_at
         self.updated_at  = updated_at
 
@@ -94,11 +84,6 @@ class SessionEnvelope:
             updated_at  = datetime.fromisoformat(data["updated_at"]),
         )
 
-
-# ---------------------------------------------------------------------------
-# SessionManager
-# ---------------------------------------------------------------------------
-
 class SessionManager:
     """
     Async session manager. Requires Postgres and (optionally) Redis.
@@ -111,8 +96,8 @@ class SessionManager:
         await sm.complete(session_id, output={"report": "..."})
     """
 
-    REDIS_TTL: int = 3600         
-    RESUME_WINDOW: int = 86400 * 7  
+    REDIS_TTL: int = 3600
+    RESUME_WINDOW: int = 86400 * 7
 
     def __init__(
         self,
@@ -123,12 +108,8 @@ class SessionManager:
         self._pg    = postgres
         self._redis = redis
         self._cfg   = config or {}
-        # In-memory fallback when no storage is configured (useful for dry-run / tests)
-        self._mem_store: dict[str, dict] = {}
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        self._mem_store: dict[str, dict] = {}
 
     async def create(
         self,
@@ -163,19 +144,17 @@ class SessionManager:
         Load session state data. Returns state_data dict or None if not found.
         Checks Redis cache first, then Postgres.
         """
-        # 1. Redis cache
+
         cached = await self._redis_get(session_id)
         if cached:
             logger.debug("session=%s loaded from Redis cache", session_id)
             return cached.get("state_data", {})
 
-        # 2. Postgres
         envelope = await self._pg_get(session_id)
         if envelope is None:
             logger.warning("session=%s not found", session_id)
             return None
 
-        # Warm Redis cache
         await self._redis_set(envelope)
         return envelope.state_data
 
@@ -243,7 +222,7 @@ class SessionManager:
     async def get_status(self, session_id: str) -> Optional[str]:
         envelope = await self._get_envelope(session_id)
         return envelope.status if envelope else None
-    
+
     async def list_sessions(
         self,
         user_id:   Optional[str] = None,
@@ -282,15 +261,11 @@ class SessionManager:
             except Exception as e:
                 logger.error("session=%s delete failed: %s", session_id, e)
                 return False
-        # In-memory fallback
+
         if session_id in self._mem_store:
             del self._mem_store[session_id]
             return True
         return False
-
-    # ------------------------------------------------------------------
-    # Storage helpers — Redis
-    # ------------------------------------------------------------------
 
     async def _redis_get(self, session_id: str) -> Optional[dict]:
         if not self._redis:
@@ -322,13 +297,9 @@ class SessionManager:
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # Storage helpers — Postgres
-    # ------------------------------------------------------------------
-
     async def _pg_get(self, session_id: str) -> Optional[SessionEnvelope]:
         if not self._pg:
-            # In-memory fallback
+
             data = self._mem_store.get(session_id)
             return SessionEnvelope.from_dict(data) if data else None
         try:
@@ -403,10 +374,6 @@ class SessionManager:
         except Exception as e:
             logger.error("Postgres list failed: %s", e)
             return []
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     async def _get_envelope(self, session_id: str) -> Optional[SessionEnvelope]:
         cached = await self._redis_get(session_id)

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from truenorth.marketplace.goal_registry import GoalRegistry
 
 router = APIRouter()
-registry = GoalRegistry()  # Initializes with official curated goals
+registry = GoalRegistry()
 
 @router.get("")
 async def list_goals(sector: str | None = Query(default=None)):

@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import redis.asyncio as aioredis
 
-
 class RedisStore:
     def __init__(self, redis_url: str):
         self.client = aioredis.from_url(redis_url, decode_responses=True)

@@ -47,17 +47,11 @@ from truenorth.agents.messages import (
 )
 from truenorth.agents.base import BaseAgent
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _msg(task: str = "test task", payload: dict = None) -> AgentMessage:
     return AgentMessage.create(
         sender="orch", recipient="agent", task=task,
         payload=payload or {}, session_id="test-sess", turn=1,
     )
-
 
 class _EchoAgent(BaseAgent):
     agent_id     = "echo_agent"
@@ -66,7 +60,6 @@ class _EchoAgent(BaseAgent):
 
     async def handle(self, message):
         return self.ok(message, {"echo": message.task}, confidence=0.90)
-
 
 def _make_a2a_task(
     state: A2ATaskState = A2ATaskState.SUBMITTED,
@@ -78,7 +71,6 @@ def _make_a2a_task(
         messages = [A2AMessage(role="user", parts=[A2APart.text(text)])],
     )
 
-
 COLLECTED_FITNESS = {
     "name":          "Priya",
     "age":           28,
@@ -89,11 +81,6 @@ COLLECTED_FITNESS = {
 }
 
 CONFIDENCES_FITNESS = {k: 0.90 for k in COLLECTED_FITNESS}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. A2A data types
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestA2ADataTypes:
 
@@ -180,11 +167,6 @@ class TestA2ADataTypes:
         assert card.name    == "A"
         assert card.version == "2.0"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. A2ATaskBridge
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestA2ATaskBridge:
 
     def test_agent_message_to_a2a(self):
@@ -222,11 +204,6 @@ class TestA2ATaskBridge:
         assert task.session_id == "sess-1"
         assert task.state      == A2ATaskState.SUBMITTED
         assert "BMI" in task.messages[0].text_content()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. A2AClient — mock HTTP
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestA2AClientParsing:
 
@@ -331,11 +308,6 @@ class TestA2AClientParsing:
         card = await client.get_agent_card()
         assert card is None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. A2AServer — handle_send, handle_get, handle_cancel
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestA2AServerHandlers:
 
     @pytest.mark.asyncio
@@ -390,11 +362,6 @@ class TestA2AServerHandlers:
         assert card["name"] == "echo_agent"
         assert "skills"     in card
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. A2AServer — AgentCard from BaseAgent
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestA2AServerCard:
 
     def test_default_card_has_name(self):
@@ -410,11 +377,6 @@ class TestA2AServerCard:
         custom = AgentCard(name="Custom", description="d", url="http://x.com")
         server = A2AServer(agent=agent, card=custom)
         assert server.agent_card_dict()["name"] == "Custom"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. FieldMapping
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldMapping:
 
@@ -446,15 +408,10 @@ class TestFieldMapping:
     def test_transform_exception_returns_false(self):
         fm = FieldMapping(
             source_field="x", target_field="y",
-            transform=lambda v: 1 / v, 
+            transform=lambda v: 1 / v,
         )
         ok, _ = fm.apply(0)
         assert ok is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. FieldMap construction
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFieldMap:
 
@@ -495,13 +452,8 @@ class TestFieldMap:
         assert "age"       in names
         assert "weight_kg" in names
         assert "goal"      in names
-        assert "streak"    not in names   # not in target
-        assert "calories"  not in names   # not in source
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. StateTransfer — extract and seed
-# ─────────────────────────────────────────────────────────────────────────────
+        assert "streak"    not in names
+        assert "calories"  not in names
 
 class TestStateTransfer:
 
@@ -540,7 +492,7 @@ class TestStateTransfer:
 
     def test_low_confidence_skipped(self):
         source = self._source_state()
-        source["field_confidences"]["age"] = 0.30   # below threshold
+        source["field_confidences"]["age"] = 0.30
         transfer = StateTransfer(auto_infer=True, confidence_threshold=0.70)
         result   = transfer.extract(
             source_state           = source,
@@ -559,7 +511,7 @@ class TestStateTransfer:
             target_goal_id         = "nutrition_plan",
             target_required_fields = ["age", "calorie_goal", "meal_preference"],
         )
-        # calorie_goal and meal_preference not in source → missing
+
         assert "calorie_goal"   in result.missing_fields
         assert "meal_preference" in result.missing_fields
 
@@ -598,11 +550,6 @@ class TestStateTransfer:
                     "coverage_pct", "carried_fields"]:
             assert key in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. TransferResult
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTransferResult:
 
     def test_full_coverage(self):
@@ -632,11 +579,6 @@ class TestTransferResult:
         )
         assert r.coverage_pct == pytest.approx(50.0)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. GoalChain
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGoalChain:
 
     def test_next_returns_matching_step(self):
@@ -651,7 +593,7 @@ class TestGoalChain:
     def test_next_returns_else_step(self):
         chain = GoalChain([
             ChainStep("special_plan", condition={"vip": True}),
-            ChainStep("default_plan"),  # no condition = else
+            ChainStep("default_plan"),
         ])
         step = chain.next("start", {"vip": False})
         assert step is not None
@@ -700,11 +642,6 @@ class TestGoalChain:
         assert "age" in names
         assert names["weight_kg"] == "start_weight"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. ChainStep — condition_met
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestChainStep:
 
     def test_no_condition_always_true(self):
@@ -722,17 +659,12 @@ class TestChainStep:
 
     def test_condition_missing_field(self):
         step = ChainStep("x", condition={"goal": "lose weight"})
-        assert step.condition_met({}) is False   # field doesn't exist → no match
+        assert step.condition_met({}) is False
 
     def test_multi_condition_all_must_match(self):
         step = ChainStep("x", condition={"goal": "lose weight", "level": "beginner"})
         assert step.condition_met({"goal": "lose weight", "level": "beginner"}) is True
         assert step.condition_met({"goal": "lose weight", "level": "advanced"}) is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. StateAdapter
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestStateAdapter:
 
@@ -782,11 +714,6 @@ class TestStateAdapter:
         tn_seed = StateAdapter.langgraph_to_truenorth({"messages": []})
         assert tn_seed["collected_fields"] == {}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. TrueNorthNode
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTrueNorthNode:
 
     def _goal_config(self):
@@ -828,11 +755,6 @@ class TestTrueNorthNode:
         output = {"format": "json", "content": '{"age": 28}'}
         state  = {"truenorth": {"is_complete": True, "final_output": output}}
         assert node.get_final_output(state) == output
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. LangGraphAgent — mock compiled graph
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestLangGraphAgent:
 
@@ -887,11 +809,6 @@ class TestLangGraphAgent:
         assert h["agent_id"] == "my_lg"
         assert "ready"       in h
         assert "type"        in h
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. Sector agnosticism — state transfer across domains
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSectorTransfer:
 

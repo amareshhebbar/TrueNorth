@@ -38,11 +38,6 @@ from truenorth.sdk.client import (
     _SyncTransport, _AsyncTransport,
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Sample data
-# ─────────────────────────────────────────────────────────────────────────────
-
 SAMPLE_SESSION_DICT = {
     "session_id":       "sess-abc123",
     "goal_id":          "fitness-coach",
@@ -80,11 +75,6 @@ SAMPLE_OUTPUT_DICT = {
     "generated_at": time.time(),
 }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Session dataclass
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSessionDataclass:
 
     def test_from_dict_all_fields(self):
@@ -117,11 +107,6 @@ class TestSessionDataclass:
         assert s.current_turn   == 0
         assert s.is_complete    is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. MessageResult dataclass
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestMessageResult:
 
     def test_from_dict(self):
@@ -147,11 +132,6 @@ class TestMessageResult:
         assert r.emotion_detected is None
         assert r.fields_extracted == []
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Output dataclass
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestOutputDataclass:
 
     def test_from_dict(self):
@@ -161,11 +141,6 @@ class TestOutputDataclass:
         assert o.format     == "json"
         assert o.content    == {"plan": "3x weekly cardio", "target_weight": 60}
         assert o.fields["age"] == 28
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. TrueNorthError
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTrueNorthError:
 
@@ -180,11 +155,6 @@ class TestTrueNorthError:
         e = TrueNorthError(401, "unauthorized", "Bad key")
         with pytest.raises(TrueNorthError):
             raise e
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. SyncTransport
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSyncTransport:
 
@@ -201,11 +171,6 @@ class TestSyncTransport:
         t = _SyncTransport("http://x", "", 5.0)
         h = t._headers()
         assert "X-TrueNorth-Key" not in h
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. Sessions resource (sync, mocked transport)
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _mock_transport(responses: dict):
     """Build a mock _SyncTransport that returns preset responses."""
@@ -224,7 +189,6 @@ def _mock_transport(responses: dict):
     t.get    = MagicMock(side_effect=_get)
     t.delete = MagicMock(side_effect=_delete)
     return t
-
 
 class TestSessionsResource:
 
@@ -277,11 +241,6 @@ class TestSessionsResource:
         tn.sessions.end("sess-abc123")
         tn._transport.delete.assert_called_once_with("/sessions/sess-abc123")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Goals resource
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGoalsResource:
 
     def _tn(self) -> TrueNorth:
@@ -307,11 +266,6 @@ class TestGoalsResource:
     def test_get_goal(self):
         goal = self._tn().goals.get("fitness-coach")
         assert goal["name"] == "fitness-coach"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Analytics resource
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAnalyticsResource:
 
@@ -345,11 +299,6 @@ class TestAnalyticsResource:
         data = self._tn().analytics.cost_trend("fitness-coach", 30, "day")
         assert isinstance(data, list)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. TrueNorth client
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTrueNorthClient:
 
     def test_construct_with_api_key(self):
@@ -377,11 +326,6 @@ class TestTrueNorthClient:
         tn = TrueNorth(api_key="k")
         assert hasattr(tn, "analytics")
         assert hasattr(tn.analytics, "cost")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. AsyncTrueNorth
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAsyncClient:
 
@@ -432,15 +376,10 @@ class TestAsyncClient:
         assert isinstance(output, Output)
         assert output.format == "json"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. run_session / arun_session convenience helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRunSession:
 
     def test_run_session_returns_output(self):
-        # Mock the TrueNorth client
+
         complete_msg = dict(SAMPLE_MESSAGE_DICT)
         complete_msg["is_complete"] = True
 
@@ -471,11 +410,6 @@ class TestRunSession:
             output = await arun_session("fitness-coach", ["I am 28"])
         assert isinstance(output, Output)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. FastAPI health endpoint
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFastAPIHealth:
 
     def _client(self):
@@ -493,17 +427,12 @@ class TestFastAPIHealth:
     def test_ready_endpoint(self):
         client = self._client()
         resp   = client.get("/ready")
-        assert resp.status_code in (200, 503)  
+        assert resp.status_code in (200, 503)
 
     def test_version_in_health(self):
         client = self._client()
         resp   = client.get("/health")
         assert "version" in resp.json()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. FastAPI sessions routes
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFastAPISessions:
     """Session API route contract tests."""
@@ -511,8 +440,7 @@ class TestFastAPISessions:
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        # from truenorth.api.deps  import init_deps
-        # init_deps(goal_registry=GoalRegistry())
+
         return TestClient(app, raise_server_exceptions=False)
 
     def test_sessions_endpoint_responds(self):
@@ -543,17 +471,12 @@ class TestFastAPISessions:
                               json={"text": "hello"})
         assert resp.status_code == 404
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. FastAPI goals routes
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFastAPIGoals:
 
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        # from truenorth.api.deps  import init_deps
-        # init_deps(goal_registry=GoalRegistry())
+
         return TestClient(app)
 
     def test_list_goals_returns_200(self):
@@ -586,24 +509,19 @@ class TestFastAPIGoals:
         for g in resp.json():
             assert g["sector"] == "fitness"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. FastAPI analytics routes
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFastAPIAnalytics:
 
     def _client(self):
         from fastapi.testclient  import TestClient
         from truenorth.api.app   import app
-        # from truenorth.api.deps  import init_deps
+
         from truenorth.observability.cost_dashboard import CostDashboard
         from truenorth.observability.tracer         import TrueNorthTracer
         from truenorth.observability.health_monitor import HealthMonitor
         tracer = TrueNorthTracer()
         dash   = CostDashboard(tracer=tracer)
         mon    = HealthMonitor(tracer=tracer)
-        # init_deps(cost_dashboard=dash, health_monitor=mon, ab_registry=ABRegistry())
+
         return TestClient(app)
 
     def test_cost_summary(self):
@@ -629,11 +547,6 @@ class TestFastAPIAnalytics:
         resp   = client.get("/analytics/cost/models?goal=fitness-coach")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. SDK contract parity (Python ↔ Node ↔ Go shape)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSDKContractParity:
     """

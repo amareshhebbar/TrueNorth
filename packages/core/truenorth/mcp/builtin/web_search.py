@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 _DDG_URL  = "https://api.duckduckgo.com/"
 _USER_AGENT = "TrueNorth/0.1 (AI Agent Framework; +https://github.com/truenorth-ai/truenorth)"
 
-
 @register("web_search")
 async def web_search(query: str, limit: int = 5) -> Dict[str, Any]:
     """
@@ -37,7 +36,7 @@ async def web_search(query: str, limit: int = 5) -> Dict[str, Any]:
     Returns a dict with 'results' (list) and 'abstract' (str).
     """
     limit = max(1, min(limit, 10))
-    
+
     try:
         ddg_result = await _ddg_instant(query)
         if ddg_result["abstract"] or ddg_result["results"]:
@@ -53,7 +52,6 @@ async def web_search(query: str, limit: int = 5) -> Dict[str, Any]:
     except Exception as e:
         logger.debug("web_search: DDG scrape failed: %s", e)
 
-    # Final fallback: return empty (don't raise — tool errors break flow)
     logger.warning("web_search: all methods failed for query=%r", query[:80])
     return {
         "query":    query,
@@ -61,7 +59,6 @@ async def web_search(query: str, limit: int = 5) -> Dict[str, Any]:
         "abstract": "",
         "error":    "Search unavailable — check network connectivity",
     }
-
 
 async def _ddg_instant(query: str) -> Dict[str, Any]:
     """DuckDuckGo Instant Answer API — returns structured data."""
@@ -105,7 +102,6 @@ async def _ddg_instant(query: str) -> Dict[str, Any]:
         "results":  related,
     }
 
-
 async def _ddg_scrape(query: str, limit: int) -> List[Dict[str, str]]:
     """
     Lightweight DuckDuckGo HTML scrape.
@@ -145,7 +141,6 @@ async def _ddg_scrape(query: str, limit: int) -> List[Dict[str, str]]:
         })
 
     return results
-
 
 def _clean(text: str) -> str:
     """Strip HTML entities and extra whitespace."""

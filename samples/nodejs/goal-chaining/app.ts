@@ -1,93 +1,8 @@
-/**
- * goal-chaining (Node.js / TypeScript) — Goal Chaining Demo
- * ===========================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────
- * Shows how TrueNorth chains goals together in TypeScript.
- *
- *   Goal 1: Fitness Intake  → collects name, age, weight, goal, activity
- *        ↓  primary_goal="lose weight" → auto-chain
- *   Goal 2: Nutrition Plan  → fields PRE-FILLED from Goal 1
- *        ↓  user only answers NEW fields — zero re-asking
- *   FINAL:  Combined fitness + nutrition JSON output
- *
- * This is the TypeScript equivalent of goal-chaining/app.py.
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────
- *   goal-chaining/
- *   ├── app.ts     ← this file (no goal.yaml — inline config)
- *   ├── package.json
- *   └── tsconfig.json
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────
- *   {
- *     "scripts": {
- *       "dev":           "ts-node app.ts",
- *       "demo:chain":    "DEMO=chain ts-node app.ts",
- *       "demo:transfer": "DEMO=transfer ts-node app.ts",
- *       "demo:config":   "DEMO=config ts-node app.ts"
- *     },
- *     "devDependencies": {
- *       "@types/node": "^20.0.0",
- *       "ts-node": "^10.9.0",
- *       "typescript": "^5.3.0"
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *   cd samples/nodejs/goal-chaining && npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   npx ts-node app.ts                      ← all 3 demos
- *   DEMO=chain    npx ts-node app.ts         ← auto chain only
- *   DEMO=transfer npx ts-node app.ts         ← manual state transfer
- *   DEMO=config   npx ts-node app.ts         ← routing table
- *
- * WHAT YOU SEE
- * ──────────────────────────────────────────────────────────────
- *   ══ GOAL 1: Fitness Intake ══
- *   Agent: What is your name?
- *   User:  Priya Sharma
- *   ...
- *   ✅ Fitness intake complete!
- *
- *   ══ CHAIN DETECTION ══
- *   primary_goal: "lose weight"
- *   → Routes to: nutrition_plan
- *   → Carrying:  name, age, weight_kg, height_cm, activity_level, days_per_week
- *
- *   ══ STATE TRANSFER ══
- *   name          → name          = Priya Sharma
- *   age           → age           = 28
- *   weight_kg     → weight_kg     = 65
- *   ...
- *   Coverage: 55% (5 of 9 nutrition fields pre-filled)
- *
- *   ══ GOAL 2: Nutrition Plan (pre-filled — not re-asked) ══
- *   Agent: Any food allergies?   ← first question (skips name/age/weight)
- *   User:  Lactose intolerant
- *   ...
- *   ✅ COMBINED OUTPUT: { bmi: 24.8, daily_calories: 1650, ... }
- */
-
-// import { TrueNorth, Session, MessageResult } from '../../../packages/sdk-node'
-
 import { TrueNorth, Session, MessageResult } from "../../../packages/sdk-node";
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const TN_URL = process.env.TRUENORTH_BASE_URL ?? "http://localhost:8000";
 const TN_KEY = process.env.TRUENORTH_API_KEY ?? "";
 const DEMO = (process.env.DEMO ?? "all").toLowerCase();
-
-// ── ANSI ──────────────────────────────────────────────────────────────────────
 
 const R = "\x1b[0m";
 const B = "\x1b[1m";
@@ -98,8 +13,6 @@ const YLW = "\x1b[33m";
 
 const col = (s: string, ...codes: string[]) => codes.join("") + s + R;
 const div = (t: string) => console.log(`\n${col("══ " + t + " ══", B, CYN)}\n`);
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ChainStep {
   if?: Record<string, string>;
@@ -116,8 +29,6 @@ interface GoalConfig {
   output: Record<string, unknown>;
   chain?: { on_complete: ChainStep[] };
 }
-
-// ── Inline goal configs (no YAML files needed) ────────────────────────────────
 
 const FITNESS_GOAL: GoalConfig = {
   id: "fitness_plan",
@@ -205,7 +116,7 @@ const NUTRITION_GOAL: GoalConfig = {
   name: "Nutrition Plan",
   persona: { name: "Alex", tone: "helpful and encouraging", language: "en" },
   fields: [
-    // name, age, weight_kg, height_cm, activity_level → pre-filled from fitness
+
     {
       name: "food_allergies",
       type: "text",
@@ -255,8 +166,6 @@ const NUTRITION_GOAL: GoalConfig = {
   },
 };
 
-// ── Demo turns ────────────────────────────────────────────────────────────────
-
 const FITNESS_TURNS = [
   "Priya Sharma",
   "28",
@@ -267,8 +176,6 @@ const FITNESS_TURNS = [
   "4",
 ];
 const NUTRITION_TURNS = ["lactose intolerant", "vegetarian", "3", "30", "300"];
-
-// ── Chain detection ───────────────────────────────────────────────────────────
 
 function detectChain(
   goal: GoalConfig,
@@ -303,7 +210,6 @@ function transferFields(
   return out;
 }
 
-// ── DEMO 1: Auto chaining ─────────────────────────────────────────────────────
 async function demo1AutoChain(tn: TrueNorth): Promise<void> {
   div('GOAL 1: Fitness Intake')
 
@@ -327,14 +233,12 @@ async function demo1AutoChain(tn: TrueNorth): Promise<void> {
     if (result.isComplete) break
   }
 
-  // ✅ FIX: get collectedFields from session, not from MessageResult
   const completedFitness = await tn.sessions.get(fitSid)
   const collectedFields  = completedFitness.collectedFields as Record<string, unknown>
 
   console.log(col('  ✅ Fitness intake complete!\n', GRN, B))
   await tn.sessions.end(fitSid).catch(() => {})
 
-  // ── Chain detection ──────────────────────────────────────────────────────
   div('CHAIN DETECTION')
 
   const chain = detectChain(FITNESS_GOAL, collectedFields)
@@ -348,7 +252,6 @@ async function demo1AutoChain(tn: TrueNorth): Promise<void> {
   console.log(`  → Routes to: ${col(chain.nextGoalId, GRN, B)}`)
   console.log(`  → Carrying:  ${chain.carry.join(', ')}`)
 
-  // ── State transfer ───────────────────────────────────────────────────────
   div('STATE TRANSFER')
 
   const carried  = transferFields(collectedFields, chain.carry)
@@ -366,10 +269,8 @@ async function demo1AutoChain(tn: TrueNorth): Promise<void> {
   console.log(`\n  Coverage: ${col(coverage + '%', GRN, B)} `+
     `(${Object.keys(carried).length} of ${required.length} nutrition fields pre-filled)`)
 
-  // ── Goal 2: Nutrition ────────────────────────────────────────────────────
   div('GOAL 2: Nutrition Plan (pre-filled — not re-asked)')
 
-  // ✅ FIX: removed goals.register — goal must be pre-loaded on server
   const nutSid = `chain_nutrition_${Date.now()}`
 
   console.log('  Pre-filled (not asked again):')
@@ -426,8 +327,6 @@ function showEstimatedChain(): void {
   );
 }
 
-// ── DEMO 2: Manual state transfer ────────────────────────────────────────────
-
 function demo2ManualTransfer(): void {
   div("MANUAL STATE TRANSFER — Code-level control");
   console.log("  Scenario: Medical intake → Lab test form");
@@ -443,13 +342,12 @@ function demo2ManualTransfer(): void {
     medications: "metformin 500mg",
   };
 
-  // Field map: [source, target]
   const fieldMap: Array<[string, string]> = [
     ["patient_name", "patient_name"],
     ["date_of_birth", "dob"],
     ["blood_group", "blood_group"],
     ["known_allergies", "allergies"],
-    ["chief_complaint", "reason_for_test"], // renamed
+    ["chief_complaint", "reason_for_test"],
   ];
 
   console.log(
@@ -471,8 +369,6 @@ function demo2ManualTransfer(): void {
   console.log(`\n  Carried ${Object.keys(carried).length} fields`);
   console.log(`  Coverage: 5 of 6 required lab test fields pre-filled\n`);
 }
-
-// ── DEMO 3: Chain config routing table ───────────────────────────────────────
 
 function demo3ChainConfig(): void {
   div("GOAL CHAIN CONFIG — Routing table");
@@ -500,8 +396,6 @@ function demo3ChainConfig(): void {
   });
   console.log();
 }
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log();

@@ -29,12 +29,11 @@ from truenorth.mcp.types import Tool, ToolResult, ToolResultStatus
 
 logger = logging.getLogger(__name__)
 
-# JSON-RPC 2.0 version
 _JSONRPC = "2.0"
 
-_CONNECT_TIMEOUT   = 10.0   # seconds
-_CALL_TIMEOUT      = 30.0   # seconds for tool execution
-_INIT_TIMEOUT      = 15.0   # seconds for handshake
+_CONNECT_TIMEOUT   = 10.0
+_CALL_TIMEOUT      = 30.0
+_INIT_TIMEOUT      = 15.0
 
 _CLIENT_INFO = {
     "name":    "truenorth",
@@ -44,11 +43,6 @@ _CLIENT_CAPABILITIES = {
     "roots":   {"listChanged": False},
     "sampling": {},
 }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Data classes
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class MCPTool:
@@ -66,7 +60,6 @@ class MCPTool:
             input_schema = self.input_schema,
         )
 
-
 @dataclass
 class MCPServerInfo:
     """Server info returned during initialize handshake."""
@@ -75,17 +68,11 @@ class MCPServerInfo:
     protocol_version: str
     capabilities:    Dict[str, Any] = field(default_factory=dict)
 
-
 class MCPError(Exception):
     """MCP protocol or transport error."""
     def __init__(self, message: str, code: int = -1):
         self.code = code
         super().__init__(f"MCP error {code}: {message}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Transport base
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _Transport:
     """Abstract transport layer for MCP communication."""
@@ -101,11 +88,6 @@ class _Transport:
 
     async def disconnect(self) -> None:
         raise NotImplementedError
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  stdio transport
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _StdioTransport(_Transport):
     """
@@ -156,11 +138,6 @@ class _StdioTransport(_Transport):
             raise MCPError("Server closed connection")
         return json.loads(line.decode().strip())
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  HTTP + SSE transport
-# ─────────────────────────────────────────────────────────────────────────────
-
 class _HttpTransport(_Transport):
     """
     Connects to a remote MCP server via HTTP.
@@ -173,7 +150,7 @@ class _HttpTransport(_Transport):
         self,
         url:     str,
         headers: Optional[Dict[str, str]] = None,
-        mode:    str = "auto",   # "auto" | "sse" | "rest"
+        mode:    str = "auto",
     ):
         self._url     = url.rstrip("/")
         self._headers = headers or {}
@@ -202,7 +179,6 @@ class _HttpTransport(_Transport):
         except ImportError:
             raise MCPError("httpx required for HTTP transport: pip install httpx")
 
-        # Detect mode
         if self._mode == "auto":
             self._mode = await self._detect_mode()
 
@@ -220,7 +196,7 @@ class _HttpTransport(_Transport):
         """POST a JSON-RPC message. For SSE mode, also start listener if needed."""
         resp = await self._client.post(self._url, json=message)
         resp.raise_for_status()
-        # For REST mode, parse and store the response for receive()
+
         if self._mode == "rest":
             msg_id = message.get("id")
             if msg_id and msg_id in self._pending:
@@ -256,11 +232,6 @@ class _HttpTransport(_Transport):
             pass
         return "rest"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MCPClient — main interface
-# ─────────────────────────────────────────────────────────────────────────────
-
 class MCPClient:
     """
     MCP protocol client.  Manages one connection to one MCP server.
@@ -286,10 +257,6 @@ class MCPClient:
         self._tools:      List[MCPTool] = []
         self._connected:  bool = False
         self._req_counter = 0
-
-    # ------------------------------------------------------------------
-    # Factories
-    # ------------------------------------------------------------------
 
     @classmethod
     def http(
@@ -349,10 +316,6 @@ class MCPClient:
 
         raise MCPError(f"MCP server config for '{name}' needs 'url' or 'command'")
 
-    # ------------------------------------------------------------------
-    # Connection lifecycle
-    # ------------------------------------------------------------------
-
     async def connect(self) -> MCPServerInfo:
         """Connect and perform MCP initialize handshake."""
         await self._transport.connect()
@@ -384,10 +347,6 @@ class MCPClient:
 
     async def __aexit__(self, *args) -> None:
         await self.disconnect()
-
-    # ------------------------------------------------------------------
-    # Tool operations
-    # ------------------------------------------------------------------
 
     async def list_tools(self) -> List[MCPTool]:
         """
@@ -479,7 +438,6 @@ class MCPClient:
 
         latency_ms = int((time.perf_counter() - t0) * 1000)
 
-        # Parse MCP tool result format
         content   = self._extract_content(resp)
         is_error  = resp.get("isError", False)
 
@@ -496,10 +454,6 @@ class MCPClient:
             error      = content if is_error and isinstance(content, str) else None,
             latency_ms = latency_ms,
         )
-
-    # ------------------------------------------------------------------
-    # Resource and prompt operations (optional MCP features)
-    # ------------------------------------------------------------------
 
     async def list_resources(self) -> List[dict]:
         """List data resources if the server supports them."""
@@ -529,10 +483,6 @@ class MCPClient:
         except MCPError:
             return []
 
-    # ------------------------------------------------------------------
-    # Properties
-    # ------------------------------------------------------------------
-
     @property
     def is_connected(self) -> bool:
         return self._connected
@@ -544,10 +494,6 @@ class MCPClient:
     @property
     def tool_names(self) -> List[str]:
         return [t.name for t in self._tools]
-
-    # ------------------------------------------------------------------
-    # Internal — JSON-RPC 2.0
-    # ------------------------------------------------------------------
 
     async def _initialize(self) -> MCPServerInfo:
         """Perform MCP initialize handshake."""
@@ -568,7 +514,6 @@ class MCPClient:
         )
         self._server_info = info
 
-        # Send initialized notification
         await self._notify("notifications/initialized")
         return info
 
@@ -591,7 +536,6 @@ class MCPClient:
             "params":  params,
         }
 
-        # HTTP transport: use rpc() which does POST + parse
         if isinstance(self._transport, _HttpTransport):
             resp = await asyncio.wait_for(
                 self._transport.rpc(message), timeout=timeout
@@ -603,7 +547,7 @@ class MCPClient:
                     self._transport.receive(), timeout=timeout
                 )
                 if resp.get("id") == req_id:
-                    break   
+                    break
         if "error" in resp:
             err = resp["error"]
             raise MCPError(
@@ -643,11 +587,6 @@ class MCPClient:
         if len(content_list) == 1 and content_list[0].get("type") == "text":
             return content_list[0].get("text", "")
         return content_list
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _name_from_url(url: str) -> str:
     """Extract a short server name from a URL."""

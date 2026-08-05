@@ -26,11 +26,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# ConversationPlanner
-# ---------------------------------------------------------------------------
-
 class ConversationPlanner:
     """
     Generates the next agent response given a ReasonerDecision.
@@ -74,7 +69,6 @@ Rules you MUST follow:
         """
         action = decision.action
 
-        # Route to the appropriate response generator
         if action == ReasonerAction.ASK_FIELD:
             return await self._ask_field(decision, state)
 
@@ -102,12 +96,7 @@ Rules you MUST follow:
         if action == ReasonerAction.END:
             return "Thank you for completing this. Your information has been recorded."
 
-        # Fallback
         return await self._ask_field(decision, state)
-
-    # ------------------------------------------------------------------
-    # Response generators
-    # ------------------------------------------------------------------
 
     async def _ask_field(
         self,
@@ -181,10 +170,6 @@ Rules you MUST follow:
             f"Do NOT ask a question. Do NOT be overly effusive."
         )
         return await self._llm_short(prompt, state)
-
-    # ------------------------------------------------------------------
-    # LLM helpers
-    # ------------------------------------------------------------------
 
     async def _llm_rephrase(
         self,

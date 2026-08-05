@@ -35,18 +35,14 @@ from truenorth.mcp.builtin import register
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Safe evaluation — whitelist of allowed AST nodes and operations
-# ─────────────────────────────────────────────────────────────────────────────
-
 _SAFE_NODES = (
     ast.Expression,
     ast.BinOp, ast.UnaryOp, ast.Call, ast.Constant, ast.Name,
     ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.FloorDiv,
     ast.USub, ast.UAdd,
     ast.Load,
-    ast.IfExp,    # allow: a if b else c
-    ast.Compare,  # allow: 5 > 3
+    ast.IfExp,
+    ast.Compare,
     ast.Gt, ast.Lt, ast.GtE, ast.LtE, ast.Eq, ast.NotEq,
     ast.BoolOp, ast.And, ast.Or,
 )
@@ -85,7 +81,6 @@ _SAFE_NAMES = {
     "False": False,
 }
 
-
 class _SafeEvaluator(ast.NodeVisitor):
     """AST-based safe expression evaluator."""
 
@@ -93,15 +88,14 @@ class _SafeEvaluator(ast.NodeVisitor):
         self._result = None
 
     def eval(self, expr: str) -> Any:
-        # Normalise
+
         expr = expr.strip()
-        # Parse
+
         try:
             tree = ast.parse(expr, mode="eval")
         except SyntaxError as e:
             raise ValueError(f"Syntax error: {e}") from e
 
-        # Check all nodes are in whitelist
         for node in ast.walk(tree):
             if not isinstance(node, _SAFE_NODES):
                 raise ValueError(
@@ -191,9 +185,7 @@ class _SafeEvaluator(ast.NodeVisitor):
 
         raise ValueError(f"Unsupported expression type: {type(node).__name__}")
 
-
 _evaluator = _SafeEvaluator()
-
 
 def _format_number(n: Any) -> str:
     """Human-readable number formatting."""
@@ -204,15 +196,10 @@ def _format_number(n: Any) -> str:
     if isinstance(n, float):
         if n == int(n) and abs(n) < 1e12:
             return f"{int(n):,}"
-        # Significant figures
+
         formatted = f"{n:.10g}"
         return formatted
     return str(n)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Built-in tool function
-# ─────────────────────────────────────────────────────────────────────────────
 
 @register("calculator")
 async def calculator(expression: str) -> Dict[str, Any]:

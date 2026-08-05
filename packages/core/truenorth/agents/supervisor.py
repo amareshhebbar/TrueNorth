@@ -34,21 +34,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Supervision levels
-# ─────────────────────────────────────────────────────────────────────────────
-
 class SupervisionLevel(str, Enum):
-    OFF      = "off"       # no supervision
-    LIGHT    = "light"     # confidence check only
-    STANDARD = "standard"  # confidence + consistency
-    STRICT   = "strict"    # confidence + firewall + cross-agent
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Quality checks (pluggable)
-# ─────────────────────────────────────────────────────────────────────────────
+    OFF      = "off"
+    LIGHT    = "light"
+    STANDARD = "standard"
+    STRICT   = "strict"
 
 class _ConfidenceCheck:
     """Reject results below the minimum confidence threshold."""
@@ -66,7 +56,6 @@ class _ConfidenceCheck:
             )
         return True, ""
 
-
 class _ConsistencyCheck:
     def check(
         self, response: AgentResponse, context: Dict[str, Any]
@@ -82,7 +71,7 @@ class _ConsistencyCheck:
                 existing = str(collected[key]).strip().lower()
                 new_val  = str(val).strip().lower()
                 if existing and new_val and existing != new_val:
-                    # Check if they're close enough (numeric within 5%)
+
                     try:
                         e_num = float(existing.replace(",", ""))
                         n_num = float(new_val.replace(",", ""))
@@ -103,7 +92,6 @@ class _ConsistencyCheck:
             return False, " | ".join(issues)
         return True, ""
 
-
 class _LengthCheck:
     """Reject empty or suspiciously short results."""
 
@@ -117,11 +105,6 @@ class _LengthCheck:
         if len(text) < self._min:
             return False, f"Result too short ({len(text)} chars)"
         return True, ""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  AgentSupervisor
-# ─────────────────────────────────────────────────────────────────────────────
 
 class AgentSupervisor:
     """
@@ -154,12 +137,7 @@ class AgentSupervisor:
         self._firewall       = firewall
         self._verdicts:      List[SupervisorVerdict] = []
 
-        # Build check pipeline based on level
         self._checks = self._build_checks()
-
-    # ------------------------------------------------------------------
-    # Main review entry point
-    # ------------------------------------------------------------------
 
     async def review(
         self,
@@ -228,10 +206,6 @@ class AgentSupervisor:
         )
         return verdict
 
-    # ------------------------------------------------------------------
-    # Verdict history
-    # ------------------------------------------------------------------
-
     def verdict_log(self) -> List[dict]:
         return [v.to_dict() for v in self._verdicts]
 
@@ -240,10 +214,6 @@ class AgentSupervisor:
             return 1.0
         ok = sum(1 for v in self._verdicts if v.approved)
         return round(ok / len(self._verdicts), 3)
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _build_checks(self):
         checks = []

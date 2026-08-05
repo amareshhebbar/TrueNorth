@@ -1,28 +1,9 @@
-/**
- * truenorth — official TypeScript / Node.js SDK
- *
- * Works in:  Node.js 18+ · Bun · Deno · Next.js App Router · React · React Native
- *
- * Install:
- *   npm install truenorth
- *   yarn add truenorth
- *   pnpm add truenorth
- *
- * Usage:
- *   import { TrueNorth } from 'truenorth'
- *   const tn = new TrueNorth({ apiKey: 'tn_live_...' })
- *   const session = await tn.sessions.create('fitness-coach')
- *   const result  = await tn.sessions.message(session.id, 'I am 28')
- *   const output  = await tn.sessions.output(session.id)
- */
-
 import { Transport, SessionsClient, GoalsClient, AnalyticsClient } from './client'
 import type { TrueNorthClientOptions, Output } from './types'
 
 export * from './types'
 export * from './client'
 
-// Add this at the top of your file
 declare const process: any;
 
 function getEnv(key: string): string {

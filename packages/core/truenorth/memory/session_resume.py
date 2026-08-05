@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ResumeResult:
     """Result of attempting to resume a session."""
@@ -43,7 +42,6 @@ class ResumeResult:
             "completion_pct":   round(self.completion_pct, 1),
             "turns_completed":  self.turns_completed,
         }
-
 
 class SessionResume:
     """

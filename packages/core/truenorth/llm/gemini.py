@@ -2,7 +2,6 @@ from __future__ import annotations
 import google.generativeai as genai
 from truenorth.llm.base import BaseLLMClient, LLMResponse
 
-
 class GeminiClient(BaseLLMClient):
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)

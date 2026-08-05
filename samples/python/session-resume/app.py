@@ -107,8 +107,6 @@ from truenorth.core.yaml_loader      import YAMLLoader
 from truenorth.core.session_manager  import SessionManager
 from truenorth.memory.session_resume import SessionResume
 
-# ── Inline goal config ───────────────────────────────────────────────────────
-
 GOAL_CONFIG = {
     "id": "patient_intake_resume_demo",
     "name": "Patient Intake (Resume Demo)",
@@ -148,21 +146,14 @@ GOAL_CONFIG = {
     },
 }
 
-# ── Shared session manager (simulates persistent storage) ────────────────────
-# In production: PostgresSessionManager or RedisSessionManager
-
 _session_manager = SessionManager()
 
 SESSION_ID = os.environ.get("SESSION_ID", "demo_resume_001")
-
 
 def banner(title: str):
     print(f"\n{'═' * 60}")
     print(f"  {title}")
     print(f"{'═' * 60}\n")
-
-
-# ── PART 1: First session — user drops off midway ────────────────────────────
 
 async def run_first_session_partial() -> str:
     """
@@ -178,15 +169,13 @@ async def run_first_session_partial() -> str:
         session_manager = _session_manager,
     )
 
-    # The user starts the conversation
     first = await engine.start()
     print(f"Agent: {first.text}\n")
 
-    # Simulate 3 turns of answers, then user disappears
     partial_answers = [
-        "My name is Priya Nair",   # fills: patient_name
-        "28",                       # fills: age
-        "I've had a bad headache for 2 days and I feel nauseous",  # fills: chief_complaint
+        "My name is Priya Nair",
+        "28",
+        "I've had a bad headache for 2 days and I feel nauseous",
     ]
 
     for ans in partial_answers:
@@ -194,7 +183,6 @@ async def run_first_session_partial() -> str:
         resp = await engine.process_message(ans)
         print(f"Agent: {resp.text}\n")
 
-    # At this point the user drops off
     completion = engine.state.completion_pct
     collected  = list(engine.state.collected_fields.keys())
     missing    = engine.state.missing_required
@@ -206,13 +194,9 @@ async def run_first_session_partial() -> str:
     print(f"  Still missing:    {missing}")
     print(f"─── 3 DAYS PASS ──────────────────────────────────────\n")
 
-    # Simulate time passing
     await asyncio.sleep(0.5)
 
     return SESSION_ID
-
-
-# ── PART 2: Resume check ──────────────────────────────────────────────────────
 
 async def check_resumability(session_id: str):
     """
@@ -237,9 +221,6 @@ async def check_resumability(session_id: str):
 
     return result
 
-
-# ── PART 3: Resume the session ───────────────────────────────────────────────
-
 async def resume_and_complete(session_id: str, resume_result) -> Optional[dict]:
     """
     Resume the session from where it left off.
@@ -251,31 +232,27 @@ async def resume_and_complete(session_id: str, resume_result) -> Optional[dict]:
         print(f"Cannot resume: {resume_result.error}")
         return None
 
-    # Show the re-engagement message (what you'd send via WhatsApp)
     print(f"WhatsApp re-engagement sent to user:")
     print(f"  \"{resume_result.re_engagement_msg}\"\n")
     print("User opens the app and continues...\n")
     print("─" * 50)
 
-    # Create new engine with previously collected fields seeded in
     engine = TrueNorthEngine(
         goal_config     = GOAL_CONFIG,
         session_id      = session_id + "_resumed",
         session_manager = _session_manager,
-        seed_fields     = resume_result.collected_fields,  # ← previously collected
+        seed_fields     = resume_result.collected_fields,
     )
 
-    # Start the resumed session
     resp = await engine.start()
     print(f"Agent (resuming): {resp.text}\n")
 
-    # Complete the remaining questions
     remaining_answers = [
-        "7 out of 10",           # pain_scale
-        "About 2 days now",      # symptom_duration
-        "Just paracetamol sometimes",  # medications
-        "No allergies",          # allergies
-        "My husband Rahul, 9876543210",  # emergency_contact
+        "7 out of 10",
+        "About 2 days now",
+        "Just paracetamol sometimes",
+        "No allergies",
+        "My husband Rahul, 9876543210",
     ]
 
     for ans in remaining_answers:
@@ -288,7 +265,6 @@ async def resume_and_complete(session_id: str, resume_result) -> Optional[dict]:
         if resp.final_output:
             return resp.final_output.content
 
-    # If still not complete, force output
     if not engine.state.is_complete:
         print("(Generating output from collected fields...)")
         force_resp = await engine.force_output()
@@ -296,9 +272,6 @@ async def resume_and_complete(session_id: str, resume_result) -> Optional[dict]:
             return force_resp.final_output.content
 
     return None
-
-
-# ── PART 4: Stats comparison ─────────────────────────────────────────────────
 
 def show_resume_stats(original_fields: dict, output: dict):
     banner("PART 4 — RESULTS")
@@ -313,31 +286,26 @@ def show_resume_stats(original_fields: dict, output: dict):
     print("  ✅ Patient experience: seamless continuation")
     print("  ✅ Completion rate: 100% (vs ~40% for sessions without resume)")
 
-
-# ── PART 5: Edge cases demo ──────────────────────────────────────────────────
-
 async def demo_edge_cases():
     """Show what happens in various edge cases."""
     banner("BONUS — Edge Cases")
 
     resume = SessionResume(session_manager=_session_manager)
 
-    # Edge case 1: Non-existent session
     print("Edge case 1: Check a session that does not exist")
     result = await resume.check("nonexistent_session_xyz")
     print(f"  resumable = {result.resumable}")
     print(f"  error     = {result.error}\n")
 
-    # Edge case 2: Already completed session
     print("Edge case 2: Check a session that is already complete")
-    # Create and complete a quick session
+
     eng = TrueNorthEngine(
         goal_config     = {**GOAL_CONFIG, "id": "quick_complete"},
         session_id      = "completed_test_001",
         session_manager = _session_manager,
     )
     await eng.start()
-    # Mark as complete by seeding all required fields
+
     for field in GOAL_CONFIG["fields"]:
         eng.state.collected_fields[field["name"]] = f"test value for {field['name']}"
     eng.state.is_complete   = True
@@ -349,7 +317,6 @@ async def demo_edge_cases():
     print(f"  error     = {result.error}")
     print(f"  (correctly non-resumable — session already done)\n")
 
-    # Edge case 3: Re-engagement message with collected data
     print("Edge case 3: Re-engagement message personalisation")
     msg_with_name = SessionResume._re_engagement_message(
         collected = {"patient_name": "Priya", "age": 28},
@@ -364,28 +331,20 @@ async def demo_edge_cases():
     print(f"  With name:    \"{msg_with_name}\"")
     print(f"  Without name: \"{msg_no_name}\"")
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-
 async def main():
     print("=" * 60)
     print("  TrueNorth Session Resume Demo")
     print("=" * 60)
 
-    # Part 1: Start and interrupt
     session_id = await run_first_session_partial()
 
-    # Part 2: Check resumability
     resume_result = await check_resumability(session_id)
 
-    # Part 3: Resume and complete
     output = await resume_and_complete(session_id, resume_result)
 
-    # Part 4: Show stats
     if output:
         show_resume_stats(resume_result.collected_fields, output)
 
-    # Part 5: Edge cases
     await demo_edge_cases()
 
     print("\n" + "=" * 60)
@@ -393,7 +352,6 @@ async def main():
     print("  In production: use PostgresSessionManager for persistence")
     print("  Sessions survive server restarts, deployments, and crashes.")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

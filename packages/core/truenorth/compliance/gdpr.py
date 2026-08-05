@@ -21,7 +21,6 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 class GDPRLegalBasis(str, Enum):
     CONSENT              = "consent"
     CONTRACT             = "contract"
@@ -30,16 +29,14 @@ class GDPRLegalBasis(str, Enum):
     PUBLIC_TASK          = "public_task"
     LEGITIMATE_INTEREST  = "legitimate_interest"
 
-
 class DataSubjectRight(str, Enum):
     ACCESS              = "access"
     RECTIFICATION       = "rectification"
-    ERASURE             = "erasure"           
+    ERASURE             = "erasure"
     RESTRICT            = "restrict_processing"
     PORTABILITY         = "data_portability"
     OBJECT              = "object"
     AUTOMATED_DECISION  = "automated_decision_opt_out"
-
 
 @dataclass
 class GDPRConsentRecord:
@@ -49,8 +46,8 @@ class GDPRConsentRecord:
     session_id:   str
     legal_basis:  GDPRLegalBasis
     purpose:      str
-    controller:   str           # data controller name
-    processor:    Optional[str] = None   # data processor if different
+    controller:   str
+    processor:    Optional[str] = None
     categories:   List[str]     = field(default_factory=list)
     consent_text: str           = ""
     ip_address:   Optional[str] = None
@@ -72,7 +69,6 @@ class GDPRConsentRecord:
             "is_active":   self.is_active,
             "timestamp":   self.timestamp,
         }
-
 
 class GDPRManager:
     """

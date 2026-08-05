@@ -99,15 +99,11 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Logging ────────────────────────────────────────────────────────────────
-
 logging.basicConfig(
     level   = logging.INFO,
     format  = "%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("cliniqflow")
-
-# ── Config ─────────────────────────────────────────────────────────────────
 
 CLINIC_NAME        = os.environ.get("CLINIC_NAME", "Our Clinic")
 VERIFY_TOKEN       = os.environ.get("WA_VERIFY_TOKEN", "cliniqflow-token")
@@ -117,9 +113,6 @@ GOAL_YAML          = os.environ.get("GOAL_YAML", "goal.yaml")
 COMPLETION_WEBHOOK = os.environ.get("COMPLETION_WEBHOOK_URL", "")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
-
-# ── Storage (in-memory; swap for Redis/Postgres in production) ──────────────
 
 class SessionStore:
     def __init__(self):
@@ -164,14 +157,10 @@ class SessionStore:
             "total_turns_active": sum(m.get("turns", 0) for m in self._meta.values()),
         }
 
-
 store       = SessionStore()
 _goal_config = None
 
-# ── FastAPI ─────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=f"CliniqFlow — {CLINIC_NAME}", version="1.0.0")
-
 
 @app.on_event("startup")
 async def startup():
@@ -185,9 +174,6 @@ async def startup():
 
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — running in console/print mode")
-
-
-# ── Dashboard ───────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -217,7 +203,6 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {
@@ -228,12 +213,10 @@ async def health():
         **store.stats(),
     }
 
-
 @app.get("/completed")
 async def completed_intakes():
     """Returns all completed intake summaries. Connect your EMR to poll this."""
     return {"intakes": list(store._completed.values())}
-
 
 @app.get("/sessions")
 async def active_sessions():
@@ -248,7 +231,6 @@ async def active_sessions():
         for sid, eng in store._sessions.items()
     }
 
-
 @app.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
     """DPDP erasure — remove all data for a session."""
@@ -256,9 +238,6 @@ async def delete_session(session_id: str):
     if not removed:
         raise HTTPException(404, f"Session {session_id} not found")
     return {"deleted": session_id, "status": "erased"}
-
-
-# ── WhatsApp webhook ────────────────────────────────────────────────────────
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -270,7 +249,6 @@ async def verify(request: Request):
         log.info("✅ WhatsApp webhook verified")
         return PlainTextResponse(challenge)
     raise HTTPException(403, "Bad verify token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -295,7 +273,6 @@ async def handle(request: Request, background: BackgroundTasks):
         log.warning(f"Unexpected webhook shape: {e}")
         return {"status": "ignored"}
 
-
 async def process_message(phone: str, text: str):
     """Process a WhatsApp message and drive the TrueNorth session."""
     session_id = f"cf_{hashlib.md5(phone.encode()).hexdigest()[:12]}"
@@ -303,7 +280,7 @@ async def process_message(phone: str, text: str):
     engine = store.get(session_id)
 
     if engine is None:
-        # ── New session ────────────────────────────────────────────────────
+
         if _goal_config is None:
             await send_wa(phone, "Sorry, the intake system is not configured yet. "
                                  "Please contact the clinic directly.")
@@ -316,7 +293,6 @@ async def process_message(phone: str, text: str):
         )
         store.set(session_id, engine, phone)
 
-        # DPDP consent notice
         consent = (
             f"*{CLINIC_NAME} Intake*\n\n"
             "Before we begin: we'll collect your health information for your "
@@ -326,22 +302,20 @@ async def process_message(phone: str, text: str):
         await send_wa(phone, consent)
         return
 
-    # ── Consent handling ────────────────────────────────────────────────────
     if not engine.state.current_turn and text.upper() not in ("AGREE", "YES", "HA", "हाँ"):
-        # First turn — check for consent
+
         if text.upper() in ("STOP", "NO", "NAHI", "नहीं"):
             await send_wa(phone, "No problem. Your data has not been stored. "
                                  "Please come in a few minutes early to fill the paper form.")
             store.delete(session_id)
             return
-        # Assume any other reply is consent for smoother UX
+
         pass
 
-    # Start the conversation on first turn
     if engine.state.current_turn == 0:
         first = await engine.start()
         await send_wa(phone, first.text)
-        # If their first message has info (not just "AGREE"), also process it
+
         if text.upper() not in ("AGREE", "YES", "START", "BEGIN"):
             resp = await engine.process_message(text)
             store.increment_turns(session_id)
@@ -349,20 +323,17 @@ async def process_message(phone: str, text: str):
             await _check_complete(session_id, phone, resp)
         return
 
-    # ── Continue session ────────────────────────────────────────────────────
     resp = await engine.process_message(text)
     store.increment_turns(session_id)
     await send_wa(phone, resp.text)
     await _check_complete(session_id, phone, resp)
 
-
 async def _check_complete(session_id: str, phone: str, response):
     """Handle session completion."""
     if response.is_complete and response.final_output:
-        # Store the completed intake
+
         store.complete(session_id, response.final_output.content)
 
-        # Send confirmation to patient
         summary = (
             "✅ *Your intake is complete!*\n\n"
             "Your doctor has been notified and will review it before seeing you.\n"
@@ -370,7 +341,6 @@ async def _check_complete(session_id: str, phone: str, response):
         )
         await send_wa(phone, summary)
 
-        # Fire completion webhook if configured
         if COMPLETION_WEBHOOK:
             await fire_completion_webhook(
                 session_id  = session_id,
@@ -378,13 +348,12 @@ async def _check_complete(session_id: str, phone: str, response):
                 output      = response.final_output.content,
             )
 
-
 async def fire_completion_webhook(session_id: str, phone: str, output: dict):
     """Notify external systems (EMR, hospital software) when intake completes."""
     payload = {
         "event":       "intake_completed",
         "session_id":  session_id,
-        "phone":       phone,                  # masked in real prod
+        "phone":       phone,
         "clinic":      CLINIC_NAME,
         "completed_at": datetime.now().isoformat(),
         "intake":      output,
@@ -395,7 +364,6 @@ async def fire_completion_webhook(session_id: str, phone: str, output: dict):
             log.info(f"Completion webhook: {resp.status_code}")
     except Exception as e:
         log.warning(f"Completion webhook failed: {e}")
-
 
 async def send_wa(phone: str, text: str):
     """Send a WhatsApp message. Falls back to print if no credentials."""
@@ -415,9 +383,6 @@ async def send_wa(phone: str, text: str):
             )
             if r.status_code != 200:
                 log.error(f"WhatsApp API error: {r.status_code} — {r.text[:200]}")
-
-
-# ── Local test ──────────────────────────────────────────────────────────────
 
 async def local_test():
     """Run CliniqFlow locally without WhatsApp credentials."""
@@ -467,7 +432,6 @@ async def local_test():
 
     final_stats = store.stats()
     print(f"\nStats: {final_stats}")
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

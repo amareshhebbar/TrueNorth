@@ -1,4 +1,3 @@
-// app/api/chat/route.ts — Next.js App Router example
 import { NextRequest, NextResponse } from "next/server";
 import { TrueNorthClient } from "@amareshhebbar/truenorth";
 

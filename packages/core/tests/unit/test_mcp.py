@@ -37,11 +37,6 @@ from truenorth.mcp.types import (
 from truenorth.mcp.registry import RegisteredTool
 from truenorth.mcp.tool_executor import _validate_arguments
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _make_tool(name: str = "test_tool", server: str = "__builtin__") -> Tool:
     return Tool(
         name=name,
@@ -58,15 +53,12 @@ def _make_tool(name: str = "test_tool", server: str = "__builtin__") -> Tool:
         builtin=server == "__builtin__",
     )
 
-
 async def _echo_fn(query: str, limit: int = 5) -> dict:
     """Simple echo builtin for testing."""
     return {"echo": query, "limit": limit}
 
-
 async def _always_fail(**kwargs) -> dict:
     raise ValueError("deliberate failure")
-
 
 def _registry_with_echo() -> MCPRegistry:
     registry = MCPRegistry()
@@ -75,11 +67,6 @@ def _registry_with_echo() -> MCPRegistry:
         tool=tool, builtin_fn=_echo_fn
     )
     return registry
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Types
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTypes:
 
@@ -133,11 +120,6 @@ class TestTypes:
         assert tc.tool_name == "calc"
         assert tc.arguments["expression"] == "2+2"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. MCPClient — JSON-RPC response parsing
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestMCPClientParsing:
 
     def test_jsonrpc_error_class_exists(self):
@@ -159,11 +141,6 @@ class TestMCPClientParsing:
         info = MCPServerInfo(name="test", version="1.0", protocol_version="2024-11-05")
         assert info.name == "test"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. MCPClient — transport selection
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestMCPClientTransport:
 
     def test_http_factory_method(self):
@@ -184,11 +161,6 @@ class TestMCPClientTransport:
     def test_client_has_name(self):
         client = MCPClient.http("http://localhost:3001/sse", "my_server")
         assert client.name == "my_server"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. MCPRegistry — builtin tools
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRegistryBuiltin:
 
@@ -247,11 +219,6 @@ class TestRegistryBuiltin:
         assert "calculator"   in names
         assert "datetime_tool" in names
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. MCPRegistry — server config
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRegistryServerConfig:
 
     def test_register_server_config_stored(self):
@@ -279,11 +246,6 @@ class TestRegistryServerConfig:
         ]
         await registry.load_from_config(cfg)
         assert registry.get_tool("calculator") is not None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. MCPRegistry — call_tool
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRegistryCallTool:
 
@@ -317,11 +279,6 @@ class TestRegistryCallTool:
         result   = await registry.call_tool("echo", {"query": "timing"})
         assert result.latency_ms >= 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. MCPRegistry — system prompt block
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRegistrySystemPrompt:
 
     def test_system_prompt_block_contains_tool_name(self):
@@ -335,7 +292,7 @@ class TestRegistrySystemPrompt:
     def test_empty_registry_empty_prompt(self):
         registry = MCPRegistry()
         prompt   = registry.system_prompt_block()
-        # No tools → prompt should be empty or a header only
+
         assert isinstance(prompt, str)
 
     def test_system_prompt_includes_tool_call_syntax(self):
@@ -343,11 +300,6 @@ class TestRegistrySystemPrompt:
         registry.add_builtin("calculator")
         prompt = registry.system_prompt_block()
         assert "TOOL_CALL" in prompt
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. ToolExecutor — TOOL_CALL scanning
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestToolExecutorScan:
 
@@ -387,11 +339,6 @@ class TestToolExecutorScan:
         assert len(calls) == 1
         _, args, _ = calls[0]
         assert args == {}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. ToolExecutor — end-to-end run
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestToolExecutorRun:
 
@@ -467,11 +414,6 @@ class TestToolExecutorRun:
         assert result.is_success
         assert "direct" in result.text
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. ToolExecutor — argument validation
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestToolExecutorValidate:
 
     def test_valid_args_pass(self):
@@ -507,11 +449,6 @@ class TestToolExecutorValidate:
         ok, _ = _validate_arguments({"query": "hi", "extra": "ignored"}, schema)
         assert ok is True
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Builtin — calculator
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBuiltinCalculator:
 
     @pytest.mark.asyncio
@@ -529,7 +466,7 @@ class TestBuiltinCalculator:
     @pytest.mark.asyncio
     async def test_bmi_formula(self):
         from truenorth.mcp.builtin.calculator import calculator
-        # BMI = 65 / (1.63^2) = 24.45
+
         result = await calculator("65 / (1.63 ** 2)")
         assert 24.0 < result["result"] < 25.0
 
@@ -549,7 +486,7 @@ class TestBuiltinCalculator:
     async def test_dangerous_expression_rejected(self):
         from truenorth.mcp.builtin.calculator import calculator
         result = await calculator("__import__('os').system('ls')")
-        # Should return error, not execute OS command
+
         assert result.get("error") is not None or result.get("result") is None
 
     @pytest.mark.asyncio
@@ -567,7 +504,7 @@ class TestBuiltinCalculator:
     @pytest.mark.asyncio
     async def test_complex_expression(self):
         from truenorth.mcp.builtin.calculator import calculator
-        # Mifflin-St Jeor BMR male: 65*10 + 6.25*163 - 5*28 + 5
+
         result = await calculator("65 * 10 + 6.25 * 163 - 5 * 28 + 5")
         assert result["result"] == pytest.approx(1534.75, abs=2.0)
 
@@ -576,11 +513,6 @@ class TestBuiltinCalculator:
         from truenorth.mcp.builtin.calculator import calculator
         result = await calculator("3 * 7")
         assert "expression" in result or "result" in result
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Builtin — datetime
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestBuiltinDatetime:
 
@@ -607,7 +539,7 @@ class TestBuiltinDatetime:
     async def test_invalid_timezone_falls_back(self):
         from truenorth.mcp.builtin.datetime_tool import datetime_tool
         result = await datetime_tool(timezone="Mars/Olympus_Mons")
-        # Graceful fallback — returns UTC result (no crash, no hard error)
+
         assert isinstance(result, dict)
         assert "datetime" in result or "error" in result
 
@@ -623,11 +555,6 @@ class TestBuiltinDatetime:
         from truenorth.mcp.builtin.datetime_tool import datetime_tool
         result = await datetime_tool(timezone="IST")
         assert isinstance(result, dict)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Builtin — web_search (mocked HTTP)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestBuiltinWebSearch:
 
@@ -679,11 +606,6 @@ class TestBuiltinWebSearch:
             instance.get = AsyncMock(side_effect=Exception("bad query"))
             result = await web_search("")
             assert isinstance(result, dict)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. YamlLoader — mcp_servers block
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestYamlLoaderMCP:
 
@@ -767,11 +689,6 @@ mcp_servers:
         assert servers[0]["name"] == "calculator"
         assert servers[0]["builtin"] is True
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. Engine integration — Stage 13
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestEngineMCP:
 
     @pytest.mark.asyncio
@@ -809,7 +726,7 @@ class TestEngineMCP:
         from truenorth.llm.router  import LLMRouter
         from truenorth.testing.mock_llm import MockLLMClient
         from truenorth.mcp.registry import MCPRegistry
-        
+
         mock = MockLLMClient(
             responses={"extract": '{"extractions": []}'},
             default='TOOL_CALL: echo({"query": "age from user"})',

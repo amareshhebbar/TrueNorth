@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class ExtractionAgent(BaseAgent):
     """
     Extracts structured field values from raw text using the LLM.
@@ -41,7 +40,7 @@ class ExtractionAgent(BaseAgent):
         payload       = message.payload
         text          = payload.get("text", "")
         fields_config = payload.get("fields_config", {})
-        target_fields = payload.get("target_fields")   # optional filter
+        target_fields = payload.get("target_fields")
 
         if not text:
             return self.fail(message, "No text provided for extraction")

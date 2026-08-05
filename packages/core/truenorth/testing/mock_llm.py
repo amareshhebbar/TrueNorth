@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import AsyncIterator, Dict, List, Optional
 from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk
 
-
 class MockLLMClient(LLMBase):
     """
     Deterministic mock LLM for tests.

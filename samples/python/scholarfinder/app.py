@@ -103,12 +103,8 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Logging ─────────────────────────────────────────────────────────────────
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("scholarfinder")
-
-# ── Config ───────────────────────────────────────────────────────────────────
 
 APP_NAME        = os.environ.get("APP_NAME", "ScholarFinder")
 VERIFY_TOKEN    = os.environ.get("WA_VERIFY_TOKEN", "scholar-token")
@@ -117,8 +113,6 @@ PHONE_NUMBER_ID = os.environ.get("WA_PHONE_NUMBER_ID", "")
 DEMO_LANG       = os.environ.get("DEMO_LANG", "english")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
-# ── Scholarship database (sample — expand with real data) ────────────────────
 
 SCHOLARSHIP_DATABASE = [
     {
@@ -247,8 +241,6 @@ SCHOLARSHIP_DATABASE = [
     },
 ]
 
-# ── Inline goal ───────────────────────────────────────────────────────────────
-
 INLINE_GOAL = {
     "id": "scholarship_finder",
     "name": f"{APP_NAME}",
@@ -311,16 +303,11 @@ INLINE_GOAL = {
     },
 }
 
-# ── Storage ───────────────────────────────────────────────────────────────────
-
 _sessions:  Dict[str, TrueNorthEngine] = {}
 _results:   List[dict]                  = []
 _goal_config = None
 
-# ── FastAPI ───────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=APP_NAME)
-
 
 @app.on_event("startup")
 async def startup():
@@ -334,10 +321,9 @@ async def startup():
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — console mode")
 
-
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    total_amount = 0  # rough count
+    total_amount = 0
     return f"""
     <html><head><title>{APP_NAME}</title>
     <style>body{{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px;}}
@@ -356,17 +342,14 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": APP_NAME,
             "active": len(_sessions), "helped": len(_results)}
 
-
 @app.get("/results")
 async def results():
     return {"results": _results}
-
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -377,7 +360,6 @@ async def verify(request: Request):
     if mode == "subscribe" and token == VERIFY_TOKEN:
         return PlainTextResponse(challenge)
     raise HTTPException(403, "Bad token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -394,7 +376,6 @@ async def handle(request: Request, background: BackgroundTasks):
         return {"status": "ok"}
     except (KeyError, IndexError):
         return {"status": "ignored"}
-
 
 async def process_message(phone: str, text: str):
     import hashlib
@@ -420,7 +401,6 @@ async def process_message(phone: str, text: str):
     await send_wa(phone, resp.text)
     await _check_complete(session_id, phone, resp)
 
-
 async def _check_complete(session_id: str, phone: str, response):
     if not (response.is_complete and response.final_output):
         return
@@ -438,7 +418,6 @@ async def _check_complete(session_id: str, phone: str, response):
                           content.get("top_recommendation"), dict) else content.get("top_recommendation", "?"),
     })
 
-    # Send result in student's language
     student_msg = content.get("response_in_student_language", "")
     if not student_msg:
         lines = [f"✅ *{APP_NAME} Results*\n"]
@@ -460,7 +439,6 @@ async def _check_complete(session_id: str, phone: str, response):
     del _sessions[session_id]
     log.info(f"Scholar results delivered to {phone} — {len(matched)} scholarships matched")
 
-
 async def send_wa(phone: str, text: str):
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
         print(f"\n📤 [{phone}]: {text[:300]}\n")
@@ -476,9 +454,6 @@ async def send_wa(phone: str, text: str):
         if r.status_code != 200:
             log.error(f"WA error {r.status_code}: {r.text[:100]}")
 
-
-# ── Local test ────────────────────────────────────────────────────────────────
-
 async def local_test():
     print("\n" + "=" * 60)
     print(f"  {APP_NAME} — Find your scholarships")
@@ -488,7 +463,6 @@ async def local_test():
     global _goal_config
     _goal_config = INLINE_GOAL
 
-    # Demo answers per language
     demo_turns = {
         "english": [
             "Anjali Patel", "Gujarat", "female", "OBC",
@@ -513,7 +487,7 @@ async def local_test():
     print(f"\n{APP_NAME}: {first.text}\n")
 
     if os.environ.get("INTERACTIVE", "0") == "1":
-        # Interactive mode
+
         while not engine.state.is_complete:
             try:
                 user_input = input("Student: ").strip()
@@ -528,7 +502,7 @@ async def local_test():
                 print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
                 break
     else:
-        # Scripted demo
+
         for ans in demo_turns:
             if engine.state.is_complete:
                 break
@@ -549,7 +523,6 @@ async def local_test():
 
     print("\nRun with INTERACTIVE=1 to type your own profile:")
     print(f"  INTERACTIVE=1 python app.py")
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

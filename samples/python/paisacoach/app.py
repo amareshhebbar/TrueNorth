@@ -114,8 +114,6 @@ DEMO_LANG       = os.environ.get("DEMO_LANG", "english")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
 
-# ── Goal config ───────────────────────────────────────────────────────────────
-
 GOAL = {
     "id": "paisa_coach",
     "name": f"{APP_NAME}",
@@ -197,23 +195,16 @@ GOAL = {
     },
 }
 
-# ── Storage ───────────────────────────────────────────────────────────────────
-
 _sessions: Dict[str, TrueNorthEngine] = {}
 _plans:    List[dict]                  = []
 
-
-# ── FastAPI ───────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=APP_NAME)
-
 
 @app.on_event("startup")
 async def startup():
     log.info(f"✅ {APP_NAME} ready")
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — console mode")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -240,11 +231,9 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": APP_NAME, "active": len(_sessions), "plans": len(_plans)}
-
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -252,7 +241,6 @@ async def verify(request: Request):
     if p.get("hub.mode") == "subscribe" and p.get("hub.verify_token") == VERIFY_TOKEN:
         return PlainTextResponse(p.get("hub.challenge"))
     raise HTTPException(403, "Bad token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -268,7 +256,6 @@ async def handle(request: Request, background: BackgroundTasks):
         return {"status": "ok"}
     except (KeyError, IndexError):
         return {"status": "ignored"}
-
 
 async def process_message(phone: str, text: str):
     sid    = f"pc_{hashlib.md5(phone.encode()).hexdigest()[:12]}"
@@ -289,7 +276,6 @@ async def process_message(phone: str, text: str):
     await send_wa(phone, resp.text)
     await _check_done(sid, phone, resp)
 
-
 async def _check_done(sid: str, phone: str, response):
     if not (response.is_complete and response.final_output):
         return
@@ -305,7 +291,6 @@ async def _check_done(sid: str, phone: str, response):
         "primary_goal":   eng.state.collected_fields.get("primary_goal", "?") if eng else "?",
     })
 
-    # Send plan in user's language
     summary = content.get("whatsapp_summary", "")
     if not summary:
         surplus   = content.get("monthly_surplus", 0)
@@ -333,7 +318,6 @@ async def _check_done(sid: str, phone: str, response):
     del _sessions[sid]
     log.info(f"Plan delivered to {phone}")
 
-
 async def send_wa(phone: str, text: str):
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
         print(f"\n📤 [{phone}]: {text[:300]}\n")
@@ -349,27 +333,24 @@ async def send_wa(phone: str, text: str):
         if r.status_code != 200:
             log.error(f"WA error {r.status_code}")
 
-
-# ── Local test ────────────────────────────────────────────────────────────────
-
 DEMO_INPUTS = {
     "english": [
-        "Rahul",             # name
-        "27",                # age
-        "55000",             # monthly_income
-        "18000",             # rent
-        "8000",              # other_emis (car loan)
-        "12000",             # monthly_expenses
-        "40000",             # current_savings
-        "0",                 # emergency_fund_months
-        "emergency fund",    # primary_goal
-        "1",                 # goal_timeline_years
-        "165000",            # goal_amount (3 months × 55k)
-        "moderate",          # risk_appetite
-        "no",                # has_term_insurance
-        "no",                # has_health_insurance
-        "new regime",        # tax_regime
-        "none",              # existing_investments
+        "Rahul",
+        "27",
+        "55000",
+        "18000",
+        "8000",
+        "12000",
+        "40000",
+        "0",
+        "emergency fund",
+        "1",
+        "165000",
+        "moderate",
+        "no",
+        "no",
+        "new regime",
+        "none",
     ],
     "hindi": [
         "राहुल",
@@ -390,7 +371,6 @@ DEMO_INPUTS = {
         "कुछ नहीं",
     ],
 }
-
 
 async def local_test():
     print("\n" + "=" * 60)
@@ -439,7 +419,6 @@ async def local_test():
 
     print(f"\nRun with INTERACTIVE=1 for your own profile:")
     print(f"  INTERACTIVE=1 python app.py")
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

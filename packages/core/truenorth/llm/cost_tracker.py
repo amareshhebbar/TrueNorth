@@ -30,11 +30,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Task type constants
-# ─────────────────────────────────────────────────────────────────────────────
-
 TASK_EXTRACT  = "extract"
 TASK_CONVERSE = "converse"
 TASK_OUTPUT   = "output"
@@ -45,35 +40,30 @@ TASK_OTHER    = "other"
 _ALL_TASKS = (TASK_EXTRACT, TASK_CONVERSE, TASK_OUTPUT,
               TASK_CLASSIFY, TASK_VERIFY, TASK_OTHER)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Pricing table (USD per 1M tokens — updated mid-2025)
-# ─────────────────────────────────────────────────────────────────────────────
-
 _PRICING: Dict[str, Tuple[float, float]] = {
-    # Anthropic
+
     "claude-opus-4-20250514":     (15.00, 75.00),
     "claude-opus-4-7":            (15.00, 75.00),
     "claude-opus-4-8":            (15.00, 75.00),
     "claude-sonnet-4-20250514":   ( 3.00, 15.00),
     "claude-haiku-4-5-20251001":  ( 0.80,  4.00),
-    # Google
+
     "gemini-3.5-flash":           ( 0.075, 0.30),
     "gemini-1.5-pro":             ( 3.50, 10.50),
     "gemini-2.0-flash":           ( 0.10,  0.40),
     "gemini-2.0-flash-lite":      ( 0.075, 0.30),
-    # OpenAI
+
     "gpt-4o":                     ( 2.50, 10.00),
     "gpt-4o-mini":                ( 0.15,  0.60),
     "gpt-4-turbo":                (10.00, 30.00),
     "o1":                         (15.00, 60.00),
     "o3-mini":                    ( 1.10,  4.40),
-    # Cohere
+
     "command-r":                  ( 0.50,  1.50),
     "command-r-plus":             ( 3.00, 15.00),
-    # Groq
+
     "llama-3.1-70b-versatile":    ( 0.59,  0.79),
-    # Local / free
+
     "ollama":                     ( 0.00,  0.00),
     "local":                      ( 0.00,  0.00),
     "apple/on-device-3b":         ( 0.00,  0.00),
@@ -83,10 +73,8 @@ _PRICING: Dict[str, Tuple[float, float]] = {
 
 _FALLBACK_PRICING: Tuple[float, float] = (1.00, 5.00)
 
-# Model prefixes whose full cost is 0 (on-device)
 _FREE_PREFIXES = ("ollama", "local", "apple/", "gemini-nano", "on-device",
                   "mobile", "llama-cpp", "lmstudio")
-
 
 def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """
@@ -96,27 +84,17 @@ def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """
     if not model:
         return 0.0
-    base = model.split(":")[0].strip()  # strip provider prefix ("ollama:llama3.1")
+    base = model.split(":")[0].strip()
     if any(base.startswith(pfx) for pfx in _FREE_PREFIXES):
         return 0.0
     pin, pout = _PRICING.get(base, _FALLBACK_PRICING)
     return round((input_tokens * pin + output_tokens * pout) / 1_000_000, 8)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums
-# ─────────────────────────────────────────────────────────────────────────────
-
 class BudgetStatus(str, Enum):
-    OK       = "ok"        # < 80% of budget used
-    WARNING  = "warning"   # 80–94% — alert, but keep going
-    CRITICAL = "critical"  # 95–99% — trigger GracefulBudgetStop
-    EXCEEDED = "exceeded"  # ≥ 100% — raise BudgetExceededError
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Exceptions
-# ─────────────────────────────────────────────────────────────────────────────
+    OK       = "ok"
+    WARNING  = "warning"
+    CRITICAL = "critical"
+    EXCEEDED = "exceeded"
 
 class BudgetExceededError(Exception):
     """100%+ of budget used — hard stop."""
@@ -128,7 +106,6 @@ class BudgetExceededError(Exception):
             f"Budget ${budget:.4f} exceeded for session={session_id} "
             f"(spent=${spent:.4f})"
         )
-
 
 class GracefulBudgetStop(Exception):
     """95% of budget reached — graceful stop (finish current turn, then stop)."""
@@ -148,11 +125,6 @@ class GracefulBudgetStop(Exception):
             f"session={session_id} spent=${spent:.4f}/{budget:.4f} "
             + (f"est. {turns_remaining} turns remaining" if turns_remaining else "")
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Data classes
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class CallRecord:
@@ -190,7 +162,6 @@ class CallRecord:
             "timestamp":     self.timestamp,
         }
 
-
 @dataclass
 class TurnCost:
     """Aggregated cost for one conversation turn (may have multiple LLM calls)."""
@@ -227,7 +198,6 @@ class TurnCost:
             "by_task":      {k: round(v, 8) for k, v in self.by_task.items()},
         }
 
-
 @dataclass
 class SessionCost:
     """Accumulated cost for one conversation session."""
@@ -260,10 +230,6 @@ class SessionCost:
         self.by_task_calls[record.task_type] = (
             self.by_task_calls.get(record.task_type, 0) + 1
         )
-
-    # ------------------------------------------------------------------
-    # Derived properties
-    # ------------------------------------------------------------------
 
     @property
     def total_tokens(self) -> int:
@@ -336,7 +302,6 @@ class SessionCost:
             "budget_exceeded":     self.budget_exceeded,
         }
 
-
 @dataclass
 class GoalCost:
     """Aggregated cost across all sessions for one goal YAML."""
@@ -346,7 +311,7 @@ class GoalCost:
     total_tokens:  int   = 0
     by_task:       Dict[str, float] = field(default_factory=dict)
     by_model:      Dict[str, float] = field(default_factory=dict)
-    by_session:    Dict[str, float] = field(default_factory=dict)  # session_id → cost
+    by_session:    Dict[str, float] = field(default_factory=dict)
 
     @property
     def avg_cost_per_session(self) -> float:
@@ -363,11 +328,6 @@ class GoalCost:
             "by_model":             {k: round(v, 6) for k, v in self.by_model.items()},
             "by_session":           {k: round(v, 6) for k, v in self.by_session.items()},
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CostTracker
-# ─────────────────────────────────────────────────────────────────────────────
 
 class CostTracker:
     """
@@ -389,7 +349,7 @@ class CostTracker:
     """
 
     REDIS_KEY_PREFIX = "tn:cost:"
-    REDIS_TTL        = 86_400 * 3   # 3 days
+    REDIS_TTL        = 86_400 * 3
 
     BUDGET_WARNING_PCT  = 0.80
     BUDGET_CRITICAL_PCT = 0.95
@@ -404,19 +364,13 @@ class CostTracker:
         self._alert_callback = alert_callback
         self._hourly_limit   = hourly_limit
 
-        # In-memory stores
         self._sessions:  Dict[str, SessionCost]        = {}
-        self._turns:     Dict[str, Dict[int, TurnCost]] = {}   # session_id → {turn: TurnCost}
+        self._turns:     Dict[str, Dict[int, TurnCost]] = {}
         self._call_log:  List[CallRecord]               = []
-        self._goal_map:  Dict[str, List[str]]           = {}   # goal_id → [session_id, ...]
-        self._warned:    set                            = set() # sessions with 80% warning fired
+        self._goal_map:  Dict[str, List[str]]           = {}
+        self._warned:    set                            = set()
 
-        # Rate limiting: {hour_key: call_count}
         self._hourly_counts: Dict[str, int] = {}
-
-    # ------------------------------------------------------------------
-    # Budget configuration
-    # ------------------------------------------------------------------
 
     def set_budget(self, session_id: str, budget_usd: float) -> None:
         """Set a USD cost cap for a session."""
@@ -443,7 +397,7 @@ class CostTracker:
             return
 
         projected = s.total_cost_usd + estimated_cost
-        # budget_usd=0 means zero spending allowed — any projected cost exceeds it
+
         if s.budget_usd == 0:
             if projected > 0 or s.total_cost_usd > 0:
                 raise BudgetExceededError(
@@ -454,7 +408,6 @@ class CostTracker:
             return
         pct       = projected / s.budget_usd
 
-        # 100% → hard stop
         if pct >= 1.0:
             raise BudgetExceededError(
                 session_id = session_id,
@@ -462,7 +415,6 @@ class CostTracker:
                 budget     = s.budget_usd,
             )
 
-        # 95% → graceful stop
         if pct >= self.BUDGET_CRITICAL_PCT:
             turns_remaining = s.project_turns_remaining()
             raise GracefulBudgetStop(
@@ -472,7 +424,6 @@ class CostTracker:
                 turns_remaining = turns_remaining,
             )
 
-        # 80% → warning (fire once per session)
         if pct >= self.BUDGET_WARNING_PCT and session_id not in self._warned:
             self._warned.add(session_id)
             logger.warning(
@@ -487,10 +438,6 @@ class CostTracker:
                     )
                 except Exception as e:
                     logger.debug("cost_tracker: alert_callback error: %s", e)
-
-    # ------------------------------------------------------------------
-    # Core recording API
-    # ------------------------------------------------------------------
 
     def record(
         self,
@@ -591,7 +538,6 @@ class CostTracker:
             turn          = turn,
         )
 
-        # Accumulate into session
         s = self._get_or_create(session_id)
         s.add(record)
         s.turn_count = max(s.turn_count, turn)
@@ -621,10 +567,6 @@ class CostTracker:
             turn, session_id, model, cost_usd,
         )
         return record
-
-    # ------------------------------------------------------------------
-    # Query API
-    # ------------------------------------------------------------------
 
     def get_session_cost(self, session_id: str) -> SessionCost:
         """Return accumulated cost for a session."""
@@ -746,10 +688,6 @@ class CostTracker:
         """Estimate cost for a hypothetical call without recording it."""
         return _compute_cost(model, input_tokens, output_tokens)
 
-    # ------------------------------------------------------------------
-    # Export
-    # ------------------------------------------------------------------
-
     def export_json(self, session_id: str) -> str:
         """Export session cost data as JSON string."""
         s     = self.get_session_cost(session_id)
@@ -773,10 +711,6 @@ class CostTracker:
         writer.writeheader()
         writer.writerows(calls)
         return buf.getvalue()
-
-    # ------------------------------------------------------------------
-    # Human-readable summaries
-    # ------------------------------------------------------------------
 
     def summary(self, session_id: str) -> str:
         """Human-readable cost summary string for CLI / dashboard display."""
@@ -820,10 +754,6 @@ class CostTracker:
             "turns":          [tc.to_dict() for tc in self.get_all_turns(session_id)],
         }
 
-    # ------------------------------------------------------------------
-    # Rate limiting (soft — warns, does not block)
-    # ------------------------------------------------------------------
-
     def _check_rate_limit(self, session_id: str) -> None:
         if not self._hourly_limit:
             return
@@ -836,10 +766,6 @@ class CostTracker:
                 session_id, count, self._hourly_limit,
             )
 
-    # ------------------------------------------------------------------
-    # In-memory helpers
-    # ------------------------------------------------------------------
-
     def _get_or_create(self, session_id: str) -> SessionCost:
         if session_id not in self._sessions:
             loaded = self._redis_load(session_id)
@@ -847,10 +773,6 @@ class CostTracker:
                 loaded or SessionCost(session_id=session_id)
             )
         return self._sessions[session_id]
-
-    # ------------------------------------------------------------------
-    # Redis persistence (best-effort — failures are swallowed)
-    # ------------------------------------------------------------------
 
     def _redis_save(self, session_id: str, cost: SessionCost) -> None:
         if not self._redis:

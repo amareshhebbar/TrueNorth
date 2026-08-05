@@ -6,54 +6,42 @@ authors = ["Amaresh Hebbar <truenorth.framework@gmail.com>"]
 readme = "README.md"
 repository = "https://github.com/amareshhebbar/truenorth"
 
-
 packages = [{include = "truenorth"}]
 
 [tool.poetry.dependencies]
 python             = "^3.11"
 
-# LLM providers
 anthropic          = "^0.49.0"
 openai             = "^1.51.0"
 google-generativeai = "^0.8.3"
 
-# Web framework
 fastapi            = "^0.115.0"
 uvicorn            = {extras = ["standard"], version = "^0.32.0"}
 python-multipart   = ">=0.0.12,<0.0.28"
 websockets         = "^13.1"
 httpx              = "^0.27.2"
 
-# Data validation
 pydantic           = "^2.9.0"
 pydantic-settings  = "^2.6.0"
 
-# Database
 sqlalchemy         = {extras = ["asyncio"], version = "^2.0.36"}
 asyncpg            = "^0.30.0"
 alembic            = "^1.13.3"
 
-# Cache
 redis              = {extras = ["hiredis"], version = "^5.1.1"}
 
-# YAML
 pyyaml             = "^6.0.2"
 jsonschema         = "^4.23.0"
 
-# Async utilities
 anyio              = "^4.6.2"
 
-# Privacy / NLP
 presidio-analyzer  = {version = "^2.2.354", optional = true}
 
-# Scheduling (reminder AI)
 apscheduler        = "^3.10.4"
 celery             = {extras = ["redis"], version = "^5.4.0", optional = true}
 
-# Observability
 structlog          = "^24.4.0"
 
-# CLI
 click              = "^8.1.7"
 rich               = "^13.9.3"
 

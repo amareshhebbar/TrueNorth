@@ -11,20 +11,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-
-# ---------------------------------------------------------------------------
-# Shared types
-# ---------------------------------------------------------------------------
-
 @dataclass
 class Message:
     """One message in a conversation."""
-    role:    str    # "user" | "assistant" | "system"
+    role:    str
     content: str
 
     def to_dict(self) -> dict:
         return {"role": self.role, "content": self.content}
-
 
 @dataclass
 class LLMResponse:
@@ -34,13 +28,12 @@ class LLMResponse:
     input_tokens:  int    = 0
     output_tokens: int    = 0
     latency_ms:    int    = 0
-    raw:           Any    = field(default=None, repr=False)  # provider-specific raw response
+    raw:           Any    = field(default=None, repr=False)
     metadata:      Dict[str, Any] = field(default_factory=dict)
 
     @property
     def total_tokens(self) -> int:
         return self.input_tokens + self.output_tokens
-
 
 @dataclass
 class StreamChunk:
@@ -49,11 +42,6 @@ class StreamChunk:
     is_final:      bool = False
     input_tokens:  int  = 0
     output_tokens: int  = 0
-
-
-# ---------------------------------------------------------------------------
-# Abstract base
-# ---------------------------------------------------------------------------
 
 class LLMBase(ABC):
     """
@@ -114,10 +102,6 @@ class LLMBase(ABC):
         """
         ...
 
-    # ------------------------------------------------------------------
-    # Convenience helpers shared by all subclasses
-    # ------------------------------------------------------------------
-
     def _measure(self) -> "_Timer":
         return _Timer()
 
@@ -143,7 +127,6 @@ class LLMBase(ABC):
             return bool(resp.content)
         except Exception:
             return False
-
 
 class _Timer:
     """Context manager that measures elapsed milliseconds."""

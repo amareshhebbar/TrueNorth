@@ -41,10 +41,6 @@ from truenorth.intelligence.conflict_detector import (
     _should_auto_resolve,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Shared fixtures
-# ─────────────────────────────────────────────────────────────────────────────
-
 FIELDS_CONFIG = {
     "name":                  {"type": "text"},
     "age":                   {"type": "integer", "min": 1,  "max": 120},
@@ -77,7 +73,6 @@ COLLECTED = {
 
 DET = ConflictDetector()
 
-
 def check(new: dict, collected: dict = None, cfg: dict = None, turn: int = 5,
           turn_map: dict = None, confidences: dict = None) -> list:
     return DET.check(
@@ -88,11 +83,6 @@ def check(new: dict, collected: dict = None, cfg: dict = None, turn: int = 5,
         turn_map          = turn_map or {k: 1 for k in (collected or COLLECTED)},
         field_confidences = confidences,
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Conflict types
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConflictTypes:
 
@@ -135,7 +125,7 @@ class TestConflictTypes:
             {"diet": "I smoke 10 cigarettes daily"},
             collected={"diet": "I don't smoke at all"},
         )
-        # semantic or text contradiction
+
         assert len(cs) >= 1
 
     def test_no_conflict_same_value(self):
@@ -146,23 +136,18 @@ class TestConflictTypes:
         cs = check({"height_cm": 163}, collected={})
         assert len(cs) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Severity
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestConflictSeverity:
 
     def test_large_numeric_diff_critical(self):
-        cs = check({"age": 70})     # 28 → 70, diff = 150% > 50%
+        cs = check({"age": 70})
         assert cs[0].severity == ConflictSeverity.CRITICAL
 
     def test_medium_numeric_diff_high(self):
-        cs = check({"age": 38})     # 28 → 38, diff = 35.7% > 30%
+        cs = check({"age": 38})
         assert cs[0].severity == ConflictSeverity.HIGH
 
     def test_small_diff_medium(self):
-        # 28 → 32: diff = 14.3%, above 12% threshold
+
         cs = check({"age": 32})
         assert cs[0].severity in (ConflictSeverity.MEDIUM, ConflictSeverity.HIGH)
 
@@ -177,11 +162,6 @@ class TestConflictSeverity:
     def test_categorical_flip_high(self):
         cs = check({"primary_goal": "build muscle"})
         assert cs[0].severity == ConflictSeverity.HIGH
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Semantic aliases — should NOT trigger conflicts
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSemanticAliases:
 
@@ -227,11 +207,6 @@ class TestSemanticAliases:
         )
         assert len(cs) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Unit normalisation
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestUnitNormalisation:
 
     def test_parse_kg(self):
@@ -240,7 +215,7 @@ class TestUnitNormalisation:
 
     def test_parse_lbs_to_kg(self):
         val = _try_parse_with_unit("143 lbs", "weight_kg")
-        # 143 lbs = 64.86 kg ≈ 65
+
         assert val == pytest.approx(64.86, abs=0.5)
 
     def test_parse_cm(self):
@@ -252,16 +227,16 @@ class TestUnitNormalisation:
         assert val == pytest.approx(163.0, abs=1.0)
 
     def test_same_weight_different_unit_no_conflict(self):
-        # 65 kg ≈ 143 lbs — should NOT conflict
+
         cs = check(
             {"weight_kg": "143 lbs"},
             collected={"weight_kg": "65 kg"},
         )
-        # The unit normaliser recognises these as equivalent
+
         assert all(c.conflict_type != ConflictType.UNIT_MISMATCH for c in cs)
 
     def test_genuinely_different_weight_unit_mismatch(self):
-        # 65 kg vs "100 lbs" (≈45 kg) — genuinely different
+
         cs = check(
             {"weight_kg": "100 lbs"},
             collected={"weight_kg": "65 kg"},
@@ -269,36 +244,28 @@ class TestUnitNormalisation:
         assert len(cs) >= 1
 
     def test_unknown_field_no_unit_check(self):
-        # Unit normalisation only applies to known fields
+
         val = _try_parse_with_unit("28 years", "age")
-        assert val is None  # age not in _UNIT_PATTERNS
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. Confidence suppression
-# ─────────────────────────────────────────────────────────────────────────────
+        assert val is None
 
 class TestConfidenceSuppression:
 
     def test_low_confidence_new_suppressed(self):
-        # New extraction has very low confidence (0.30) vs old (0.95)
-        # Should not flag as conflict
+
         cs = check(
             {"age": 35},
             confidences={"age": 0.95},
         )
-        # Without confidence suppression, this would be a conflict
-        # With suppression: 1.0 (new default) vs 0.95 (old) — difference is small
-        # So this still fires. Let's test the suppression explicitly:
+
         det = ConflictDetector()
         result = det._compare_field(
             field_name="age", old_val=28, new_val=35,
             field_cfg={"type": "integer"},
             turn_old=1, turn_new=5,
             old_confidence=0.95,
-            new_confidence=0.30,   # << much lower
+            new_confidence=0.30,
         )
-        # new_conf (0.30) < old_conf (0.95) - threshold (0.30) = 0.65 → suppressed
+
         assert result is None
 
     def test_high_confidence_new_not_suppressed(self):
@@ -308,7 +275,7 @@ class TestConfidenceSuppression:
             field_cfg={"type": "integer"},
             turn_old=1, turn_new=5,
             old_confidence=0.70,
-            new_confidence=0.90,   # high confidence new
+            new_confidence=0.90,
         )
         assert result is not None
         assert result.conflict_type == ConflictType.NUMERIC_MISMATCH
@@ -323,11 +290,6 @@ class TestConfidenceSuppression:
             new_confidence=0.80,
         )
         assert result is not None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. Auto-resolution
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAutoResolution:
 
@@ -369,24 +331,19 @@ class TestAutoResolution:
         det   = ConflictDetector()
         collected = dict(COLLECTED)
         result = det.check_and_store(
-            new_extractions = {"age": 200},  # range violation
+            new_extractions = {"age": 200},
             collected       = collected,
             fields_config   = FIELDS_CONFIG,
             current_turn    = 5,
             store           = store,
             turn_map        = {"age": 1},
         )
-        # Auto-resolved → not in new_open
+
         assert len(result) == 0
-        # But stored as auto-resolved
+
         assert any(c.status == ConflictStatus.AUTO_RESOLVED for c in store._conflicts)
-        # Old value restored
+
         assert collected["age"] == COLLECTED["age"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. ConflictStore lifecycle
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConflictStore:
 
@@ -406,7 +363,7 @@ class TestConflictStore:
     def test_duplicate_not_added(self):
         store = ConflictStore()
         c1 = self._make_conflict()
-        c2 = self._make_conflict()   # same field + values
+        c2 = self._make_conflict()
         store.add(c1)
         added = store.add(c2)
         assert added is False
@@ -436,7 +393,7 @@ class TestConflictStore:
         store.add(c)
         store.escalate(c.id)
         assert c.status == ConflictStatus.ESCALATED
-        # Still "open" (shown to user, awaiting response)
+
         assert len(store.open_conflicts) == 1
 
     def test_most_severe_open(self):
@@ -476,11 +433,6 @@ class TestConflictStore:
         assert "conflict_type" in d
         assert "severity" in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Cross-field conflicts
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCrossField:
 
     def test_age_work_experience_conflict(self):
@@ -499,7 +451,7 @@ class TestCrossField:
 
     def test_bmi_conflict_too_low(self):
         det = ConflictDetector()
-        # BMI = 10 / (1.63^2) = 3.8 — clearly wrong
+
         collected = {"weight_kg": 10, "height_cm": 163}
         cs = det.check_cross_field(collected, FIELDS_CONFIG, current_turn=5)
         assert any(c.conflict_type == ConflictType.CROSS_FIELD for c in cs)
@@ -514,13 +466,13 @@ class TestCrossField:
     def test_workout_rest_days_conflict(self):
         det = ConflictDetector()
         cfg = {**FIELDS_CONFIG, "rest_days_per_week": {"type": "integer"}}
-        collected = {"workout_days_per_week": 6, "rest_days_per_week": 6}  # sums to 12, not 7
+        collected = {"workout_days_per_week": 6, "rest_days_per_week": 6}
         cs = det.check_cross_field(collected, cfg, current_turn=5)
         assert any(c.conflict_type == ConflictType.CROSS_FIELD for c in cs)
 
     def test_cross_field_only_when_both_collected(self):
         det = ConflictDetector()
-        collected = {"age": 22}  # work_experience not collected yet
+        collected = {"age": 22}
         cs = det.check_cross_field(collected, FIELDS_CONFIG, current_turn=5)
         assert len(cs) == 0
 
@@ -530,11 +482,6 @@ class TestCrossField:
         collected = {"age": 22, "work_experience_years": 20}
         det.check_cross_field(collected, FIELDS_CONFIG, current_turn=5, store=store)
         assert store.has_open()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Clarification questions
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestClarificationQuestions:
 
@@ -578,11 +525,6 @@ class TestClarificationQuestions:
             assert isinstance(q, str)
             assert len(q) > 10
             assert "?" in q
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Resolve from user input
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestResolveFromUser:
 
@@ -653,13 +595,8 @@ class TestResolveFromUser:
             store, collected, 6,
             fields_config={"age": {"type": "integer"}, "smoker": {"type": "boolean"}},
         )
-        # At least one resolved
+
         assert len(resolved) >= 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. ConflictReport
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestConflictReport:
 
@@ -678,7 +615,7 @@ class TestConflictReport:
                 ConflictType.NUMERIC_MISMATCH, ConflictSeverity.HIGH, 1, 5,
             )
             store.add(c)
-        # Resolve one
+
         collected = {f"field_{i}": i for i in range(3)}
         store.resolve(store._conflicts[0].id, 99, 6, collected)
         report = store.report("s1", total_turns=10)
@@ -688,7 +625,7 @@ class TestConflictReport:
 
     def test_report_most_conflicted_fields(self):
         store = ConflictStore()
-        # age conflicted twice
+
         c1 = ConflictDetector._make_conflict("age", 28, 35,
                 ConflictType.NUMERIC_MISMATCH, ConflictSeverity.HIGH, 1, 3)
         c2 = ConflictDetector._make_conflict("age", 35, 40,
@@ -720,18 +657,13 @@ class TestConflictReport:
         report = store.report("s1", total_turns=10)
         assert report.conflict_rate == pytest.approx(0.4)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Turn map tracking
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTurnMap:
 
     def test_conflict_records_correct_turns(self):
         cs = check(
             {"age": 35},
             turn     = 7,
-            turn_map = {"age": 3},  # age collected at turn 3
+            turn_map = {"age": 3},
         )
         assert len(cs) == 1
         assert cs[0].turn_old == 3
@@ -752,11 +684,6 @@ class TestTurnMap:
         d = cs[0].to_dict()
         assert d["turn_old"] == 2
         assert d["turn_new"] == 8
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Engine integration
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestEngineIntegration:
 
@@ -791,10 +718,8 @@ class TestEngineIntegration:
         engine = TrueNorthEngine(goal_config=self.GOAL, router=router)
         await engine.start()
 
-        # Manually set age=28 first
         engine.state.set_field("age", 28, confidence=0.90)
 
-        # Now process message that would extract age=35 (contradicts 28)
         from truenorth.intelligence.conflict_detector import ConflictDetector
         det = ConflictDetector()
         conflicts = det.check(
@@ -822,21 +747,14 @@ class TestEngineIntegration:
         engine = TrueNorthEngine(goal_config=self.GOAL, router=router)
         await engine.start()
 
-        # Set age and add a fake active conflict for it
         engine.state.set_field("age", 28)
         engine.state.active_conflicts.append({
             "field": "age", "old_value": 28, "new_value": 35, "resolved": False,
         })
 
-        # Process a message — age should NOT be overwritten since it's in conflict
         await engine.process_message("I'm Alex")
-        # Age field should still be 28 (conflict protecting it)
+
         assert engine.state.collected_fields.get("age") == 28
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. v1 compatibility
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestV1Compatibility:
 
@@ -900,7 +818,7 @@ class TestV1Compatibility:
         assert result == []
 
     def test_conflict_type_enum_values_unchanged(self):
-        # v1 code compares conflict_type as string
+
         assert ConflictType.NUMERIC_MISMATCH.value  == "numeric_mismatch"
         assert ConflictType.BOOLEAN_FLIP.value       == "boolean_flip"
         assert ConflictType.CATEGORICAL_FLIP.value   == "categorical_flip"

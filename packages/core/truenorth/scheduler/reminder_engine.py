@@ -35,19 +35,13 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Reminder status
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ReminderStatus(str, Enum):
     PENDING   = "pending"
     TRIGGERED = "triggered"
     DELIVERED = "delivered"
     FAILED    = "failed"
     CANCELLED = "cancelled"
-    SKIPPED   = "skipped"    # condition not met when trigger fired
-
+    SKIPPED   = "skipped"
 
 class TriggerType(str, Enum):
     AFTER_HOURS  = "after_hours"
@@ -56,11 +50,6 @@ class TriggerType(str, Enum):
     WEEKLY       = "weekly"
     MONTHLY      = "monthly"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  FollowUpRule — parsed from YAML follow_up: block
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class FollowUpRule:
     """
@@ -68,14 +57,14 @@ class FollowUpRule:
     Immutable once created — all state lives in ScheduledReminder.
     """
     rule_id:         str
-    trigger:         str             # raw trigger string: "after 2 days"
-    channel:         str             # "whatsapp" | "email" | "sms" | "push"
-    message_prompt:  str             # LLM prompt to compose the message
-    check_field:     Optional[str]   = None    # only fire if this field has/lacks a value
-    check_value:     Optional[Any]   = None    # expected value (None = field must be absent)
-    condition:       Optional[dict]  = None    # {field: expected_value} dict
+    trigger:         str
+    channel:         str
+    message_prompt:  str
+    check_field:     Optional[str]   = None
+    check_value:     Optional[Any]   = None
+    condition:       Optional[dict]  = None
     recurring:       bool            = False
-    max_fires:       int             = 1       # 0 = unlimited
+    max_fires:       int             = 1
 
     @classmethod
     def from_yaml(cls, raw: dict, rule_index: int = 0) -> "FollowUpRule":
@@ -115,7 +104,6 @@ class FollowUpRule:
         if t == "monthly":
             return base_time + timedelta(days=30)
 
-        # "on YYYY-MM-DD"
         m2 = re.match(r"on\s+(\d{4}-\d{2}-\d{2})", t)
         if m2:
             try:
@@ -128,7 +116,7 @@ class FollowUpRule:
 
     def condition_met(self, collected_fields: dict) -> bool:
         """Return True if this rule's condition is satisfied for the current state."""
-        # check_field condition
+
         if self.check_field:
             field_value = collected_fields.get(self.check_field)
             if self.check_value is None:
@@ -138,18 +126,12 @@ class FollowUpRule:
                 if field_value != self.check_value:
                     return False
 
-        # General condition dict
         if self.condition:
             for field_name, expected in self.condition.items():
                 if collected_fields.get(field_name) != expected:
                     return False
 
         return True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ScheduledReminder — one pending/completed reminder instance
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class ScheduledReminder:
@@ -160,7 +142,7 @@ class ScheduledReminder:
     user_id:         Optional[str]
     goal_id:         str
     channel:         str
-    fire_at:         datetime       
+    fire_at:         datetime
     status:          ReminderStatus = ReminderStatus.PENDING
     fired_at:        Optional[datetime] = None
     delivery_result: Optional[dict]     = None
@@ -189,11 +171,6 @@ class ScheduledReminder:
             "fire_count":   self.fire_count,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ReminderEngine
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ReminderEngine:
     """
     Evaluates follow-up rules and manages the scheduled reminder queue.
@@ -204,10 +181,10 @@ class ReminderEngine:
 
     def __init__(
         self,
-        delivery:     Optional[Any]      = None,    # DeliveryChannel instance
-        planner:      Optional[Any]      = None,    # FollowUpPlanner instance
+        delivery:     Optional[Any]      = None,
+        planner:      Optional[Any]      = None,
         redis:        Optional[Any]      = None,
-        poll_interval: float             = 60.0,    # seconds between checks
+        poll_interval: float             = 60.0,
     ):
         self._delivery      = delivery
         self._planner       = planner
@@ -215,10 +192,6 @@ class ReminderEngine:
         self._poll_interval = poll_interval
         self._reminders:    Dict[str, ScheduledReminder] = {}
         self._running       = False
-
-    # ------------------------------------------------------------------
-    # Scheduling
-    # ------------------------------------------------------------------
 
     def schedule_all(
         self,
@@ -291,10 +264,6 @@ class ReminderEngine:
         self._reminders[reminder.reminder_id] = reminder
         return reminder
 
-    # ------------------------------------------------------------------
-    # Due reminders
-    # ------------------------------------------------------------------
-
     def get_due(self, now: Optional[datetime] = None) -> List[ScheduledReminder]:
         """Return all reminders that are currently due."""
         now = now or datetime.now(timezone.utc)
@@ -316,10 +285,6 @@ class ReminderEngine:
         if session_id:
             reminders = [r for r in reminders if r.session_id == session_id]
         return [r.to_dict() for r in reminders]
-
-    # ------------------------------------------------------------------
-    # State transitions
-    # ------------------------------------------------------------------
 
     def mark_triggered(self, reminder_id: str) -> None:
         r = self._reminders.get(reminder_id)
@@ -361,10 +326,6 @@ class ReminderEngine:
                 count += 1
         return count
 
-    # ------------------------------------------------------------------
-    # Background loop (asyncio)
-    # ------------------------------------------------------------------
-
     async def start(self) -> None:
         """Start the background polling loop. Call from your async startup."""
         self._running = True
@@ -388,10 +349,10 @@ class ReminderEngine:
             self.mark_triggered(reminder.reminder_id)
             try:
                 if self._planner and self._delivery:
-                    # Compose message via LLM
+
                     msg_text = await self._planner.compose(reminder)
                     reminder.message_text = msg_text
-                    # Deliver via channel
+
                     result = await self._delivery.send(reminder)
                     self.mark_delivered(reminder.reminder_id, result, msg_text)
                 else:
@@ -406,10 +367,6 @@ class ReminderEngine:
                     reminder.reminder_id, e,
                 )
                 self.mark_failed(reminder.reminder_id, str(e))
-
-    # ------------------------------------------------------------------
-    # Stats
-    # ------------------------------------------------------------------
 
     def stats(self) -> dict:
         all_r = list(self._reminders.values())

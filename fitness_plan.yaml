@@ -102,17 +102,13 @@ fields:
 output:
   format: markdown
   template: |
-    # Your Personalised Fitness Plan — {name}
 
-    ## Your Profile
     - **Age**: {age} years
     - **Weight**: {weight_kg} kg | **Height**: {height_cm} cm
     - **Goal**: {primary_goal}
     - **Activity Level**: {activity_level}
 
-    ## Your Weekly Schedule
     {workout_days_per_week} days/week × {workout_duration_minutes} min/session
     Equipment: {equipment_access}
 
-    ## Your Plan
     Based on your profile, here is your personalised 4-week plan...

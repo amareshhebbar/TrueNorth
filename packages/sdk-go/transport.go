@@ -89,7 +89,7 @@ type TrueNorth struct {
 
 func NewClient(apiKey string, baseURL string) *TrueNorth {
 	if baseURL == "" {
-		baseURL = "https://api.truenorth.ai/v1" 
+		baseURL = "https://api.truenorth.ai/v1"
 	}
 	t := &transport{
 		BaseURL:    baseURL,

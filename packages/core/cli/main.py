@@ -34,20 +34,10 @@ _console = Console() if _RICH else None
 
 VERSION = "0.1.1"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CLI group
-# ─────────────────────────────────────────────────────────────────────────────
-
 @click.group()
 @click.version_option(VERSION, "--version", "-v", prog_name="truenorth")
 def cli():
     """TrueNorth — AI agent framework CLI."""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  truenorth cost
-# ─────────────────────────────────────────────────────────────────────────────
 
 @cli.command("cost")
 @click.option("--session", "-s", required=False,
@@ -83,7 +73,6 @@ def cost_cmd(session: str, goal: str, fmt: str, top: int, db: str):
     else:
         _display_session_cost(ct, session, fmt, top)
 
-
 def _display_session_cost(ct, session_id: str, fmt: str, top: int):
     """Display per-session cost."""
 
@@ -112,7 +101,6 @@ def _display_session_cost(ct, session_id: str, fmt: str, top: int):
     else:
         _plain_session_cost(session_id, s, bd, top_calls)
 
-
 def _display_goal_cost(ct, goal_id: str, fmt: str):
     """Display per-goal aggregated cost."""
     gc = ct.goal_cost(goal_id)
@@ -128,7 +116,6 @@ def _display_goal_cost(ct, goal_id: str, fmt: str):
         click.echo(f"  Total cost: ${d['total_cost_usd']:.4f}")
         click.echo(f"  Avg/session: ${d['avg_cost_per_session']:.4f}")
 
-
 def _rich_session_cost(session_id, s, bd, top_calls, turns):
     con = _console
 
@@ -136,7 +123,6 @@ def _rich_session_cost(session_id, s, bd, top_calls, turns):
     con.rule(f"[bold]Cost Report — {session_id}[/bold]")
     con.print()
 
-    # Summary row
     budget_str = ""
     if s.budget_usd:
         pct   = s.budget_used_pct or 0
@@ -165,7 +151,6 @@ def _rich_session_cost(session_id, s, bd, top_calls, turns):
         con.print(t)
         con.print()
 
-    # Top expensive calls
     if top_calls:
         t2 = Table(title=f"Top {len(top_calls)} Most Expensive Calls",
                    box=rich_box.SIMPLE_HEAVY, show_header=True)
@@ -190,7 +175,6 @@ def _rich_session_cost(session_id, s, bd, top_calls, turns):
 
     con.print()
 
-
 def _rich_goal_cost(goal_id, gc):
     con = _console
     con.print()
@@ -211,7 +195,6 @@ def _rich_goal_cost(goal_id, gc):
             t.add_row(task, f"${cost:.4f}")
         con.print(t)
 
-
 def _plain_session_cost(session_id, s, bd, top_calls):
     click.echo(f"Session: {session_id}")
     click.echo(f"  Total cost:  ${s.total_cost_usd:.4f}")
@@ -221,11 +204,6 @@ def _plain_session_cost(session_id, s, bd, top_calls):
         click.echo("  By task:")
         for task, v in sorted(bd.items(), key=lambda x: x[1]["cost_usd"], reverse=True):
             click.echo(f"    {task:<14} ${v['cost_usd']:.6f}  ({v['pct']:.1f}%)")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  truenorth pricing
-# ─────────────────────────────────────────────────────────────────────────────
 
 @cli.command("pricing")
 @click.option("--provider", "-p",
@@ -265,7 +243,6 @@ def pricing_cmd(provider: str, fmt: str, include_local: bool):
     else:
         _plain_pricing_table(models)
 
-
 def _rich_pricing_table(models, provider, include_local):
     con = _console
     con.print()
@@ -299,7 +276,6 @@ def _rich_pricing_table(models, provider, include_local):
     )
     con.print()
 
-
 def _plain_pricing_table(models):
     click.echo(f"{'Provider':<12} {'Model':<45} {'Input/1M':>10} {'Output/1M':>11} {'Typical/1K':>12}")
     click.echo("-" * 96)
@@ -310,11 +286,6 @@ def _plain_pricing_table(models):
         click.echo(
             f"{m['provider']:<12} {m['model']:<45} {inp:>10} {outp:>11} {typ:>12}"
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  truenorth estimate
-# ─────────────────────────────────────────────────────────────────────────────
 
 @cli.command("estimate")
 @click.option("--model",  "-m", required=True, help="Model name.")
@@ -359,16 +330,10 @@ def estimate_cmd(model: str, tokens: int, output: int, sessions: int):
         if sessions > 1:
             click.echo(f"Total ({sessions} sessions): ${total:.4f}")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  truenorth version
-# ─────────────────────────────────────────────────────────────────────────────
-
 @cli.command("version")
 def version_cmd():
     """Show TrueNorth version."""
     click.echo(f"TrueNorth v{VERSION}")
-
 
 if __name__ == "__main__":
     cli()

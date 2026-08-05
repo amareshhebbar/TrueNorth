@@ -91,8 +91,6 @@ from truenorth.core.engine           import TrueNorthEngine
 from truenorth.core.yaml_loader      import YAMLLoader
 from truenorth.intelligence.language_detector import LanguageDetector
 
-# ── Inline goal config (no YAML file needed for this demo) ─────────────────
-
 INLINE_GOAL = {
     "id": "multilingual_demo",
     "name": "Multilingual Health Assessment",
@@ -100,7 +98,7 @@ INLINE_GOAL = {
         "name": "Health Assistant",
         "tone": "warm",
         "empathy_level": "medium",
-        "language": "auto",          # KEY: auto-detects from user input
+        "language": "auto",
         "greeting": "Hello! / नमस्ते! / ನಮಸ್ಕಾರ! / வணக்கம்!\nI can speak your language. Please reply in Hindi, Kannada, Tamil, Telugu, or English — I will understand.",
     },
     "fields": [
@@ -129,43 +127,41 @@ INLINE_GOAL = {
     },
 }
 
-# ── Pre-written demo conversations per language ─────────────────────────────
-
 DEMO_SCRIPTS = {
     "hindi": {
         "label": "HINDI (हिंदी)",
         "turns": [
-            "नमस्ते",                                          # Hello
-            "मेरा नाम राहुल शर्मा है",                        # My name is Rahul Sharma
-            "28 साल का हूँ",                                  # I am 28 years old
-            "वजन 72 किलो है",                                 # Weight is 72 kg
-            "लम्बाई 175 सेंटीमीटर है",                        # Height is 175 cm
-            "मुझे वजन कम करना है",                             # I want to lose weight
-            "मुंबई से हूँ",                                   # I am from Mumbai
+            "नमस्ते",
+            "मेरा नाम राहुल शर्मा है",
+            "28 साल का हूँ",
+            "वजन 72 किलो है",
+            "लम्बाई 175 सेंटीमीटर है",
+            "मुझे वजन कम करना है",
+            "मुंबई से हूँ",
         ],
     },
     "kannada": {
         "label": "KANNADA (ಕನ್ನಡ)",
         "turns": [
-            "ನಮಸ್ಕಾರ",                                         # Hello
-            "ನನ್ನ ಹೆಸರು ರವಿ ಕುಮಾರ್",                          # My name is Ravi Kumar
-            "ನನಗೆ 32 ವರ್ಷ",                                    # I am 32 years old
-            "ತೂಕ 80 ಕಿಲೋ",                                    # Weight 80 kg
-            "ಎತ್ತರ 170 ಸೆಂ.ಮೀ",                               # Height 170 cm
-            "ದೇಹವನ್ನು ಫಿಟ್ ಮಾಡಿಕೊಳ್ಳಬೇಕು",                     # I want to get fit
-            "ಬೆಂಗಳೂರಿನಿಂದ",                                   # From Bengaluru
+            "ನಮಸ್ಕಾರ",
+            "ನನ್ನ ಹೆಸರು ರವಿ ಕುಮಾರ್",
+            "ನನಗೆ 32 ವರ್ಷ",
+            "ತೂಕ 80 ಕಿಲೋ",
+            "ಎತ್ತರ 170 ಸೆಂ.ಮೀ",
+            "ದೇಹವನ್ನು ಫಿಟ್ ಮಾಡಿಕೊಳ್ಳಬೇಕು",
+            "ಬೆಂಗಳೂರಿನಿಂದ",
         ],
     },
     "tamil": {
         "label": "TAMIL (தமிழ்)",
         "turns": [
-            "வணக்கம்",                                          # Hello
-            "என் பெயர் ப்ரியா",                                 # My name is Priya
-            "என் வயது 25",                                      # My age is 25
-            "என் எடை 58 கிலோ",                                  # My weight is 58 kg
-            "உயரம் 162 செமீ",                                   # Height 162 cm
-            "உடல் எடையை குறைக்கணும்",                           # Want to reduce weight
-            "சென்னையில் இருக்கேன்",                              # I am in Chennai
+            "வணக்கம்",
+            "என் பெயர் ப்ரியா",
+            "என் வயது 25",
+            "என் எடை 58 கிலோ",
+            "உயரம் 162 செமீ",
+            "உடல் எடையை குறைக்கணும்",
+            "சென்னையில் இருக்கேன்",
         ],
     },
     "hinglish": {
@@ -194,13 +190,10 @@ DEMO_SCRIPTS = {
     },
 }
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
 def divider(title: str):
     print(f"\n{'═' * 60}")
     print(f"  {title}")
     print(f"{'═' * 60}\n")
-
 
 def show_detection_stats(state):
     """Show what language was detected and the engine's state."""
@@ -209,9 +202,6 @@ def show_detection_stats(state):
     print(f"  📊 Fields collected  : {len(state.collected_fields)}")
     print(f"  📊 Completion        : {state.completion_pct:.0f}%")
     print(f"  📊 Current turn      : {state.current_turn}\n")
-
-
-# ── Run a single language demo ──────────────────────────────────────────────
 
 async def run_language_demo(
     language: str,
@@ -229,7 +219,6 @@ async def run_language_demo(
         session_id  = f"multilang_{language}",
     )
 
-    # Start
     first = await engine.start()
     print(f"Agent: {first.text}\n")
 
@@ -268,12 +257,10 @@ async def run_language_demo(
             print("── STRUCTURED OUTPUT ──────────────────────────────────")
             print(json.dumps(content, indent=2, ensure_ascii=False))
 
-            # Highlight language detection result
             detected = content.get("language_detected") or engine.state.detected_language
             if detected:
                 print(f"\n✅ Language correctly detected as: {detected.upper()}")
 
-            # Show personalised message in native language
             if isinstance(content, dict):
                 msg = content.get("personalised_message")
                 if msg:
@@ -286,9 +273,6 @@ async def run_language_demo(
         show_detection_stats(engine.state)
 
     return None
-
-
-# ── Show live language detector ──────────────────────────────────────────────
 
 async def demo_language_detector():
     """Show the language detector working on sample phrases."""
@@ -314,9 +298,6 @@ async def demo_language_detector():
         match    = "✅" if expected.lower() in (detected or "").lower() else "⚠️ "
         print(f"{phrase[:43]:<45} {expected:<12} {detected or 'unknown'} {match}")
     print()
-
-
-# ── Interactive mode ─────────────────────────────────────────────────────────
 
 async def interactive_session():
     """Let the user type in any language and see TrueNorth respond."""
@@ -347,9 +328,6 @@ async def interactive_session():
             print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
             break
 
-
-# ── Main ─────────────────────────────────────────────────────────────────────
-
 async def main():
     demo_lang = os.environ.get("DEMO_LANG", "all").lower()
 
@@ -358,7 +336,6 @@ async def main():
     print(f"  Mode: {demo_lang}")
     print("=" * 60)
 
-    # Always show the language detector first
     await demo_language_detector()
 
     if demo_lang == "interactive":
@@ -366,7 +343,7 @@ async def main():
         return
 
     if demo_lang == "all":
-        # Run all languages
+
         results = {}
         for lang, script in DEMO_SCRIPTS.items():
             output = await run_language_demo(lang, script)
@@ -380,7 +357,6 @@ async def main():
     else:
         print(f"Unknown language: {demo_lang}")
         print(f"Available: {', '.join(DEMO_SCRIPTS.keys())} | all | interactive")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

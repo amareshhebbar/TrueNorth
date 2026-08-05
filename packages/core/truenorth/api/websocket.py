@@ -6,7 +6,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
-
 @router.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await websocket.accept()

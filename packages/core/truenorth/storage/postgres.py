@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from truenorth.storage.models import Base, Session as SessionModel
 from truenorth.core.graph_state import GraphState, FieldValue
 
-
 class PostgresStore:
     def __init__(self, database_url: str):
         self.engine = create_async_engine(database_url, echo=False)
@@ -20,7 +19,6 @@ class PostgresStore:
         async with self.session_factory() as db:
             existing = await db.get(SessionModel, state.session_id)
 
-            # Serialize profile (FieldValue → dict)
             profile_data = {
                 k: {"value": v.value, "confidence": v.confidence,
                     "source": v.source, "raw_text": v.raw_text,
@@ -82,7 +80,6 @@ class PostgresStore:
                 resumed=True,
             )
 
-            # Deserialize profile
             for k, v in (row.profile or {}).items():
                 state.profile[k] = FieldValue(
                     value=v["value"], confidence=v.get("confidence", 0.7),

@@ -37,12 +37,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 
-
 class DeployProfile(str, Enum):
     MINIMAL    = "minimal"
     STANDARD   = "standard"
     ENTERPRISE = "enterprise"
-
 
 @dataclass
 class SelfHostConfig:
@@ -98,10 +96,6 @@ class SelfHostConfig:
             files.append(str(prom_path))
 
         return files
-
-    # ------------------------------------------------------------------
-    # docker-compose.yml
-    # ------------------------------------------------------------------
 
     def _docker_compose(self) -> str:
         worker_svc = textwrap.dedent(f"""
@@ -209,10 +203,6 @@ volumes:
   redis_data:{nginx_volume}{monitoring_volumes}
 """)
 
-    # ------------------------------------------------------------------
-    # .env.template
-    # ------------------------------------------------------------------
-
     def _env_template(self) -> str:
         return textwrap.dedent(f"""\
 # TrueNorth Environment Configuration
@@ -271,10 +261,6 @@ SENTRY_DSN=
 GRAFANA_PASSWORD=CHANGE_ME
 """)
 
-    # ------------------------------------------------------------------
-    # nginx.conf
-    # ------------------------------------------------------------------
-
     def _nginx_conf(self) -> str:
         return textwrap.dedent(f"""\
 # TrueNorth nginx reverse proxy
@@ -330,10 +316,6 @@ server {{
 }}
 """)
 
-    # ------------------------------------------------------------------
-    # Prometheus config
-    # ------------------------------------------------------------------
-
     def _prometheus_config(self) -> str:
         return textwrap.dedent("""\
 global:
@@ -346,10 +328,6 @@ scrape_configs:
       - targets: ['truenorth-api:8000']
     metrics_path: /metrics
 """)
-
-    # ------------------------------------------------------------------
-    # README.md
-    # ------------------------------------------------------------------
 
     def _readme(self) -> str:
         return textwrap.dedent(f"""\
@@ -418,11 +396,6 @@ docker compose logs -f truenorth-worker
 Docs: https://docs.truenorth.ai/self-host
 Issues: https://github.com/truenorth-ai/truenorth/issues
 """)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CLI command handler (called by truenorth CLI)
-# ─────────────────────────────────────────────────────────────────────────────
 
 def cli_init(
     output_dir:  str           = ".",

@@ -11,7 +11,6 @@ type SessionsClient struct {
 	t *transport
 }
 
-// Create starts a new conversation session for the given goalID
 func (s *SessionsClient) Create(ctx context.Context, goalID string, opts *CreateSessionOptions) (*Session, error) {
 	body := map[string]interface{}{"goal_id": goalID}
 	if opts != nil {
@@ -26,20 +25,17 @@ func (s *SessionsClient) Create(ctx context.Context, goalID string, opts *Create
 	return &out, s.t.post(ctx, "/sessions", body, &out)
 }
 
-// Message sends a user message to the session and returns the agent response
 func (s *SessionsClient) Message(ctx context.Context, sessionID, text string) (*MessageResult, error) {
 	var out MessageResult
 	return &out, s.t.post(ctx, "/sessions/"+sessionID+"/message",
 		map[string]string{"text": text}, &out)
 }
 
-// Get retrieves the current state of a session
 func (s *SessionsClient) Get(ctx context.Context, sessionID string) (*Session, error) {
 	var out Session
 	return &out, s.t.get(ctx, "/sessions/"+sessionID, nil, &out)
 }
 
-// Output returns the final structured output
 func (s *SessionsClient) Output(ctx context.Context, sessionID string) (*Output, error) {
 	var wrapper struct {
 		Output    *Output `json:"output"`
@@ -58,7 +54,6 @@ func (s *SessionsClient) Output(ctx context.Context, sessionID string) (*Output,
 	return wrapper.Output, nil
 }
 
-// ForceOutput generates output from whatever fields have been collected so far
 func (s *SessionsClient) ForceOutput(ctx context.Context, sessionID string) (*Output, error) {
 	var wrapper struct {
 		Output *Output `json:"output"`
@@ -70,7 +65,6 @@ func (s *SessionsClient) ForceOutput(ctx context.Context, sessionID string) (*Ou
 	return wrapper.Output, nil
 }
 
-// End terminates and cleans up a session
 func (s *SessionsClient) End(ctx context.Context, sessionID string) error {
 	return s.t.delete(ctx, "/sessions/"+sessionID)
 }
@@ -79,7 +73,6 @@ type GoalsClient struct {
 	t *transport
 }
 
-// List returns goals from the registry
 func (g *GoalsClient) List(ctx context.Context, query, sector string, limit int) ([]Goal, error) {
 	params := url.Values{}
 	if query  != "" { params.Set("q", query)                       }
@@ -89,7 +82,6 @@ func (g *GoalsClient) List(ctx context.Context, query, sector string, limit int)
 	return out, g.t.get(ctx, "/goals", params, &out)
 }
 
-// Get returns full details for a specific goal version
 func (g *GoalsClient) Get(ctx context.Context, name, version string) (*Goal, error) {
 	if version == "" {
 		version = "latest"
@@ -99,7 +91,6 @@ func (g *GoalsClient) Get(ctx context.Context, name, version string) (*Goal, err
 	return &out, g.t.get(ctx, "/goals/"+name, params, &out)
 }
 
-// Install downloads and installs a goal from the registry
 func (g *GoalsClient) Install(ctx context.Context, name, version string) (*Goal, error) {
 	if version == "" {
 		version = "latest"
@@ -109,12 +100,10 @@ func (g *GoalsClient) Install(ctx context.Context, name, version string) (*Goal,
 		map[string]string{"version": version}, &out)
 }
 
-// AnalyticsClient provides cost and health analytics
 type AnalyticsClient struct {
 	t *transport
 }
 
-// Cost returns cost analytics for a goal over the given period
 func (a *AnalyticsClient) Cost(ctx context.Context, goalID string, periodDays int) (*CostSummary, error) {
 	if periodDays == 0 {
 		periodDays = 7
@@ -127,7 +116,6 @@ func (a *AnalyticsClient) Cost(ctx context.Context, goalID string, periodDays in
 	return &out, a.t.get(ctx, "/analytics/cost", params, &out)
 }
 
-// Health returns health metrics for a goal over the given window
 func (a *AnalyticsClient) Health(ctx context.Context, goalID string, windowHours int) (*GoalHealthReport, error) {
 	if windowHours == 0 {
 		windowHours = 24

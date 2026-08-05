@@ -67,7 +67,6 @@ Rules:
   - Output ONLY the message text, nothing else
 """
 
-
 class FollowUpPlanner:
     """
     Composes personalised follow-up messages using the LLM.
@@ -83,8 +82,8 @@ class FollowUpPlanner:
 
     def __init__(
         self,
-        router:       Any,                  
-        model:        Optional[str] = None, 
+        router:       Any,
+        model:        Optional[str] = None,
         max_tokens:   int           = 200,
     ):
         self._router    = router
@@ -138,10 +137,6 @@ class FollowUpPlanner:
             reminder.reminder_id, channel, len(text),
         )
         return text
-
-    # ------------------------------------------------------------------
-    # Context building
-    # ------------------------------------------------------------------
 
     def _build_context(
         self,

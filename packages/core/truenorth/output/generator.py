@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class OutputGenerator:
     """
     Generates the final session output.
@@ -81,7 +80,6 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         else:
             content = await self._llm_output(collected, state, goal_name, template, fmt)
 
-        # ── Hallucination firewall ───────────────────────────────────────────
         firewall_result = None
         if self._firewall is not None and isinstance(content, str) and content:
             firewall_result = await self._firewall.check(
@@ -98,7 +96,6 @@ not explicitly provided. Reference the user's actual values, not placeholders.
                 )
             content = firewall_result.safe_output
 
-        # ── Source tracing ──────────────────────────────────────────────────────
         source_map = None
         if isinstance(content, str) and content and self._tracer is not None:
             source_map = self._tracer.trace(
@@ -136,10 +133,6 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         logger.info("output_generator: session=%s output generated", state.session_id)
         return result
 
-    # ------------------------------------------------------------------
-    # Format handlers
-    # ------------------------------------------------------------------
-
     def _json_output(self, collected: Dict[str, Any], state: GraphState) -> dict:
         """Pure JSON output — no LLM, just the collected fields."""
         return {
@@ -162,7 +155,6 @@ not explicitly provided. Reference the user's actual values, not placeholders.
         for field_name, value in collected.items():
             result = result.replace(f"{{{field_name}}}", str(value))
 
-        # Check for unfilled placeholders
         unfilled = re.findall(r"\{(\w+)\}", result)
         if unfilled:
             logger.warning(

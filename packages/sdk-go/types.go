@@ -8,7 +8,7 @@ import (
 type Session struct {
 	ID               string                 `json:"session_id"`
 	GoalID           string                 `json:"goal_id"`
-	Status           string                 `json:"status"` 
+	Status           string                 `json:"status"`
 	CurrentTurn      int                    `json:"current_turn"`
 	CompletionPct    float64                `json:"completion_pct"`
 	CollectedFields  map[string]interface{} `json:"collected_fields"`
@@ -36,7 +36,7 @@ type MessageResult struct {
 type Output struct {
 	SessionID   string                 `json:"session_id"`
 	GoalID      string                 `json:"goal_id"`
-	Format      string                 `json:"format"` 
+	Format      string                 `json:"format"`
 	Content     interface{}            `json:"content"`
 	Fields      map[string]interface{} `json:"fields"`
 	Metadata    map[string]interface{} `json:"metadata"`

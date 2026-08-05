@@ -1,106 +1,3 @@
-# ============================================================
-#  TrueNorth Template: mental-health-screening.yaml
-#  Category  : Mental Health / Wellbeing
-#  Author    : TrueNorth Community
-# ============================================================
-#
-#  WHAT THIS DOES
-#  ──────────────────────────────────────────────────────────
-#  Administers the PHQ-9 (depression) and GAD-7 (anxiety)
-#  screening questionnaires — conversationally, not as a form.
-#
-#  The difference:
-#    Form:   9 numbered questions on a cold webpage. Completion: 28%.
-#    TrueNorth: Warm, natural conversation. Completion: 85%+.
-#
-#  Built-in safety features:
-#    - Emotion detection: if distress spikes, agent slows down
-#    - Question 9 of PHQ-9 (suicidal ideation): handled with extreme care
-#    - Crisis resources triggered automatically if needed
-#    - Session data never used to identify individuals
-#    - DPDP compliant: consent before start, erasure on request
-#
-#  USE CASES:
-#    - Corporate EAP (Employee Assistance Programmes)
-#    - School/college counsellor pre-screening tool
-#    - NGO mental health outreach
-#    - Telehealth pre-consultation screening
-#
-#  ⚠️  IMPORTANT:
-#  This is a SCREENING tool, not a diagnostic tool.
-#  Always connect high-risk results to a qualified professional.
-#  Do not deploy this without a human escalation path.
-#
-#  INSTALL
-#  ──────────────────────────────────────────────────────────
-#  cd packages/core
-#  pip install -e .
-#  pip install anthropic
-#
-#  FILE STRUCTURE
-#  ──────────────────────────────────────────────────────────
-#  my-wellness-app/
-#  ├── 05-mental-health-screening.yaml   ← this file
-#  └── run.py
-#
-#  CREATE run.py WITH:
-#  ──────────────────────────────────────────────────────────
-#  import asyncio, json
-#  from truenorth.core.yaml_loader import YAMLLoader
-#  from truenorth.core.engine      import TrueNorthEngine
-#
-#  async def main():
-#      engine = TrueNorthEngine(
-#          goal_config=YAMLLoader.load("05-mental-health-screening.yaml")
-#      )
-#      resp = await engine.start()
-#      print(f"Counsellor: {resp.text}\n")
-#      while not engine.state.is_complete:
-#          msg  = input("You: ").strip()
-#          resp = await engine.process_message(msg)
-#          print(f"\nCounsellor: {resp.text}\n")
-#          if resp.output:
-#              print("── SCREENING RESULT ──")
-#              print(json.dumps(resp.output.content, indent=2))
-#              break
-#
-#  asyncio.run(main())
-#
-#  HOW TO RUN
-#  ──────────────────────────────────────────────────────────
-#  export ANTHROPIC_API_KEY=sk-ant-...
-#  python run.py
-#
-#  PHQ-9 SCORING (built into output template)
-#  ──────────────────────────────────────────────────────────
-#  0-4   → Minimal depression
-#  5-9   → Mild depression
-#  10-14 → Moderate depression   ← recommend counsellor referral
-#  15-19 → Moderately severe     ← urgent referral
-#  20-27 → Severe                ← immediate referral + crisis check
-#
-#  GAD-7 SCORING
-#  ──────────────────────────────────────────────────────────
-#  0-4  → Minimal anxiety
-#  5-9  → Mild anxiety
-#  10-14 → Moderate anxiety      ← recommend assessment
-#  15-21 → Severe anxiety        ← urgent referral
-#
-#  EXPECTED OUTPUT
-#  ──────────────────────────────────────────────────────────
-#  {
-#    "phq9_score": 8,
-#    "phq9_category": "mild",
-#    "gad7_score": 6,
-#    "gad7_category": "mild",
-#    "risk_flag": false,
-#    "recommendation": "COUNSELLOR_REFERRAL",
-#    "key_concerns": ["sleep difficulties", "low energy"],
-#    "protective_factors": ["strong social support", "engaged in work"],
-#    "next_step": "Schedule a conversation with your counsellor this week."
-#  }
-# ============================================================
-
 id: mental_health_screening
 name: "Mental Health Screening"
 version: "1.4.0"
@@ -136,10 +33,6 @@ persona:
     Whenever you are ready, we can begin.
 
 fields:
-
-  # ── PHQ-9: Depression screening (9 items) ──────────────────────────────
-  # Standard response scale: 0=not at all, 1=several days, 2=more than half, 3=nearly every day
-  # Asked conversationally — agent translates answers to scores
 
   - name: phq_interest
     type: text
@@ -187,8 +80,6 @@ fields:
     pii_sensitivity: critical
     question: "This is an important question and I want to ask it gently — have you had any thoughts that you would be better off not being here, or thoughts of hurting yourself in any way?"
 
-  # ── GAD-7: Anxiety screening (7 items) ─────────────────────────────────
-
   - name: gad_nervous
     type: text
     required: true
@@ -223,8 +114,6 @@ fields:
     type: text
     required: true
     question: "Feeling afraid, as if something awful might happen?"
-
-  # ── Context questions ───────────────────────────────────────────────────
 
   - name: duration_of_feelings
     type: text

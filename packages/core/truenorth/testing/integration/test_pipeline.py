@@ -31,7 +31,6 @@ from pathlib import Path
 
 import pytest
 
-# ── Path setup ────────────────────────────────────────────────────────────────
 _CORE = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_CORE))
 
@@ -46,16 +45,12 @@ from truenorth.privacy.pii_detector import PIIDetector
 from truenorth.testing.mock_llm     import MockLLMClient
 from truenorth.testing.dry_runner   import DryRunner
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 _FIXTURES   = Path(__file__).parent.parent / "fixtures"
 _GOALS      = _CORE / "examples" / "goals"
 _SCENARIOS  = _FIXTURES / "scenarios"
 _MINI_GOAL  = _FIXTURES / "goals" / "minimal_goal.yaml"
 _FITNESS    = _GOALS / "fitness_plan.yaml"
 _MEDICAL    = _GOALS / "medical_intake.yaml"
-
-
-# ── Shared fixtures ───────────────────────────────────────────────────────────
 
 def make_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
     mock = MockLLMClient(
@@ -70,15 +65,9 @@ def make_router(extraction_json: str = '{"extractions": []}') -> LLMRouter:
         router.register_client(model, mock)
     return router
 
-
 @pytest.fixture
 def router():
     return make_router()
-
-
-# =============================================================================
-#  1. YAML LOADING
-# =============================================================================
 
 class TestYAMLLoading:
 
@@ -113,7 +102,7 @@ class TestYAMLLoading:
         YAMLLoader.clear_cache()
         c1 = YAMLLoader.load(str(_MINI_GOAL))
         c2 = YAMLLoader.load(str(_MINI_GOAL))
-        assert c1 is c2     # same cached object
+        assert c1 is c2
 
     def test_fields_have_required_defaults(self):
         config = YAMLLoader.load_from_string("""
@@ -134,11 +123,6 @@ persona:
   name: "${TEST_PERSONA_NAME}"
 """)
         assert config["persona"]["name"] == "MyBot"
-
-
-# =============================================================================
-#  2. FULL FITNESS PIPELINE
-# =============================================================================
 
 class TestFitnessPipeline:
 
@@ -196,14 +180,9 @@ class TestFitnessPipeline:
         engine = await TrueNorthEngine.from_yaml(str(_FITNESS), router=router)
         start  = await engine.start()
         resp   = await engine.process_message("Alex")
-        # Response should not contain multiple question marks (heuristic: ≤ 2)
+
         qmarks = resp.text.count("?")
         assert qmarks <= 2, f"Agent asked {qmarks} questions at once: {resp.text!r}"
-
-
-# =============================================================================
-#  3. FULL MEDICAL PIPELINE
-# =============================================================================
 
 class TestMedicalPipeline:
 
@@ -227,11 +206,6 @@ class TestMedicalPipeline:
         runner = DryRunner(str(_MEDICAL), mock=True, verbose=False)
         report = await runner.run()
         assert report.passed
-
-
-# =============================================================================
-#  4. DRYRUNNER — SCENARIO FILE REPLAY
-# =============================================================================
 
 class TestDryRunnerScenario:
 
@@ -280,11 +254,6 @@ class TestDryRunnerScenario:
         report = await runner.run()
         assert report.total_turns <= 5
 
-
-# =============================================================================
-#  5. DRYRUNNER — AUTO-ANSWERS
-# =============================================================================
-
 class TestDryRunnerAutoAnswers:
 
     @pytest.mark.asyncio
@@ -315,15 +284,9 @@ output:
         runner.scenario_path = None
         runner.MAX_TURNS     = 20
 
-        # Test the _auto_answer directly
         from truenorth.testing.dry_runner import _auto_answer
         ans = _auto_answer("age", {"type": "integer", "min": 1, "max": 100})
-        assert ans.strip().lstrip("-").isdigit() or ans.isdigit() or True  # returns a string
-
-
-# =============================================================================
-#  6. CONFLICT DETECTION PIPELINE
-# =============================================================================
+        assert ans.strip().lstrip("-").isdigit() or ans.isdigit() or True
 
 class TestConflictPipeline:
 
@@ -343,11 +306,8 @@ class TestConflictPipeline:
         engine = TrueNorthEngine(goal_config=goal, router=router)
         await engine.start()
 
-        # Turn 1: set age to 25
         engine.state.set_field("age", 25, confidence=0.9)
 
-        # Turn 2: provide a contradicting age (35)
-        # Inject via the conflict detector directly (to isolate the test)
         from truenorth.intelligence.conflict_detector import ConflictDetector
         cd = ConflictDetector()
         conflicts = cd.check(
@@ -371,8 +331,7 @@ class TestConflictPipeline:
             pytest.skip("conflict scenario not found")
         runner = DryRunner(str(_FITNESS), str(scenario), mock=True, verbose=False)
         report = await runner.run()
-        # Conflict path may or may not pass depending on resolution,
-        # but it must NOT crash and must process all turns
+
         assert report.total_turns >= 1
         assert isinstance(report.errors, list)
 
@@ -398,11 +357,6 @@ class TestConflictPipeline:
         collected = {"age": 25}
         result = cd.resolve(conflict, resolution=35, collected=collected, active_conflicts=active)
         assert result["age"] == 35
-
-
-# =============================================================================
-#  7. PII PIPELINE
-# =============================================================================
 
 class TestPIIPipeline:
 
@@ -459,19 +413,14 @@ class TestPIIPipeline:
         }
         engine = TrueNorthEngine(goal_config=goal, router=router)
         await engine.start()
-        # Send a message with PII embedded
+
         await engine.process_message("I am Priya, reach me at 9876543210")
-        # The ORIGINAL message is stored for display — PII is only redacted for LLM
+
         user_msgs = engine.state.user_messages
         assert any("Priya" in m for m in user_msgs)
-        # PII scan result should flag this
+
         pii = PIIDetector()
         assert pii.has_pii("I am Priya, reach me at 9876543210")
-
-
-# =============================================================================
-#  8. LANGUAGE PIPELINE
-# =============================================================================
 
 class TestLanguagePipeline:
 
@@ -503,7 +452,7 @@ class TestLanguagePipeline:
     def test_history_detection_robust_for_short_messages(self):
         ld = LanguageDetector()
         r  = ld.detect_from_history(["ok", "yes", "no", "28", "gym"], window=5)
-        # Short English words — should be en or uncertain but not crash
+
         assert r.language_code in ("en", "hi")
 
     @pytest.mark.asyncio
@@ -534,37 +483,31 @@ class TestLanguagePipeline:
         await engine.process_message("मेरा नाम राज है")
         assert engine.state.detected_language == "hi"
 
-
-# =============================================================================
-#  9. COST PIPELINE
-# =============================================================================
-
 class TestCostPipeline:
 
     def test_mock_llm_zero_cost(self, router):
         """Mock LLM should accumulate $0 cost (model='mock' not in pricing table → fallback)."""
         ct = CostTracker()
-        # Mock model costs $0 (not in pricing table, fallback = $1/$5 per 1M)
-        # For 10+5 tokens that's tiny but > 0, so just verify it doesn't error
+
         rec = ct.record("s1", "mock", "converse", 10, 5, 10)
         assert rec.cost_usd >= 0.0
 
     def test_real_model_cost_computed(self):
         ct  = CostTracker()
         rec = ct.record("s1", "claude-haiku-4-5-20251001", "converse", 500, 200, 300)
-        # claude-haiku: $0.80/$4.00 per 1M → 500*0.80/1M + 200*4.00/1M = 0.0004 + 0.0008 = $0.0012
+
         assert abs(rec.cost_usd - 0.001200) < 0.0001
 
     def test_gemini_flash_cheapest(self):
         ct    = CostTracker()
         haiku = ct.estimate("claude-haiku-4-5-20251001", 1000, 500)
         flash = ct.estimate("gemini-3.5-flash",           1000, 500)
-        assert flash < haiku   # Gemini Flash should be cheaper than Claude Haiku
+        assert flash < haiku
 
     def test_budget_enforced_across_turns(self, router):
         from truenorth.llm.cost_tracker import BudgetExceededError
         ct = CostTracker()
-        ct.set_budget("sess-budget", 0.0)   # $0 budget → immediate block
+        ct.set_budget("sess-budget", 0.0)
         ct.record("sess-budget", "claude-haiku-4-5-20251001", "converse", 100, 50, 10)
         with pytest.raises(BudgetExceededError):
             ct.check_budget("sess-budget")
@@ -594,13 +537,8 @@ class TestCostPipeline:
         engine = TrueNorthEngine(goal_config=goal, router=router)
         await engine.start()
         await engine.process_message("Alex")
-        # Cost should be >= 0 (mock returns $0 or small amount)
+
         assert engine.state.total_cost_usd >= 0.0
-
-
-# =============================================================================
-#  10. SESSION STATE PERSISTENCE
-# =============================================================================
 
 class TestSessionStatePersistence:
 
@@ -621,10 +559,8 @@ class TestSessionStatePersistence:
         await engine.process_message("Priya")
         await engine.process_message("28")
 
-        # Serialize
         state_dict = engine.state.to_dict()
 
-        # Restore
         restored = GraphState.from_dict(state_dict)
         assert restored.session_id == engine.state.session_id
         assert restored.goal_id    == "persist_test"
@@ -644,7 +580,7 @@ class TestSessionStatePersistence:
 
         d = engine.state.to_dict()
         restored = GraphState.from_dict(d)
-        # Collected fields and confidences persist
+
         assert restored.collected_fields == engine.state.collected_fields
         assert restored.field_confidences == engine.state.field_confidences
 
@@ -676,7 +612,7 @@ class TestSessionStatePersistence:
             "persona": {"name": "Bot", "tone": "neutral"},
             "output":  {"format": "json"},
         }
-        # from_goal_config uses YAMLLoader normalisation, so use raw dict
+
         from truenorth.core.yaml_loader import YAMLLoader
         cfg   = YAMLLoader.load_from_string(
             "id: pct_test\nfields:\n"
@@ -693,13 +629,8 @@ class TestSessionStatePersistence:
         state.set_field("c", "yes")
         assert state.completion_pct == pytest.approx(1.0)
 
-
-# =============================================================================
-#  Helpers
-# =============================================================================
-
 async def _build_engine_from_report(report, yaml_path):
     """Helper: rebuild engine with collected state from a DryRunReport."""
     if not report.passed:
         return None
-    return None   # placeholder — engine already ran in DryRunner
+    return None

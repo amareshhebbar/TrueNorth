@@ -62,11 +62,6 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Condition evaluators
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _truthy(val: Any) -> bool:
     """True if value is set and not a falsy sentinel."""
     if val is None:
@@ -76,19 +71,12 @@ def _truthy(val: Any) -> bool:
     s = str(val).strip().lower()
     return s not in ("", "false", "no", "n", "0", "none", "null", "skip", "[skip]")
 
-
 def _falsy(val: Any) -> bool:
     return not _truthy(val)
-
 
 def _normalize(val: Any) -> str:
     """Normalize a value for comparison (lowercase, stripped)."""
     return str(val).strip().lower()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  FieldTree
-# ─────────────────────────────────────────────────────────────────────────────
 
 class FieldTree:
     """
@@ -110,12 +98,8 @@ class FieldTree:
 
     def __init__(self, fields_config: Dict[str, dict]):
         self._cfg = fields_config
-        # Build ordered list preserving YAML declaration order
-        self._ordered = list(fields_config.keys())
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        self._ordered = list(fields_config.keys())
 
     def is_visible(
         self,
@@ -204,10 +188,6 @@ class FieldTree:
                 result[fn] = gates
         return result
 
-    # ------------------------------------------------------------------
-    # Condition evaluators
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _normalise_show_if(cfg: dict) -> dict:
         """
@@ -239,49 +219,42 @@ class FieldTree:
         All present conditions must pass (implicit AND).
         """
         cfg = self._normalise_show_if(cfg)
-        # if_true: field_name
+
         if_true = cfg.get("if_true")
         if if_true:
             if not _truthy(collected_fields.get(if_true)):
                 return False
 
-        # if_false: field_name
         if_false = cfg.get("if_false")
         if if_false:
             if not _falsy(collected_fields.get(if_false)):
                 return False
 
-        # if_value_is: {field: x, value: y}
         if_value_is = cfg.get("if_value_is")
         if if_value_is:
             if not self._eval_value_is(if_value_is, collected_fields):
                 return False
 
-        # if_value_in: {field: x, values: [y, z]}
         if_value_in = cfg.get("if_value_in")
         if if_value_in:
             if not self._eval_value_in(if_value_in, collected_fields):
                 return False
 
-        # if_value_not: {field: x, value: y}
         if_value_not = cfg.get("if_value_not")
         if if_value_not:
             if not self._eval_value_not(if_value_not, collected_fields):
                 return False
 
-        # if_numeric_gt: {field: x, value: N}
         if_gt = cfg.get("if_numeric_gt")
         if if_gt:
             if not self._eval_numeric(if_gt, collected_fields, ">"):
                 return False
 
-        # if_numeric_lt: {field: x, value: N}
         if_lt = cfg.get("if_numeric_lt")
         if if_lt:
             if not self._eval_numeric(if_lt, collected_fields, "<"):
                 return False
 
-        # if_all_of: [{condition}, ...]  — all must pass
         if_all = cfg.get("if_all_of")
         if if_all:
             if not all(
@@ -290,7 +263,6 @@ class FieldTree:
             ):
                 return False
 
-        # if_any_of: [{condition}, ...]  — at least one must pass
         if_any = cfg.get("if_any_of")
         if if_any:
             if not any(
@@ -309,7 +281,7 @@ class FieldTree:
             return True
         collected_val = collected.get(gate_field)
         if collected_val is None:
-            return False    # gate field not yet collected
+            return False
         return _normalize(collected_val) == _normalize(gate_value)
 
     @staticmethod
@@ -332,7 +304,7 @@ class FieldTree:
             return True
         collected_val = collected.get(gate_field)
         if collected_val is None:
-            return True    # not set → not equal to gate_value → condition passes
+            return True
         return _normalize(collected_val) != _normalize(gate_value)
 
     @staticmethod
@@ -381,4 +353,4 @@ class FieldTree:
                     if cond := sub.get(key):
                         if f := cond.get("field"):
                             gates.append(f)
-        return list(dict.fromkeys(gates))   # deduplicated, order-preserved
+        return list(dict.fromkeys(gates))

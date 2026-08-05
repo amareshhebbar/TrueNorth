@@ -52,11 +52,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  State adapter — translates between TrueNorth GraphState and LangGraph state
-# ─────────────────────────────────────────────────────────────────────────────
-
 class StateAdapter:
     """
     Converts between TrueNorth's GraphState dict and a LangGraph state dict.
@@ -95,7 +90,7 @@ class StateAdapter:
             "is_complete":     tn_state.get("final_output") is not None,
         }
         for field_name, value in tn_state.get("collected_fields", {}).items():
-            if field_name not in updated:  
+            if field_name not in updated:
                 updated[field_name] = value
         return updated
 
@@ -110,11 +105,6 @@ class StateAdapter:
             "session_id":       tn_section.get("session_id", ""),
             "collected_fields": tn_section.get("collected_fields", {}),
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  TrueNorthNode — TrueNorth engine as a LangGraph node
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TrueNorthNode:
     """
@@ -142,10 +132,6 @@ class TrueNorthNode:
         self._max_turns    = max_turns
         self._engine: Optional["TrueNorthEngine"] = None
 
-    # ------------------------------------------------------------------
-    # LangGraph node interface
-    # ------------------------------------------------------------------
-
     async def __call__(self, state: dict) -> dict:
         """
         LangGraph calls this for each node invocation.
@@ -160,7 +146,7 @@ class TrueNorthNode:
             if isinstance(msg, dict) and msg.get("role") == "user":
                 user_msg = msg.get("content", "")
                 break
-            elif hasattr(msg, "content"): 
+            elif hasattr(msg, "content"):
                 user_msg = msg.content
                 break
 
@@ -175,7 +161,6 @@ class TrueNorthNode:
         }
         updated_messages = list(messages) + [assistant_msg]
 
-        # Merge TrueNorth state into LangGraph state
         tn_state  = engine.state.to_dict() if hasattr(engine.state, "to_dict") else {}
         new_state = StateAdapter.truenorth_to_langgraph(tn_state, state)
         new_state["messages"] = updated_messages
@@ -194,10 +179,6 @@ class TrueNorthNode:
             return "end"
         return "continue"
 
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
-
     def get_collected_fields(self, state: dict) -> dict:
         """Extract collected fields from LangGraph state."""
         return state.get("truenorth", {}).get("collected_fields", {})
@@ -205,10 +186,6 @@ class TrueNorthNode:
     def get_final_output(self, state: dict) -> Optional[dict]:
         """Extract final output from LangGraph state (None if not complete)."""
         return state.get("truenorth", {}).get("final_output")
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     async def _get_engine(self) -> "TrueNorthEngine":
         if self._engine is None:
@@ -221,11 +198,6 @@ class TrueNorthNode:
             )
             await self._engine.start()
         return self._engine
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  LangGraphAgent — LangGraph graph as a TrueNorth agent
-# ─────────────────────────────────────────────────────────────────────────────
 
 class LangGraphAgent:
     """
@@ -319,11 +291,6 @@ class LangGraphAgent:
             "type":     "langgraph_bridge",
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  LangGraphCheckpointer — use TrueNorth session storage as LangGraph memory
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TrueNorthCheckpointer:
     """
     Optional: use TrueNorth's SessionManager as the LangGraph checkpointer.
@@ -368,4 +335,4 @@ class TrueNorthCheckpointer:
 
     async def alist(self, config: dict) -> list:
         """List checkpoints for a thread."""
-        return []   # minimal implementation
+        return []

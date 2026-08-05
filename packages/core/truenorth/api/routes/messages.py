@@ -7,10 +7,8 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-
 class SendMessageRequest(BaseModel):
     message: str
-
 
 class MessageResponse(BaseModel):
     session_id: str
@@ -20,7 +18,6 @@ class MessageResponse(BaseModel):
     is_escalated: bool
     profile: dict
     cost_usd: float
-
 
 @router.post("/{session_id}/messages", response_model=MessageResponse)
 async def send_message(session_id: str, req: SendMessageRequest,
@@ -35,7 +32,6 @@ async def send_message(session_id: str, req: SendMessageRequest,
     if not db_store:
         raise HTTPException(503, "Database not available")
 
-    # We need the goal_id to load config — get from DB
     from truenorth.storage.models import Session as SessionModel
     async with db_store.session_factory() as db:
         row = await db.get(SessionModel, session_id)

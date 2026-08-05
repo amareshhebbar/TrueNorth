@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from truenorth.observability.tracer import TrueNorthTracer
     from truenorth.llm.cost_tracker     import CostTracker
 
-
 @dataclass
 class CostSummary:
     """Cost summary for a goal or session over a time window."""
@@ -54,8 +53,8 @@ class CostSummary:
     total_cost_usd: float
     total_tokens:   int
     avg_cost_per_session: float
-    by_model:       Dict[str, dict]   # model → {cost_usd, tokens, calls}
-    by_task:        Dict[str, dict]   # task_type → {cost_usd, calls, pct}
+    by_model:       Dict[str, dict]
+    by_task:        Dict[str, dict]
     generated_at:   float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
@@ -70,7 +69,6 @@ class CostSummary:
             "by_task":              self.by_task,
             "generated_at":         self.generated_at,
         }
-
 
 class CostDashboard:
     """
@@ -88,10 +86,6 @@ class CostDashboard:
     ):
         self._ct     = cost_tracker
         self._tracer = tracer
-
-    # ------------------------------------------------------------------
-    # Goal cost summary  — GET /analytics/cost?goal=X&period=N
-    # ------------------------------------------------------------------
 
     def goal_cost_summary(
         self,
@@ -130,10 +124,6 @@ class CostDashboard:
             by_task             = by_task,
         )
 
-    # ------------------------------------------------------------------
-    # Session detail  — GET /analytics/cost/session/{session_id}
-    # ------------------------------------------------------------------
-
     def session_cost_detail(self, session_id: str) -> dict:
         """
         Full cost breakdown for one session: per-turn, per-model, per-task.
@@ -168,10 +158,6 @@ class CostDashboard:
 
         return {"session_id": session_id, "error": "no data found"}
 
-    # ------------------------------------------------------------------
-    # Top expensive sessions  — GET /analytics/cost/top?goal=X&limit=N
-    # ------------------------------------------------------------------
-
     def top_expensive_sessions(
         self,
         goal_id:     str,
@@ -194,15 +180,11 @@ class CostDashboard:
             for sid, cost in sorted_sessions[:limit]
         ]
 
-    # ------------------------------------------------------------------
-    # Cost trend  — GET /analytics/cost/trend?goal=X&period=30&granularity=day
-    # ------------------------------------------------------------------
-
     def cost_trend(
         self,
         goal_id:     str,
         period_days: int = 30,
-        granularity: str = "day",    # "day" | "hour"
+        granularity: str = "day",
     ) -> List[dict]:
         """
         Time series of cost. Returns [{period, cost_usd, sessions, tokens}].
@@ -238,10 +220,6 @@ class CostDashboard:
             for period, d in sorted(buckets.items())
         ]
 
-    # ------------------------------------------------------------------
-    # Model comparison  — GET /analytics/cost/models?goal=X&period=N
-    # ------------------------------------------------------------------
-
     def model_comparison(
         self,
         goal_id:     str,
@@ -274,10 +252,6 @@ class CostDashboard:
             })
         return result
 
-    # ------------------------------------------------------------------
-    # Budget status  — GET /analytics/budget/{session_id}
-    # ------------------------------------------------------------------
-
     def budget_status(self, session_id: str) -> dict:
         """Return current budget status for a session."""
         if not self._ct:
@@ -292,10 +266,6 @@ class CostDashboard:
             "budget_status":   session.budget_status.value,
             "turns_remaining": session.project_turns_remaining(),
         }
-
-    # ------------------------------------------------------------------
-    # FastAPI router integration
-    # ------------------------------------------------------------------
 
     def make_fastapi_router(self, prefix: str = "/analytics"):
         """
@@ -350,10 +320,6 @@ class CostDashboard:
             return JSONResponse(self.budget_status(session_id))
 
         return router
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _calls_for_goal(self, goal_id: str, since: float) -> List[dict]:
         """Collect all LLM call records for a goal from the tracer."""

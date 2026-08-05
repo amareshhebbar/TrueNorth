@@ -37,18 +37,11 @@ from truenorth.agents import (
     AgentOrchestrator, OrchestrationResult, ExecutionStep,
     AgentSupervisor, SupervisionLevel,
 )
-# from truenorth.agents.specialist import (
-    # ExtractionAgent, ValidationAgent, ResearchAgent, WriterAgent,
-# )
 
 from truenorth.agents.specialist.extraction_agent import ExtractionAgent
 from truenorth.agents.specialist.validation_agent import ValidationAgent
 from truenorth.agents.specialist.research_agent import ResearchAgent
 from truenorth.agents.specialist.writer_agent import WriterAgent
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _msg(
     task:    str = "test task",
@@ -65,7 +58,6 @@ def _msg(
         turn       = 1,
     )
 
-
 class _EchoAgent(BaseAgent):
     """Returns its payload as the result."""
     agent_id     = "echo_agent"
@@ -75,17 +67,15 @@ class _EchoAgent(BaseAgent):
     async def handle(self, message: AgentMessage) -> AgentResponse:
         return self.ok(message, message.payload, confidence=0.90)
 
-
 class _SlowAgent(BaseAgent):
     agent_id     = "slow_agent"
     role         = AgentRole.CUSTOM
     capabilities = {"slow"}
-    default_timeout_s = 0.1   # very short timeout for testing
+    default_timeout_s = 0.1
 
     async def handle(self, message: AgentMessage) -> AgentResponse:
-        await asyncio.sleep(10)   # always times out
+        await asyncio.sleep(10)
         return self.ok(message, "done")
-
 
 class _FailAgent(BaseAgent):
     agent_id     = "fail_agent"
@@ -95,7 +85,6 @@ class _FailAgent(BaseAgent):
 
     async def handle(self, message: AgentMessage) -> AgentResponse:
         raise RuntimeError("deliberate failure")
-
 
 class _LowConfidenceAgent(BaseAgent):
     agent_id     = "low_conf_agent"
@@ -110,11 +99,6 @@ class _LowConfidenceAgent(BaseAgent):
             result     = "low quality answer",
             confidence = 0.20,
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Messages
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestMessages:
 
@@ -187,11 +171,6 @@ class TestMessages:
         m1 = _msg()
         m2 = _msg()
         assert m1.message_id != m2.message_id
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. BaseAgent lifecycle
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestBaseAgent:
 
@@ -271,11 +250,6 @@ class TestBaseAgent:
         assert m.success_rate == pytest.approx(2/3, abs=0.01)
         assert m.call_count   == 3
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. ExtractionAgent
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestExtractionAgent:
 
     FIELDS_CONFIG = {
@@ -316,7 +290,7 @@ class TestExtractionAgent:
             "fields_config": self.FIELDS_CONFIG,
         })
         resp = await agent.execute(msg)
-        assert resp.status == TaskStatus.FAILED  
+        assert resp.status == TaskStatus.FAILED
 
     @pytest.mark.asyncio
     async def test_no_router_uses_rule_based(self):
@@ -336,11 +310,6 @@ class TestExtractionAgent:
     def test_score_confidence_none_extracted(self):
         score = ExtractionAgent._score_confidence({}, self.FIELDS_CONFIG)
         assert score <= 0.60
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. ValidationAgent
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestValidationAgent:
 
@@ -422,11 +391,6 @@ class TestValidationAgent:
         assert ok is False
         assert "120" in reason
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. ResearchAgent
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestResearchAgent:
 
     @pytest.mark.asyncio
@@ -451,7 +415,7 @@ class TestResearchAgent:
         resp = await agent.execute(msg)
         assert resp.is_success
         result_str = resp.result_text
-        assert "24" in result_str  # BMI ≈ 24.45
+        assert "24" in result_str
 
     @pytest.mark.asyncio
     async def test_infer_calculator_from_task(self):
@@ -473,11 +437,6 @@ class TestResearchAgent:
         msg      = _msg("do something vague", payload={})
         resp     = await agent.execute(msg)
         assert resp.status == TaskStatus.FAILED
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. WriterAgent
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestWriterAgent:
 
@@ -516,11 +475,6 @@ class TestWriterAgent:
         resp = await agent.execute(msg)
         assert isinstance(resp.result, dict)
         assert "content" in resp.result or isinstance(resp.result.get("content"), str)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Orchestrator — routing
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestOrchestratorRoute:
 
@@ -579,11 +533,6 @@ class TestOrchestratorRoute:
         assert len(agents) == 1
         assert agents[0]["agent_id"] == "echo_agent"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Orchestrator — parallel execution
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestOrchestratorParallel:
 
     @pytest.mark.asyncio
@@ -605,7 +554,7 @@ class TestOrchestratorParallel:
     async def test_parallel_partial_failure(self):
         orch = AgentOrchestrator()
         orch.register(_EchoAgent())
-        # fail_agent handles "fail" tasks, echo handles "echo"
+
         orch.register(_FailAgent())
         result = await orch.run_parallel([
             ("echo this",     {"x": 1}),
@@ -631,11 +580,6 @@ class TestOrchestratorParallel:
         ])
         assert "key_a" in result.merged or "echo_agent" in result.merged
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Orchestrator — sequential workflow
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestOrchestratorSequential:
 
     @pytest.mark.asyncio
@@ -657,8 +601,8 @@ class TestOrchestratorSequential:
         orch.register(_EchoAgent())
         orch.register(_FailAgent())
         steps  = [
-            ExecutionStep(task="fail at this", payload={}),   # fails
-            ExecutionStep(task="echo second",  payload={}),   # should NOT run
+            ExecutionStep(task="fail at this", payload={}),
+            ExecutionStep(task="echo second",  payload={}),
         ]
         result = await orch.run_sequential(steps, stop_on_failure=True)
         assert result.steps_ok + result.steps_failed <= 2
@@ -698,11 +642,6 @@ class TestOrchestratorSequential:
         assert log[0]["task"] == "echo task"
         assert log[0]["status"] in ("completed", "failed")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Orchestrator — fallback
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestOrchestratorFallback:
 
     @pytest.mark.asyncio
@@ -716,7 +655,7 @@ class TestOrchestratorFallback:
     @pytest.mark.asyncio
     async def test_no_default_and_no_match_fails(self):
         orch = AgentOrchestrator()
-        orch.register(_EchoAgent()) 
+        orch.register(_EchoAgent())
         resp = await orch.run_task("validate schema fields", {"x": 1})
         assert resp.status == TaskStatus.FAILED
 
@@ -726,11 +665,6 @@ class TestOrchestratorFallback:
         assert "total_tasks"  in d
         assert "success_rate" in d
         assert "agents"       in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Supervisor — levels
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSupervisorLevels:
 
@@ -769,7 +703,7 @@ class TestSupervisorLevels:
         verdict  = await sup.review(resp, context={
             "collected_fields": {"age": 28}
         })
-        assert not verdict.approved or len(verdict.issues) >= 0  
+        assert not verdict.approved or len(verdict.issues) >= 0
 
     @pytest.mark.asyncio
     async def test_verdict_log_populated(self):
@@ -781,11 +715,6 @@ class TestSupervisorLevels:
     async def test_approval_rate_starts_at_one(self):
         sup = AgentSupervisor()
         assert sup.approval_rate() == 1.0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Supervisor — approve
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSupervisorApprove:
 
@@ -813,11 +742,6 @@ class TestSupervisorApprove:
         verdict = await sup.review(resp)
         assert verdict.retry    is False
         assert verdict.escalate is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Supervisor — reject
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSupervisorReject:
 
@@ -851,16 +775,11 @@ class TestSupervisorReject:
         resp = AgentResponse(
             message_id="1", agent_id="a",
             status=TaskStatus.COMPLETED,
-            result={"age": 99},  # wrong — collected says 28
+            result={"age": 99},
             confidence=0.85,
         )
         verdict = await sup.review(resp, context={"collected_fields": {"age": 28}})
-        assert len(verdict.issues) >= 0  # may or may not be in issues
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. Engine integration
-# ─────────────────────────────────────────────────────────────────────────────
+        assert len(verdict.issues) >= 0
 
 class TestEngineIntegration:
 
@@ -915,11 +834,6 @@ class TestEngineIntegration:
         )
         assert resp.is_success
         assert resp.result["valid"] is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. Sector agnosticism
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSectorAgnosticism:
     """

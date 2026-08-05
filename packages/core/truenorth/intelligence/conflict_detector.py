@@ -31,11 +31,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ConflictType(str, Enum):
     NUMERIC_MISMATCH       = "numeric_mismatch"
     BOOLEAN_FLIP           = "boolean_flip"
@@ -46,13 +41,11 @@ class ConflictType(str, Enum):
     RANGE_VIOLATION        = "range_violation"
     SEMANTIC_CONTRADICTION = "semantic_contradiction"
 
-
 class ConflictSeverity(str, Enum):
     CRITICAL = "critical"
     HIGH     = "high"
     MEDIUM   = "medium"
     LOW      = "low"
-
 
 class ConflictStatus(str, Enum):
     OPEN          = "open"
@@ -61,11 +54,6 @@ class ConflictStatus(str, Enum):
     AUTO_RESOLVED = "auto_resolved"
     DISMISSED     = "dismissed"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Data classes
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class ConflictEvidence:
     old_source_text:  str   = ""
@@ -73,7 +61,6 @@ class ConflictEvidence:
     old_confidence:   float = 1.0
     new_confidence:   float = 1.0
     detection_method: str   = "rule"
-
 
 @dataclass
 class Conflict:
@@ -92,7 +79,7 @@ class Conflict:
     created_at:      float = field(default_factory=time.time)
     updated_at:      float = field(default_factory=time.time)
     related_field:   Optional[str]   = None
-    # v1 compat attributes
+
     resolved:        bool = False
 
     def to_dict(self) -> dict:
@@ -171,7 +158,6 @@ class Conflict:
             ConflictStatus.RESOLVED, ConflictStatus.AUTO_RESOLVED, ConflictStatus.DISMISSED
         )
 
-
 @dataclass
 class ConflictReport:
     session_id:             str
@@ -199,11 +185,6 @@ class ConflictReport:
             "conflicts":              [c.to_dict() for c in self.all_conflicts],
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Semantic aliases
-# ─────────────────────────────────────────────────────────────────────────────
-
 _SEMANTIC_ALIASES: List[frozenset] = [
     frozenset(["gym", "gym membership", "at the gym", "fitness center", "health club",
                "gym and dumbbells", "i go to the gym", "the gym"]),
@@ -226,23 +207,17 @@ _SEMANTIC_ALIASES: List[frozenset] = [
     frozenset(["no", "n", "false", "0", "nope", "nah", "not really"]),
 ]
 
-
 def _aliases_match(a: str, b: str) -> bool:
     a_l, b_l = a.strip().lower(), b.strip().lower()
     if a_l == b_l:
         return True
     for alias_set in _SEMANTIC_ALIASES:
-        # Use exact equality — prevents "gym" matching "home gym" as a substring
+
         a_in = a_l in alias_set
         b_in = b_l in alias_set
         if a_in and b_in:
             return True
     return False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Unit normalisation
-# ─────────────────────────────────────────────────────────────────────────────
 
 _KG_TO_LBS = 2.20462
 _LBS_TO_KG = 1 / _KG_TO_LBS
@@ -261,7 +236,6 @@ _UNIT_PATTERNS = {
     ],
 }
 
-
 def _try_parse_with_unit(value_str: str, field_name: str) -> Optional[float]:
     for pattern, factor in _UNIT_PATTERNS.get(field_name, []):
         m = pattern.search(str(value_str))
@@ -272,11 +246,6 @@ def _try_parse_with_unit(value_str: str, field_name: str) -> Optional[float]:
                 continue
     return None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Cross-field rules
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class CrossFieldRule:
     field_a:     str
@@ -284,7 +253,6 @@ class CrossFieldRule:
     description: str
     check:       Any
     severity:    ConflictSeverity = ConflictSeverity.MEDIUM
-
 
 _CROSS_FIELD_RULES: List[CrossFieldRule] = [
     CrossFieldRule(
@@ -313,11 +281,6 @@ _CROSS_FIELD_RULES: List[CrossFieldRule] = [
     ),
 ]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Auto-resolution
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _should_auto_resolve(conflict: Conflict) -> Tuple[bool, Optional[Any]]:
     ev = conflict.evidence
     if conflict.conflict_type == ConflictType.RANGE_VIOLATION:
@@ -329,11 +292,6 @@ def _should_auto_resolve(conflict: Conflict) -> Tuple[bool, Optional[Any]]:
     if ev.old_confidence < 0.40 and ev.new_confidence >= 0.70:
         return True, conflict.new_value
     return False, None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ConflictStore
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ConflictStore:
     def __init__(self):
@@ -444,11 +402,6 @@ class ConflictStore:
     def _get(self, conflict_id: str) -> Optional[Conflict]:
         return next((c for c in self._conflicts if c.id == conflict_id), None)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ConflictDetector (hardened)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class ConflictDetector:
     """
     Hardened conflict detector — 7 types, severity scoring, auto-resolution,
@@ -464,10 +417,6 @@ class ConflictDetector:
 
     def __init__(self, config: Optional[dict] = None):
         self._cfg = config or {}
-
-    # ------------------------------------------------------------------
-    # v1-compatible API
-    # ------------------------------------------------------------------
 
     def check(
         self,
@@ -524,10 +473,6 @@ class ConflictDetector:
         active_conflicts.extend(updated)
         logger.info("conflict resolved: field=%s resolution=%r", conflict.field, resolution)
         return collected
-
-    # ------------------------------------------------------------------
-    # Extended API
-    # ------------------------------------------------------------------
 
     def check_and_store(
         self,
@@ -604,10 +549,6 @@ class ConflictDetector:
                 resolved.append(conflict.id)
         return resolved
 
-    # ------------------------------------------------------------------
-    # Core comparison
-    # ------------------------------------------------------------------
-
     def _compare_field(
         self,
         field_name:     str,
@@ -627,12 +568,10 @@ class ConflictDetector:
         if old_str == new_str:
             return None
 
-        # Suppress if new extraction is much less confident than old
         if new_confidence < old_confidence - self.CONFIDENCE_IGNORE_THRESHOLD:
             logger.debug("conflict suppressed (low new confidence): field=%s", field_name)
             return None
 
-        # Semantic alias — same concept, different wording
         if _aliases_match(old_str, new_str):
             return None
 
@@ -644,7 +583,6 @@ class ConflictDetector:
             new_confidence  = new_confidence,
         )
 
-        # Boolean
         if ftype in ("boolean", "bool") or (_is_bool_str(old_str) and _is_bool_str(new_str)):
             if _boolean_flip(old_str, new_str):
                 return self._make_conflict(field_name, old_val, new_val,
@@ -731,7 +669,7 @@ class ConflictDetector:
             return None
         diff = abs(old_n - new_n) / max(abs(old_n), 1e-9)
         if diff <= 0.05:
-            return None  # same value, different unit notation — not a conflict
+            return None
         return self._make_conflict(field, old_val, new_val,
             ConflictType.UNIT_MISMATCH, ConflictSeverity.MEDIUM,
             turn_old, turn_new, evidence)
@@ -832,14 +770,8 @@ class ConflictDetector:
             evidence      = evidence or ConflictEvidence(),
         )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _is_bool_str(s: str) -> bool:
     return s in ("yes", "no", "true", "false", "y", "n", "1", "0")
-
 
 def _boolean_flip(a: str, b: str) -> bool:
     for x, y in [("yes","no"),("true","false"),("y","n"),("1","0")]:

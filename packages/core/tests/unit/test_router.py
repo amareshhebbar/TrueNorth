@@ -41,14 +41,8 @@ from truenorth.llm.router import (
 from truenorth.llm.base import LLMBase, LLMResponse, Message
 from truenorth.testing.mock_llm import MockLLMClient
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _msg(text: str = "hello") -> List[Message]:
     return [Message(role="user", content=text)]
-
 
 def _mock_router(default: str = "ok") -> LLMRouter:
     mock = MockLLMClient(default=default)
@@ -56,7 +50,6 @@ def _mock_router(default: str = "ok") -> LLMRouter:
     for model in list(_DEFAULT_ROUTING.values()):
         router.register_client(model, mock)
     return router
-
 
 class FailingClient(LLMBase):
     """Client that always raises an exception."""
@@ -75,12 +68,7 @@ class FailingClient(LLMBase):
 
     async def generate_stream(self, messages, system=None, max_tokens=1024, temperature=0.7, **kw):
         raise RuntimeError(self._error)
-        yield  # make it a generator
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Routing table
-# ─────────────────────────────────────────────────────────────────────────────
+        yield
 
 class TestRoutingTable:
 
@@ -146,13 +134,8 @@ class TestRoutingTable:
     def test_verify_task_routed_to_best_model(self):
         router = LLMRouter()
         rt = router.routing_table()
-        # Verify uses the best model (safety-critical)
+
         assert rt[TASK_VERIFY] == "claude-sonnet-4-20250514"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. Fallback chain
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFallbackChain:
 
@@ -195,7 +178,7 @@ class TestFallbackChain:
             fallbacks={TASK_CONVERSE: ["model-a", "model-b"]},
         )
         chain = router._build_chain(TASK_CONVERSE)
-        # model-a should appear only once
+
         assert chain.count("model-a") == 1
 
     @pytest.mark.asyncio
@@ -207,11 +190,6 @@ class TestFallbackChain:
 
         resp = await router.generate(TASK_CONVERSE, _msg(), model="explicit-model")
         assert "explicit worked" in resp.content
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. Retry + backoff
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRetryBackoff:
 
@@ -243,7 +221,6 @@ class TestRetryBackoff:
         )
         router.register_client("flakey", flakey)
 
-        # Patch asyncio.sleep to avoid actual waiting
         original_sleep = asyncio.sleep
         async def fast_sleep(s): pass
         asyncio.sleep = fast_sleep
@@ -285,11 +262,6 @@ class TestRetryBackoff:
         with pytest.raises(AllProvidersFailedError):
             await router.generate(TASK_CONVERSE, _msg())
         assert failing.call_count == 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. Circuit breaker
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCircuitBreaker:
 
@@ -339,16 +311,11 @@ class TestCircuitBreaker:
         router.reset_circuit("some-model")
         assert stats.circuit_open is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. Budget guard
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBudgetGuard:
 
     @pytest.mark.asyncio
     async def test_request_rejected_when_over_budget(self):
-        router = LLMRouter(budget_usd=0.000001)   # absurdly low
+        router = LLMRouter(budget_usd=0.000001)
         with pytest.raises(BudgetExceededError) as exc:
             await router.generate(TASK_OUTPUT, _msg("a" * 5000), max_tokens=2000)
         assert exc.value.estimated > exc.value.budget
@@ -359,7 +326,7 @@ class TestBudgetGuard:
         router = LLMRouter(budget_usd=10.0, max_retries=0)
         for m in _DEFAULT_ROUTING.values():
             router.register_client(m, mock)
-        # Short message + small max_tokens → well within $10 budget
+
         resp = await router.generate(TASK_EXTRACT, _msg("hi"), max_tokens=10)
         assert resp.content == "ok"
 
@@ -381,11 +348,6 @@ class TestBudgetGuard:
         err = BudgetExceededError(0.05, 0.01)
         assert err.estimated == pytest.approx(0.05)
         assert err.budget    == pytest.approx(0.01)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. Provider detection
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestProviderDetection:
 
@@ -417,11 +379,6 @@ class TestProviderDetection:
     def test_unknown_defaults_to_anthropic(self):
         assert self._detect("unknown-model-xyz") == "anthropic"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Client registry
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestClientRegistry:
 
     def test_register_and_retrieve_client(self):
@@ -445,11 +402,6 @@ class TestClientRegistry:
         router.register_client("registered-model", mock)
         resp = await router.generate(TASK_EXTRACT, _msg())
         assert "from registry" in resp.content
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Health check
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestHealthCheck:
 
@@ -477,11 +429,6 @@ class TestHealthCheck:
         router.register_client("bad", failing)
         await router.health_check(tasks=[TASK_EXTRACT])
         assert router._get_stats("bad").circuit_open is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Stats
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestStats:
 
@@ -530,11 +477,6 @@ class TestStats:
         stats = router.get_stats()
         assert stats["bad"]["error_count"] >= 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Streaming
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestStreaming:
 
     @pytest.mark.asyncio
@@ -563,11 +505,6 @@ class TestStreaming:
             chunks.append(chunk)
         assert len(chunks) >= 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Sector agnosticism
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSectorAgnosticism:
     """
     Router works identically for any domain.
@@ -575,7 +512,7 @@ class TestSectorAgnosticism:
     """
 
     SECTORS = [
-        # (sector_name, sample_fields, sample_message)
+
         ("healthcare",    ["chief_complaint", "pain_scale", "medications"],
          "I have lower back pain, scale 7 out of 10, taking ibuprofen"),
         ("legal_intake",  ["case_type", "incident_date", "jurisdiction"],
@@ -618,11 +555,6 @@ class TestSectorAgnosticism:
         stats = router.get_stats()
         total_calls = sum(s["call_count"] for s in stats.values())
         assert total_calls == 4
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. v1 API compatibility
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestV1Compatibility:
 

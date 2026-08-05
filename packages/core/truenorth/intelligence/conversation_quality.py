@@ -23,23 +23,18 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Report dataclass
-# ---------------------------------------------------------------------------
-
 @dataclass
 class ConversationQualityReport:
     """Output of one quality check. Attached to graph state after each turn."""
 
     turn_number:        int
-    clarity_score:      float   # 0.0–1.0  (how clear was this answer)
-    engagement_score:   float   # 0.0–1.0  (how engaged is the user)
-    frustration_signal: float   # 0.0–1.0  (risk of frustration / dropout)
-    progress_rate:      float   # fields_collected / turns_so_far
-    abandonment_risk:   float   # 0.0–1.0  (model's best guess at dropout)
-    flags:              List[str] = field(default_factory=list)  # warning codes
-    suggestions:        List[str] = field(default_factory=list)  # action hints for planner
+    clarity_score:      float
+    engagement_score:   float
+    frustration_signal: float
+    progress_rate:      float
+    abandonment_risk:   float
+    flags:              List[str] = field(default_factory=list)
+    suggestions:        List[str] = field(default_factory=list)
 
     @property
     def is_healthy(self) -> bool:
@@ -62,11 +57,6 @@ class ConversationQualityReport:
             "healthy":           self.is_healthy,
         }
 
-
-# ---------------------------------------------------------------------------
-# Heuristic signals
-# ---------------------------------------------------------------------------
-
 _CONFUSION_PATTERNS = re.compile(
     r"\b(what|huh|why|don'?t understand|not sure|confused|what do you mean|unclear|i don'?t know)\b",
     re.IGNORECASE,
@@ -77,17 +67,12 @@ _FRUSTRATION_WORDS = re.compile(
     re.IGNORECASE,
 )
 
-_SHORT_ANSWER_LIMIT = 12 
+_SHORT_ANSWER_LIMIT = 12
 
 _FILLER_PATTERNS = re.compile(
     r"^(ok|okay|sure|fine|yes|no|idk|dunno|maybe|hmm+|uh+|um+|alright)\.?$",
     re.IGNORECASE,
 )
-
-
-# ---------------------------------------------------------------------------
-# ConversationQualityMonitor
-# ---------------------------------------------------------------------------
 
 class ConversationQualityMonitor:
     """
@@ -113,7 +98,7 @@ class ConversationQualityMonitor:
         self,
         turn_number:          int,
         user_message:         str,
-        turn_history:         List[dict], 
+        turn_history:         List[dict],
         fields_collected:     int = 0,
         total_required_fields: int = 1,
     ) -> ConversationQualityReport:
@@ -133,12 +118,10 @@ class ConversationQualityMonitor:
         flags:       List[str] = []
         suggestions: List[str] = []
 
-        # --- per-message scores ---
         clarity     = self._score_clarity(user_message, flags, suggestions)
         engagement  = self._score_engagement(user_message, turn_history, flags, suggestions)
         frustration = self._score_frustration(user_message, turn_history, flags, suggestions)
 
-        # --- session-level scores ---
         progress = fields_collected / max(total_required_fields, 1)
         abandonment = self._score_abandonment(
             frustration, engagement, turn_number, progress, flags, suggestions
@@ -163,10 +146,6 @@ class ConversationQualityMonitor:
 
         return report
 
-    # ------------------------------------------------------------------
-    # Individual scorers
-    # ------------------------------------------------------------------
-
     def _score_clarity(self, msg: str, flags: list, suggestions: list) -> float:
         """How clear and specific was this answer?"""
         msg = msg.strip()
@@ -180,8 +159,8 @@ class ConversationQualityMonitor:
                 flags.append("FILLER_ANSWER")
                 suggestions.append("rephrase_question_simpler")
                 return 0.15
-            return 0.40 
-        
+            return 0.40
+
         if _CONFUSION_PATTERNS.search(msg):
             flags.append("CONFUSION_DETECTED")
             suggestions.append("add_context_or_example")
@@ -197,7 +176,7 @@ class ConversationQualityMonitor:
         ][-self.TREND_WINDOW:]
 
         if not user_msgs:
-            return 0.70  
+            return 0.70
 
         avg_len = sum(len(m) for m in user_msgs) / len(user_msgs)
 
@@ -206,7 +185,6 @@ class ConversationQualityMonitor:
             flags.append("DECLINING_RESPONSE_LENGTH")
             suggestions.append("acknowledge_effort_before_asking")
 
-        # All recent messages are very short
         if all(len(m.strip()) < _SHORT_ANSWER_LIMIT for m in user_msgs):
             flags.append("CONSISTENTLY_SHORT_RESPONSES")
             suggestions.append("switch_to_yes_no_questions")
@@ -273,10 +251,6 @@ class ConversationQualityMonitor:
 
         return risk
 
-    # ------------------------------------------------------------------
-    # Trend helpers
-    # ------------------------------------------------------------------
-
     def compare_reports(
         self, reports: List[ConversationQualityReport]
     ) -> dict:
@@ -291,8 +265,8 @@ class ConversationQualityMonitor:
         frust_trend   = frustrations[-1] - frustrations[0] if len(frustrations) > 1 else 0.0
         return {
             "turns_analysed":     len(reports),
-            "engagement_trend":   round(engag_trend, 3),   # positive = improving
-            "frustration_trend":  round(frust_trend, 3),   # positive = worsening
+            "engagement_trend":   round(engag_trend, 3),
+            "frustration_trend":  round(frust_trend, 3),
             "avg_abandonment":    round(sum(r.abandonment_risk for r in reports) / len(reports), 3),
             "healthy_turns":      sum(1 for r in reports if r.is_healthy),
         }

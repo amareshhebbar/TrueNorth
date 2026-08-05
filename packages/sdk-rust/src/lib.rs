@@ -1,38 +1,8 @@
-//! truenorth — official Rust SDK
-//!
-//! # Install
-//!
-//! ```toml
-//! [dependencies]
-//! truenorth = "0.1"
-//! tokio = { version = "1", features = ["full"] }
-//! ```
-//!
-//! # Usage
-//!
-//! ```rust
-//! use truenorth::TrueNorth;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let tn = TrueNorth::new("tn_live_...", "http://localhost:8000");
-//!
-//!     let session = tn.sessions().create("fitness-coach", None).await?;
-//!     let result  = tn.sessions().message(&session.id, "I am 28").await?;
-//!     let output  = tn.sessions().output(&session.id).await?;
-//!
-//!     println!("{:?}", output.content);
-//!     Ok(())
-//! }
-//! ```
-
 use std::collections::HashMap;
 use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use reqwest::{Client, StatusCode};
 use thiserror::Error;
-
-// ─── Error types ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Error)]
 pub enum TrueNorthError {
@@ -49,8 +19,6 @@ pub enum TrueNorthError {
 }
 
 pub type Result<T> = std::result::Result<T, TrueNorthError>;
-
-// ─── Response types ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Session {
@@ -134,8 +102,6 @@ struct OutputWrapper {
     session_id: String,
 }
 
-// ─── HTTP transport ───────────────────────────────────────────────────────────
-
 #[derive(Clone)]
 struct Transport {
     base_url: String,
@@ -200,8 +166,6 @@ impl Transport {
         Ok(resp.json::<T>().await?)
     }
 }
-
-// ─── Resource clients ─────────────────────────────────────────────────────────
 
 pub struct SessionsClient {
     t: Transport,
@@ -274,8 +238,6 @@ impl GoalsClient {
     }
 }
 
-// ─── Options ─────────────────────────────────────────────────────────────────
-
 #[derive(Debug, Default)]
 pub struct CreateSessionOptions {
     pub user_id:    Option<String>,
@@ -313,7 +275,6 @@ impl TrueNorth {
         self.t.get("/health", None).await
     }
 }
-
 
 pub async fn run_session(
     goal_id:  &str,

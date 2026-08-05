@@ -45,11 +45,6 @@ from truenorth.safety.hallucination_firewall import (
 from truenorth.llm.router import LLMRouter
 from truenorth.testing.mock_llm import MockLLMClient
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Shared test data
-# ─────────────────────────────────────────────────────────────────────────────
-
 FIELDS_CONFIG = {
     "name":                     {"type": "text",    "label": "name"},
     "age":                      {"type": "integer", "label": "age"},
@@ -108,18 +103,12 @@ Your goal is to lose weight and you work out 4 days per week.
 Stay hydrated throughout the day.
 """
 
-
 def make_mock_router() -> LLMRouter:
     mock = MockLLMClient(default='{"verdict": "VERIFIED", "confidence": 0.9, "issue": null, "traced_field": null, "expected_value": null, "found_value": null}')
     router = LLMRouter()
     for m in ["gemini-3.5-flash", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]:
         router.register_client(m, mock)
     return router
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. ClaimExtractor
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestClaimExtractor:
 
@@ -178,12 +167,7 @@ class TestClaimExtractor:
         raw  = ex.extract(text, FIELDS_CONFIG)
         for c in raw:
             assert 0 <= c.start_char <= len(text)
-            assert c.end_char <= len(text) + 50  # small tolerance for position drift
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. ClaimVerifier — Numeric fields
-# ─────────────────────────────────────────────────────────────────────────────
+            assert c.end_char <= len(text) + 50
 
 class TestClaimVerifierNumeric:
 
@@ -214,8 +198,7 @@ class TestClaimVerifierNumeric:
         claim  = self._make_claim("You are 35 years old.", ["35"], ["age"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.BLOCKED
-        # expected_val points to the closest field — age=28 ideally, but
-        # algorithm finds closest numeric match which may be workout_duration=45
+
         assert result.expected_val is not None
 
     def test_correct_age_is_verified(self):
@@ -224,13 +207,13 @@ class TestClaimVerifierNumeric:
         assert result.verdict == ClaimVerdict.VERIFIED
 
     def test_small_rounding_difference_is_verified(self):
-        # 65.0 vs 65 — same value, different representation
+
         claim  = self._make_claim("Your weight is 65.0 kg.", ["65.0kg"], ["weight_kg"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.VERIFIED
 
     def test_moderate_difference_is_low_confidence(self):
-        # 70 kg when actual is 65 kg — 7.7% diff, below hallucination threshold
+
         claim  = self._make_claim("You weigh approximately 70 kg.", ["70kg"], ["weight_kg"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict in (ClaimVerdict.LOW_CONFIDENCE, ClaimVerdict.BLOCKED)
@@ -244,7 +227,7 @@ class TestClaimVerifierNumeric:
         claim  = self._make_claim("You train 7 days per week.", ["7"], ["workout_days_per_week"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.BLOCKED
-        # traced_field may be workout_days_per_week (explicit ref) or closest field
+
         assert result.expected_val is not None
 
     def test_height_correct(self):
@@ -256,11 +239,6 @@ class TestClaimVerifierNumeric:
         claim  = self._make_claim("Your height is 180 cm.", ["180cm"], ["height_cm"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.BLOCKED
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. ClaimVerifier — Text/categorical fields
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestClaimVerifierText:
 
@@ -296,21 +274,16 @@ class TestClaimVerifierText:
             "Your primary goal is to build muscle.", ["primary_goal"]
         )
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
-        # "lose weight" is not in "build muscle" → low confidence
+
         assert result.verdict in (ClaimVerdict.LOW_CONFIDENCE, ClaimVerdict.BLOCKED)
 
     def test_partial_word_match_verified(self):
-        # "moderately active" partially matches "moderate"
+
         claim  = self._make_claim(
             "You have a moderately active lifestyle.", ["activity_level"]
         )
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict in (ClaimVerdict.VERIFIED, ClaimVerdict.LOW_CONFIDENCE)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. ClaimVerifier — Derived values (BMI)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestClaimVerifierDerived:
 
@@ -325,14 +298,14 @@ class TestClaimVerifierDerived:
         )
 
     def test_correct_bmi_verified(self):
-        # BMI = 65 / (1.63^2) = 24.45
+
         claim  = self._make_derived("Your BMI is 24.5.", ["24.5"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.DERIVED_PASS
         assert result.confidence >= 0.85
 
     def test_wrong_bmi_blocked(self):
-        # Claiming BMI is 30 when it should be ~24.5
+
         claim  = self._make_derived("Your BMI is 30.0, which puts you in the obese range.", ["30.0"])
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.BLOCKED
@@ -343,11 +316,6 @@ class TestClaimVerifierDerived:
         )
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.verdict == ClaimVerdict.DERIVED_PASS
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. ClaimVerifier — Generic advice
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestClaimVerifierGeneric:
 
@@ -378,11 +346,6 @@ class TestClaimVerifierGeneric:
         claim  = self._make_generic("Stay hydrated and get enough sleep.")
         result = self.verifier._rule_verify(claim, COLLECTED, FIELDS_CONFIG)
         assert result.confidence >= 0.90
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. OutputSanitiser
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestOutputSanitiser:
 
@@ -430,13 +393,8 @@ class TestOutputSanitiser:
         claim.raw.start_char = 0
         claim.raw.end_char   = len(text)
         result = self.sanitiser.sanitise(text, [claim], COLLECTED)
-        # Should replace with correct value or field label
+
         assert "65" in result or "weight" in result.lower()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. FirewallResult
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFirewallResult:
 
@@ -490,11 +448,6 @@ class TestFirewallResult:
         s = r.summary()
         assert "FLAGGED" in s
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. End-to-end — CLEAN outputs
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFirewallEndToEndClean:
 
     @pytest.mark.asyncio
@@ -540,21 +493,14 @@ class TestFirewallEndToEndClean:
     @pytest.mark.asyncio
     async def test_correct_workout_stats_pass(self):
         fw     = HallucinationFirewall()
-        # 4 days and 45 min are verified; 180 = 4*45 is correct but unverifiable
-        # without formula knowledge → may be flagged but not blocked
+
         output = (
             "You can work out 4 days per week for 45 minutes each session. "
             "That gives you 180 minutes of exercise weekly."
         )
         result = await fw.check(output, COLLECTED, FIELDS_CONFIG, "s6")
-        # The individually correct values (4 days, 45 min) should be verified.
-        # The total (180) may be flagged. Either way, no definite hallucinations.
+
         assert result.blocked_count == 0 or result.is_safe
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. End-to-end — BLOCKED hallucinations
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFirewallEndToEndBlock:
 
@@ -576,10 +522,9 @@ class TestFirewallEndToEndBlock:
     async def test_hallucinated_output_is_not_safe(self):
         fw     = HallucinationFirewall()
         result = await fw.check(HALLUCINATED_OUTPUT, COLLECTED, FIELDS_CONFIG, "b3")
-        # HALLUCINATED_OUTPUT has age=35 (should be 28) and weight=80 (should be 65)
-        # At least one should be blocked or flagged
+
         assert result.blocked_count >= 1 or result.flagged_count >= 2
-        # flagged is not necessarily "not safe" — blocked is the key signal
+
         if result.blocked_count == 0:
             pytest.skip("firewall flagged but did not block — may need LLM supervisor")
 
@@ -587,15 +532,14 @@ class TestFirewallEndToEndBlock:
     async def test_safe_output_does_not_contain_hallucinated_values(self):
         fw     = HallucinationFirewall()
         result = await fw.check(HALLUCINATED_OUTPUT, COLLECTED, FIELDS_CONFIG, "b4")
-        # After sanitisation, "80 kg" (wrong weight) should not appear
-        # (or if it does, "65" should appear as the correction)
+
         if "80" in result.safe_output:
             assert "65" in result.safe_output or "weight" in result.safe_output.lower()
 
     @pytest.mark.asyncio
     async def test_wrong_bmi_blocked(self):
         fw     = HallucinationFirewall()
-        # Real BMI for 65kg/163cm = ~24.5. Claiming 32 is a hallucination.
+
         output = "Your BMI is 32.0, which puts you firmly in the obese category."
         result = await fw.check(output, COLLECTED, FIELDS_CONFIG, "b5")
         assert result.blocked_count >= 1
@@ -607,27 +551,22 @@ class TestFirewallEndToEndBlock:
         result = await fw.check(output, COLLECTED, FIELDS_CONFIG, "b6")
         assert result.blocked_count >= 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. End-to-end — FLAGGED outputs
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestFirewallEndToEndFlagged:
 
     @pytest.mark.asyncio
     async def test_partial_hallucination_is_flagged(self):
         fw     = HallucinationFirewall()
         result = await fw.check(PARTIAL_HALLUCINATION, COLLECTED, FIELDS_CONFIG, "f1")
-        # Weight is wrong (80 vs 65) — should be flagged or blocked
+
         assert result.flagged_count > 0 or result.blocked_count > 0
 
     @pytest.mark.asyncio
     async def test_unverifiable_field_reference_is_flagged(self):
         fw     = HallucinationFirewall()
-        # Mentions a field value that can't be confirmed from collected data
+
         output = "Based on your very high fitness level, here is your plan."
         result = await fw.check(output, COLLECTED, FIELDS_CONFIG, "f2")
-        # Should not be blocked outright, but may be flagged
+
         assert result.is_safe or result.blocked_count == 0
 
     @pytest.mark.asyncio
@@ -640,11 +579,6 @@ class TestFirewallEndToEndFlagged:
                 assert "session_id" in entry
                 assert "verdict" in entry
                 assert "claim" in entry
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Engine integration
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFirewallEngineIntegration:
 
@@ -672,7 +606,7 @@ class TestFirewallEngineIntegration:
             "output": {"format": "json"},
         }
         router = make_mock_router()
-        engine = TrueNorthEngine(goal_config=goal, router=router)   # no firewall
+        engine = TrueNorthEngine(goal_config=goal, router=router)
         await engine.start()
         resp   = await engine.process_message("Alex")
         assert resp.text != ""
@@ -701,7 +635,7 @@ output:
         gen = OutputGenerator(firewall=fw)
         out = await gen.generate(state)
         assert "content" in out
-        assert out["metadata"]["firewall"] is not None   # firewall ran
+        assert out["metadata"]["firewall"] is not None
 
     @pytest.mark.asyncio
     async def test_firewall_check_conversation_turn(self):
@@ -717,21 +651,16 @@ output:
     @pytest.mark.asyncio
     async def test_firewall_blocks_mid_conversation_hallucination(self):
         fw = HallucinationFirewall()
-        # Agent says weight is 90 kg when it's actually 65 kg
+
         safe_response = await fw.check_conversation_turn(
             agent_response   = "Based on your weight of 90 kg, let's plan carefully.",
             collected_fields = COLLECTED,
             fields_config    = FIELDS_CONFIG,
             session_id       = "conv-2",
         )
-        # Should either replace or return fallback — not the hallucinated value
+
         assert isinstance(safe_response, str)
         assert len(safe_response) > 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Metrics
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFirewallMetrics:
 
@@ -755,7 +684,7 @@ class TestFirewallMetrics:
     @pytest.mark.asyncio
     async def test_block_rate_computed_correctly(self):
         fw = HallucinationFirewall()
-        # Two clean, one hallucinated
+
         await fw.check(CLEAN_OUTPUT, COLLECTED, FIELDS_CONFIG, "rate1")
         await fw.check(CLEAN_OUTPUT, COLLECTED, FIELDS_CONFIG, "rate2")
         result = await fw.check(HALLUCINATED_OUTPUT, COLLECTED, FIELDS_CONFIG, "rate3")

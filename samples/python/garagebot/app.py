@@ -109,11 +109,9 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("garagebot")
 
-# ── Config ──────────────────────────────────────────────────────────────────
 GARAGE_NAME        = os.environ.get("GARAGE_NAME", "Speed Motors")
 VEHICLE_TYPE       = os.environ.get("VEHICLE_TYPE", "bike")
 SLOTS              = os.environ.get("SLOTS", "9am,11am,2pm,4pm").split(",")
@@ -124,8 +122,6 @@ TECH_WA            = os.environ.get("TECHNICIAN_WHATSAPP", "")
 GOAL_YAML          = os.environ.get("GOAL_YAML", "goal.yaml")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
-# ── Goal YAML (generated if not found) ─────────────────────────────────────
 
 DEFAULT_GOAL = f"""
 id: garagebot_{VEHICLE_TYPE}_booking
@@ -200,7 +196,6 @@ output:
     estimated_duration_hours, customer_confirmation_message (short WhatsApp-ready text)
 """
 
-
 def ensure_goal_yaml():
     """Create goal.yaml if it doesn't exist."""
     if not os.path.exists(GOAL_YAML):
@@ -208,19 +203,12 @@ def ensure_goal_yaml():
             f.write(DEFAULT_GOAL)
         log.info(f"✅ Created {GOAL_YAML} with default booking goal")
 
-
-# ── Storage ──────────────────────────────────────────────────────────────────
-
 _sessions:  Dict[str, TrueNorthEngine] = {}
 _job_cards: List[dict]                  = []
 _meta:      Dict[str, dict]             = {}
 _goal_config = None
 
-
-# ── FastAPI ──────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=f"GarageBot — {GARAGE_NAME}", version="1.0.0")
-
 
 @app.on_event("startup")
 async def startup():
@@ -230,7 +218,6 @@ async def startup():
     log.info(f"✅ Loaded: {_goal_config.get('name')}")
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — console mode")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -266,7 +253,6 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {
@@ -279,17 +265,14 @@ async def health():
                                if j.get("date") == datetime.now().strftime("%Y-%m-%d")]),
     }
 
-
 @app.get("/jobcards")
 async def all_job_cards():
     return {"job_cards": _job_cards, "total": len(_job_cards)}
-
 
 @app.get("/jobcards/{date}")
 async def job_cards_for_date(date: str):
     cards = [j for j in _job_cards if j.get("date") == date]
     return {"date": date, "job_cards": cards, "total": len(cards)}
-
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -301,7 +284,6 @@ async def verify(request: Request):
         log.info("✅ WhatsApp webhook verified")
         return PlainTextResponse(challenge)
     raise HTTPException(403, "Bad token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -318,7 +300,6 @@ async def handle(request: Request, background: BackgroundTasks):
         return {"status": "ok"}
     except (KeyError, IndexError):
         return {"status": "ignored"}
-
 
 async def process_message(phone: str, text: str):
     session_id = f"gb_{hashlib.md5(phone.encode()).hexdigest()[:12]}"
@@ -348,14 +329,12 @@ async def process_message(phone: str, text: str):
     await send_wa(phone, resp.text)
     await _check_done(session_id, phone, resp)
 
-
 async def _check_done(session_id: str, phone: str, response):
     if not (response.is_complete and response.final_output):
         return
 
     content = response.final_output.content or {}
 
-    # Store job card
     job_card = {
         "session_id":  session_id,
         "date":        datetime.now().strftime("%Y-%m-%d"),
@@ -370,14 +349,12 @@ async def _check_done(session_id: str, phone: str, response):
     _job_cards.append(job_card)
     log.info(f"✅ Job card created: {content.get('job_card_id', session_id)}")
 
-    # Send confirmation to customer
     confirmation = content.get(
         "customer_confirmation_message",
         f"✅ Booking confirmed! See you tomorrow. Reference: {content.get('job_card_id', session_id)}"
     )
     await send_wa(phone, f"*{GARAGE_NAME}* — {confirmation}")
 
-    # Notify technician
     if TECH_WA:
         tech_msg = (
             f"🔧 *New Job Card*\n"
@@ -390,7 +367,6 @@ async def _check_done(session_id: str, phone: str, response):
         await send_wa(TECH_WA, tech_msg)
 
     del _sessions[session_id]
-
 
 async def send_wa(phone: str, text: str):
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
@@ -406,9 +382,6 @@ async def send_wa(phone: str, text: str):
         )
         if r.status_code != 200:
             log.error(f"WhatsApp error: {r.status_code}")
-
-
-# ── Local test ───────────────────────────────────────────────────────────────
 
 async def local_test():
     print("\n" + "=" * 60)
@@ -448,7 +421,6 @@ async def local_test():
             print("=" * 60)
             print(json.dumps(resp.final_output.content, indent=2, ensure_ascii=False))
             break
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

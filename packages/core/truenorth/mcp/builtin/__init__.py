@@ -28,14 +28,14 @@ def _ensure_loaded() -> None:
         return
     _loaded = True
     try:
-        from truenorth.mcp.builtin import calculator    # noqa
+        from truenorth.mcp.builtin import calculator
     except Exception:
         pass
     try:
-        from truenorth.mcp.builtin import datetime_tool # noqa
+        from truenorth.mcp.builtin import datetime_tool
     except Exception:
         pass
     try:
-        from truenorth.mcp.builtin import web_search    # noqa
+        from truenorth.mcp.builtin import web_search
     except Exception:
         pass

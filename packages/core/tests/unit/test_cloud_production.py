@@ -55,11 +55,6 @@ from truenorth.marketplace.goal_registry import (
     GoalRegistry,
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _cost_tracker_stub(session_budget: Optional[float] = None, spent: float = 0.0):
     """Minimal CostTracker-compatible stub."""
     from truenorth.llm.cost_tracker import CostTracker
@@ -70,7 +65,6 @@ def _cost_tracker_stub(session_budget: Optional[float] = None, spent: float = 0.
         ct.record("sess-1", "claude-haiku-4-5-20251001", "extract",
                   int(spent * 1_000_000 / 0.8), 0, goal_id="fitness")
     return ct
-
 
 SAMPLE_GOAL_YAML = """\
 name: test-goal
@@ -89,11 +83,6 @@ output:
   format: json
 """
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. RateLimiter — in-memory sliding window
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRateLimiterInMemory:
 
     @pytest.mark.asyncio
@@ -106,7 +95,7 @@ class TestRateLimiterInMemory:
     async def test_blocks_after_limit_exceeded(self):
         rl = RateLimiter(
             plan=Plan.FREE,
-            custom_limits={"api_key": (3, 3600)},   # 3 requests/hr
+            custom_limits={"api_key": (3, 3600)},
             skip_dimensions=["goal", "user"],
         )
         for _ in range(3):
@@ -139,15 +128,10 @@ class TestRateLimiterInMemory:
     def test_memory_window_reset(self):
         w = _MemoryWindow()
         w.check_and_record("k", 1, 3600)
-        w.check_and_record("k", 1, 3600)   # blocked
+        w.check_and_record("k", 1, 3600)
         w.reset("k")
         ok, _ = w.check_and_record("k", 1, 3600)
         assert ok is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. RateLimiter — plan limits
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRateLimiterPlans:
 
@@ -174,18 +158,13 @@ class TestRateLimiterPlans:
         rl.update_plan(Plan.PRO)
         assert rl.limits()["api_key"]["limit"] == 10_000
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. RateLimiter — dimensions
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRateLimiterDimensions:
 
     @pytest.mark.asyncio
     async def test_skip_empty_dimensions(self):
         """Empty user_id or goal_id should not be checked."""
         rl = RateLimiter(custom_limits={"user": (0, 3600)})
-        # user_id="" — user check skipped → should be allowed
+
         result = await rl.check("key-1", goal_id="g", user_id="")
         assert result.allowed is True
 
@@ -213,11 +192,6 @@ class TestRateLimiterDimensions:
         count = rl.get_count("api_key", "key-count")
         assert count == 2
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. RateLimiter — reset
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRateLimiterReset:
 
     @pytest.mark.asyncio
@@ -234,11 +208,6 @@ class TestRateLimiterReset:
         rl.reset(api_key="key-reset")
         allowed = await rl.check("key-reset")
         assert allowed.allowed is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. RateLimitResult
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRateLimitResult:
 
@@ -258,11 +227,6 @@ class TestRateLimitResult:
         assert "X-RateLimit-Limit"     in h
         assert "X-RateLimit-Remaining" in h
         assert "X-RateLimit-Reset"     in h
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. APIKeyManager
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAPIKeyManager:
 
@@ -308,11 +272,6 @@ class TestAPIKeyManager:
         meta   = km.validate(raw)
         assert "admin" in meta["scopes"]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. JWTHandler
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestJWTHandler:
 
     def _jwt(self) -> JWTHandler:
@@ -329,7 +288,7 @@ class TestJWTHandler:
 
     def test_expired_token_rejected(self):
         jwt   = self._jwt()
-        token = jwt.issue("ten-1", "u-1", ttl=-1)   # already expired
+        token = jwt.issue("ten-1", "u-1", ttl=-1)
         assert jwt.verify(token) is None
 
     def test_tampered_signature_rejected(self):
@@ -354,11 +313,6 @@ class TestJWTHandler:
     def test_empty_secret_raises(self):
         with pytest.raises(ValueError):
             JWTHandler(secret="")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. AuthMiddleware — API key
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAuthMiddlewareAPIKey:
 
@@ -407,11 +361,6 @@ class TestAuthMiddlewareAPIKey:
         raw, _ = auth.create_api_key("ten-2", plan="starter")
         assert raw.startswith("tn_live_")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. AuthMiddleware — JWT
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestAuthMiddlewareJWT:
 
     def _auth_with_jwt(self) -> tuple[AuthMiddleware, JWTHandler]:
@@ -451,11 +400,6 @@ class TestAuthMiddlewareJWT:
         assert token is not None
         assert "." in token
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. AuthMiddleware — public paths
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestAuthMiddlewarePublic:
 
     @pytest.mark.asyncio
@@ -482,11 +426,6 @@ class TestAuthMiddlewarePublic:
         assert r.is_admin  is False
         assert r.can_write is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. BudgetGuard — session
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBudgetGuardSession:
 
     @pytest.mark.asyncio
@@ -506,7 +445,7 @@ class TestBudgetGuardSession:
 
     @pytest.mark.asyncio
     async def test_allows_no_budget_set(self):
-        ct    = _cost_tracker_stub()   # no budget
+        ct    = _cost_tracker_stub()
         guard = BudgetGuard(cost_tracker=ct)
         result = await guard.check(session_id="sess-1")
         assert result.blocked is False
@@ -519,11 +458,6 @@ class TestBudgetGuardSession:
         sess = ct.get_session_cost("sess-2")
         assert sess.budget_usd == pytest.approx(0.50)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. BudgetGuard — tenant
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBudgetGuardTenant:
 
     @pytest.mark.asyncio
@@ -534,7 +468,7 @@ class TestBudgetGuardTenant:
             monthly_limit = 10.0,
             auto_pause    = True,
         ))
-        guard.record_spend("ten-over", 10.01)   # over limit
+        guard.record_spend("ten-over", 10.01)
         result = await guard.check(tenant_id="ten-over")
         assert result.blocked is True
         assert result.scope   == BudgetScope.TENANT
@@ -565,11 +499,6 @@ class TestBudgetGuardTenant:
         assert status["spent_usd"]  == pytest.approx(25.0)
         assert status["pct_used"]   == pytest.approx(50.0)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. BudgetGuard — allowed
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBudgetGuardAllowed:
 
     @pytest.mark.asyncio
@@ -586,11 +515,6 @@ class TestBudgetGuardAllowed:
         guard.record_spend("t", 5.0)
         result = await guard.check(session_id="sess-1", tenant_id="t", goal_id="g")
         assert result.blocked is False
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. BudgetCheckResult
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestBudgetCheckResult:
 
@@ -610,11 +534,6 @@ class TestBudgetCheckResult:
     def test_pct_used_zero_when_no_limit(self):
         r = BudgetCheckResult(blocked=False, spent_usd=1.0, limit_usd=0.0)
         assert r.pct_used == 0.0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. SelfHostConfig — minimal
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSelfHostConfigMinimal:
 
@@ -643,11 +562,6 @@ class TestSelfHostConfigMinimal:
         assert "docker compose" in readme.lower() or "docker-compose" in readme
         assert "curl"           in readme
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. SelfHostConfig — standard
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSelfHostConfigStandard:
 
     def test_standard_has_nginx(self):
@@ -671,11 +585,6 @@ class TestSelfHostConfigStandard:
         nginx  = cfg._nginx_conf()
         assert "ssl" in nginx
         assert "api.example.com" in nginx
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  17. SelfHostConfig — file generation
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSelfHostConfigFiles:
 
@@ -709,11 +618,6 @@ class TestSelfHostConfigFiles:
         with tempfile.TemporaryDirectory() as tmpdir:
             files = cli_init(output_dir=tmpdir, profile="minimal")
             assert len(files) >= 3
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  18. GoalRegistry — publish
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestGoalRegistryPublish:
 
@@ -757,12 +661,7 @@ class TestGoalRegistryPublish:
     def test_checksum_computed(self):
         reg = GoalRegistry()
         pkg = reg.publish(SAMPLE_GOAL_YAML)
-        assert len(pkg.checksum) == 64   # sha256 hex
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  19. GoalRegistry — install
-# ─────────────────────────────────────────────────────────────────────────────
+        assert len(pkg.checksum) == 64
 
 class TestGoalRegistryInstall:
 
@@ -809,11 +708,6 @@ class TestGoalRegistryInstall:
             config = reg.install_from_file(f.name)
         assert config["name"] == "test-goal"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  20. GoalRegistry — search
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGoalRegistrySearch:
 
     def test_search_by_keyword(self):
@@ -843,11 +737,6 @@ class TestGoalRegistrySearch:
         results = reg.search("xyzzy_completely_nonexistent_term")
         assert len(results) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  21. GoalRegistry — curated goals
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGoalRegistryCurated:
 
     def test_official_goals_seeded(self):
@@ -876,11 +765,6 @@ class TestGoalRegistryCurated:
         results = reg.search(sector="medical")
         assert any(r["name"] == "medical-intake" for r in results)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  22. Sector production — auth + rate + budget for 5 sectors
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSectorProduction:
 
     SECTORS = [
@@ -895,7 +779,7 @@ class TestSectorProduction:
     @pytest.mark.parametrize("sector,goal_id,tenant_id", SECTORS)
     async def test_auth_rate_budget_pipeline(self, sector, goal_id, tenant_id):
         """Full production pipeline: auth → rate check → budget check."""
-        # Auth
+
         km   = APIKeyManager()
         raw, _ = km.create_key(tenant_id, plan="pro")
         auth   = AuthMiddleware(key_manager=km)

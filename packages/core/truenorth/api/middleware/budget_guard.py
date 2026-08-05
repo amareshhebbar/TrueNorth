@@ -48,12 +48,10 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from truenorth.llm.cost_tracker import CostTracker
 
-
 class BudgetScope(str, Enum):
     SESSION = "session"
     GOAL    = "goal"
     TENANT  = "tenant"
-
 
 @dataclass
 class BudgetCheckResult:
@@ -83,16 +81,14 @@ class BudgetCheckResult:
             "message":    self.message,
         }
 
-
 @dataclass
 class TenantBudgetConfig:
     """Monthly budget configuration for a tenant."""
     tenant_id:       str
-    monthly_limit:   float            = 100.0     # USD
-    alert_pct:       float            = 0.80      # warn at 80%
-    auto_pause:      bool             = True       # block at 100%
-    goal_limits:     Dict[str, float] = field(default_factory=dict)  
-
+    monthly_limit:   float            = 100.0
+    alert_pct:       float            = 0.80
+    auto_pause:      bool             = True
+    goal_limits:     Dict[str, float] = field(default_factory=dict)
 
 class BudgetGuard:
     """
@@ -119,18 +115,14 @@ class BudgetGuard:
         self,
         cost_tracker: Optional["CostTracker"] = None,
         redis:        Optional[Any]            = None,
-        strict:       bool                     = False,   
+        strict:       bool                     = False,
         tenant_configs: Optional[Dict[str, TenantBudgetConfig]] = None,
     ):
         self._ct            = cost_tracker
         self._redis         = redis
         self._strict        = strict
         self._tenant_cfgs   = tenant_configs or {}
-        self._memory_totals: Dict[str, float] = {} 
-
-    # ------------------------------------------------------------------
-    # Main check
-    # ------------------------------------------------------------------
+        self._memory_totals: Dict[str, float] = {}
 
     async def check(
         self,
@@ -159,10 +151,6 @@ class BudgetGuard:
 
         return BudgetCheckResult(blocked=False)
 
-    # ------------------------------------------------------------------
-    # Budget setters
-    # ------------------------------------------------------------------
-
     def set_session_budget(self, session_id: str, budget_usd: float) -> None:
         """Set a per-session USD cap on the CostTracker."""
         if self._ct:
@@ -177,10 +165,6 @@ class BudgetGuard:
         current = self._get_tenant_total(tenant_id)
         new_val = current + amount_usd
         self._set_tenant_total(tenant_id, new_val)
-
-    # ------------------------------------------------------------------
-    # Scope-specific checks
-    # ------------------------------------------------------------------
 
     def _check_session(
         self,
@@ -269,10 +253,6 @@ class BudgetGuard:
             )
         return BudgetCheckResult(blocked=False)
 
-    # ------------------------------------------------------------------
-    # Tenant spend tracking (Redis / in-memory)
-    # ------------------------------------------------------------------
-
     def _get_tenant_total(self, tenant_id: str) -> float:
         key = self._monthly_key(tenant_id)
         if self._redis:
@@ -317,10 +297,6 @@ class BudgetGuard:
         else:
             next_m = datetime.datetime(now.year, now.month + 1, 1)
         return max(int((next_m - now).total_seconds()), 3600)
-
-    # ------------------------------------------------------------------
-    # Status query
-    # ------------------------------------------------------------------
 
     def tenant_status(self, tenant_id: str) -> dict:
         """Return current budget status for a tenant."""

@@ -49,17 +49,11 @@ from truenorth.observability import (
 )
 from truenorth.observability.log_categories import make_event
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _tracer_with_memory() -> tuple[TrueNorthTracer, MemorySink]:
     tracer = TrueNorthTracer()
     sink   = MemorySink()
     tracer.add_sink(sink)
     return tracer, sink
-
 
 def _populated_tracer(
     goal_id:     str = "fitness_plan",
@@ -85,11 +79,6 @@ def _populated_tracer(
         if sess:
             sess.finished_at = time.time()
     return tracer
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. LogCategory events
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestLogCategories:
 
@@ -147,11 +136,6 @@ class TestLogCategories:
         assert LogCategory.HALLUCINATION == "hallucination"
         assert LogCategory.COMPLIANCE    == "compliance"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. LogEvent
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestLogEvent:
 
     def test_to_dict_has_required_keys(self):
@@ -177,11 +161,6 @@ class TestLogEvent:
         ev  = make_event(LogCategory.COST, "s1", "g1", {})
         now = time.time()
         assert now - 5 < ev.timestamp <= now
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. MemorySink
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestMemorySink:
 
@@ -221,11 +200,6 @@ class TestMemorySink:
         sink.clear()
         assert len(sink.events) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. StdoutSink
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestStdoutSink:
 
     @pytest.mark.asyncio
@@ -241,11 +215,6 @@ class TestStdoutSink:
         await sink.emit(make_event(LogCategory.COST, "s1", "g", {"amount": 1}))
         captured = capsys.readouterr()
         assert "cost" in captured.out
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. CallbackSink
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCallbackSink:
 
@@ -264,18 +233,13 @@ class TestCallbackSink:
         await sink.emit(make_event(LogCategory.COST, "sess-X", "g", {}))
         assert "sess-X" in received
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. TurnTrace
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTurnTrace:
 
     def test_latency_ms_computed(self):
         trace = TurnTrace("s1", "g1", 1)
         trace.started_at  = time.time() - 0.5
         trace.finished_at = time.time()
-        assert trace.latency_ms >= 400   # approx 500ms
+        assert trace.latency_ms >= 400
 
     def test_total_cost_aggregated(self):
         trace = TurnTrace("s1", "g1", 1)
@@ -307,11 +271,6 @@ class TestTurnTrace:
                   "total_cost_usd", "total_tokens"]:
             assert k in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. SessionTrace
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSessionTrace:
 
     def _session(self) -> SessionTrace:
@@ -319,7 +278,7 @@ class TestSessionTrace:
         for i in range(3):
             t = TurnTrace("s1", "fitness_plan", i + 1)
             t.llm_calls     = [{"cost_usd": 0.001, "total_tokens": 100}]
-            t.pii_detected  = (i == 1)   # PII on turn 2
+            t.pii_detected  = (i == 1)
             t.conflicts     = [{"field": "age"}] if i == 2 else []
             t.fw_verdict    = "CLEAN"
             t.finished_at   = time.time()
@@ -349,11 +308,6 @@ class TestSessionTrace:
         for k in ["session_id", "goal_id", "turn_count", "total_cost_usd",
                   "pii_turns", "conflicts"]:
             assert k in d
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. Tracer — record methods
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestTracerRecord:
 
@@ -419,11 +373,6 @@ class TestTracerRecord:
         assert trace.finished_at is not None
         assert trace.response_chars == len("response text")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. Tracer — events reach sinks
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTracerEmit:
 
     @pytest.mark.asyncio
@@ -432,7 +381,7 @@ class TestTracerEmit:
         tracer.session_start("s1", "fitness")
         tracer.turn_start("s1", "fitness", 1)
         tracer.record_llm_call("s1", "fitness", 1, "gemini", "extract", 100, 50, 0.0001, 200)
-        await asyncio.sleep(0.01)   # let event tasks complete
+        await asyncio.sleep(0.01)
         cost_events = sink.by_category(LogCategory.COST)
         assert len(cost_events) >= 1
 
@@ -457,11 +406,6 @@ class TestTracerEmit:
         assert len(received_a) >= 1
         assert len(received_b) >= 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. Tracer — query API
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTracerQuery:
 
     def test_session_summary_returns_dict(self):
@@ -480,7 +424,7 @@ class TestTracerQuery:
     def test_all_session_ids(self):
         tracer = _populated_tracer(session_id="s1")
         _populated_tracer.__wrapped__ = None
-        # Add second session
+
         tracer.session_start("s2", "fitness_plan")
         assert "s1" in tracer.all_session_ids()
         assert "s2" in tracer.all_session_ids()
@@ -488,11 +432,6 @@ class TestTracerQuery:
     def test_session_summary_none_for_unknown(self):
         tracer = TrueNorthTracer()
         assert tracer.session_summary("nonexistent") is None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. HealthMonitor — empty
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestHealthMonitorEmpty:
 
@@ -509,11 +448,6 @@ class TestHealthMonitorEmpty:
         report  = monitor.goal_report("empty")
         alerts  = monitor.check_alerts(report)
         assert isinstance(alerts, list)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. HealthMonitor — full report
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestHealthMonitorReport:
 
@@ -539,7 +473,7 @@ class TestHealthMonitorReport:
         monitor = self._monitor_with_sessions(8, 10)
         report  = monitor.goal_report("fitness_plan", window_hours=24)
         assert report.session_count == 10
-        # All sessions have finished_at → all "completed" per _is_complete()
+
         assert report.completion_rate > 0
 
     def test_report_to_dict_has_keys(self):
@@ -562,18 +496,13 @@ class TestHealthMonitorReport:
         if "age" in report.field_skip_rates:
             assert report.field_skip_rates["age"] == pytest.approx(0.5)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. HealthMonitor — alerts
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestHealthMonitorAlerts:
 
     def test_low_completion_triggers_alert(self):
         report = GoalHealthReport(
             goal_id="g", window_hours=24, session_count=100,
             completed_count=40, abandoned_count=60,
-            completion_rate=0.40,   # below 0.60 threshold
+            completion_rate=0.40,
             avg_turns=5.0, avg_cost_usd=0.01,
             p50_latency_ms=300, p95_latency_ms=800,
             field_skip_rates={}, abandonment_map={},
@@ -592,7 +521,7 @@ class TestHealthMonitorAlerts:
             p50_latency_ms=300, p95_latency_ms=800,
             field_skip_rates={}, abandonment_map={},
             pii_rate=0.0, conflict_rate=0.0,
-            hallucination_rate=0.10,   # above 0.05 threshold
+            hallucination_rate=0.10,
         )
         monitor = HealthMonitor(tracer=TrueNorthTracer())
         alerts  = monitor.check_alerts(report)
@@ -607,7 +536,7 @@ class TestHealthMonitorAlerts:
             completed_count=40, abandoned_count=5,
             completion_rate=0.80, avg_turns=5.0, avg_cost_usd=0.01,
             p50_latency_ms=300, p95_latency_ms=800,
-            field_skip_rates={"chief_complaint": 0.45},   # above 0.30 threshold
+            field_skip_rates={"chief_complaint": 0.45},
             abandonment_map={}, pii_rate=0.0, conflict_rate=0.0, hallucination_rate=0.01,
         )
         monitor = HealthMonitor(tracer=TrueNorthTracer())
@@ -629,11 +558,6 @@ class TestHealthMonitorAlerts:
         alerts  = monitor.check_alerts(report)
         assert len(alerts) == 0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. HealthMonitor — period comparison
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestHealthMonitorCompare:
 
     def test_compare_returns_dict(self):
@@ -650,11 +574,6 @@ class TestHealthMonitorCompare:
         result  = monitor.compare_periods("fitness_plan")
         cr = result["completion_rate"]
         assert "current" in cr and "previous" in cr
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. ABEngine — assignment
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestABEngineAssign:
 
@@ -690,7 +609,7 @@ class TestABEngineAssign:
             ab.assign(f"sess-{i}")
             v = ab.get_variant(f"sess-{i}")
             counts[v] += 1
-        # With 1000 sessions expect within 10% of 50/50
+
         assert 400 < counts[ABVariant.A] < 600
         assert 400 < counts[ABVariant.B] < 600
 
@@ -702,11 +621,6 @@ class TestABEngineAssign:
             if ab.get_variant(f"s{i}") == ABVariant.B:
                 b_count += 1
         assert 200 < b_count < 400
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. ABEngine — outcome recording
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestABEngineOutcome:
 
@@ -728,13 +642,8 @@ class TestABEngineOutcome:
 
     def test_unassigned_session_record_ignored(self):
         ab = ABEngine("t", {"id": "a"}, {"id": "b"}, split_ratio=0.50, min_sessions=5)
-        ab.record_outcome("not_assigned", completed=True)   # should not crash
+        ab.record_outcome("not_assigned", completed=True)
         assert ab._stats[ABVariant.A].completions == 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  17. ABEngine — statistical significance
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestABEngineSignificance:
 
@@ -764,7 +673,7 @@ class TestABEngineSignificance:
     def test_significant_difference_detected(self):
         ab     = self._ab_with_data(n=400, rate_a=0.50, rate_b=0.80)
         result = ab.result()
-        # With 200/200 and a 30pp difference, p should be significant
+
         if result.p_value is not None:
             assert result.p_value < 0.05
 
@@ -786,11 +695,6 @@ class TestABEngineSignificance:
         ab = ABEngine("t", {"id":"a"}, {"id":"b"}, split_ratio=0.50, min_sessions=10)
         ab.stop()
         assert ab._status == ABStatus.STOPPED
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  18. ABRegistry
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestABRegistry:
 
@@ -826,11 +730,6 @@ class TestABRegistry:
         registry.register(ABEngine("x2", {}, {}, min_sessions=5))
         assert "x1" in registry.list_tests()
         assert "x2" in registry.list_tests()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  19. CostDashboard — goal cost summary
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCostDashboardSummary:
 
@@ -868,11 +767,6 @@ class TestCostDashboardSummary:
         summary = dash.goal_cost_summary("fitness", period_days=1)
         assert "extract" in summary.by_task
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  20. CostDashboard — session detail
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCostDashboardDetail:
 
     def test_session_detail_without_cost_tracker(self):
@@ -896,11 +790,6 @@ class TestCostDashboardDetail:
         d    = dash.session_cost_detail("nonexistent")
         assert "error" in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  21. CostDashboard — trend
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCostDashboardTrend:
 
     def test_trend_returns_list(self):
@@ -921,11 +810,6 @@ class TestCostDashboardTrend:
         dash  = CostDashboard(tracer=TrueNorthTracer())
         trend = dash.cost_trend("nonexistent", period_days=7)
         assert trend == []
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  22. CostDashboard — model comparison
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCostDashboardModels:
 
@@ -948,11 +832,6 @@ class TestCostDashboardModels:
         models = dash.model_comparison("g1", period_days=1)
         costs  = [m["cost_usd"] for m in models]
         assert costs == sorted(costs, reverse=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  23. Sector agnosticism — same observability stack for 5 sectors
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSectorObservability:
 

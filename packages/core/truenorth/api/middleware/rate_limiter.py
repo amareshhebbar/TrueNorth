@@ -33,24 +33,17 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Plans and default limits
-# ─────────────────────────────────────────────────────────────────────────────
-
 class Plan(str, Enum):
     FREE       = "free"
     STARTER    = "starter"
     PRO        = "pro"
     ENTERPRISE = "enterprise"
 
-
-# (requests_per_window, window_seconds)
 _PLAN_LIMITS: Dict[Plan, Dict[str, Tuple[int, int]]] = {
     Plan.FREE: {
-        "api_key":  (100,   3600),    # 100 req/hr per API key
-        "goal":     (50,    3600),    # 50 req/hr per goal
-        "user":     (20,    3600),    # 20 req/hr per user
+        "api_key":  (100,   3600),
+        "goal":     (50,    3600),
+        "user":     (20,    3600),
     },
     Plan.STARTER: {
         "api_key":  (1_000,  3600),
@@ -71,18 +64,13 @@ _PLAN_LIMITS: Dict[Plan, Dict[str, Tuple[int, int]]] = {
 
 REDIS_KEY_PREFIX = "tn:rl:"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Result types
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class RateLimitResult:
     allowed:       bool
-    dimension:     str     = ""      # which dimension triggered: "api_key" | "goal" | "user"
+    dimension:     str     = ""
     limit:         int     = 0
     remaining:     int     = 0
-    reset_at:      float   = 0.0    
+    reset_at:      float   = 0.0
     reason:        str     = ""
     retry_after_s: int     = 60
 
@@ -95,11 +83,6 @@ class RateLimitResult:
             "X-RateLimit-Reset":     str(int(self.reset_at)),
             **({"Retry-After": str(self.retry_after_s)} if not self.allowed else {}),
         }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  In-memory fallback (no Redis)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _MemoryWindow:
     """Sliding-window counter using a list of timestamps (no Redis dep)."""
@@ -137,11 +120,6 @@ class _MemoryWindow:
         now    = time.time()
         cutoff = now - window_seconds
         return sum(1 for t in self._windows.get(key, []) if t > cutoff)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Redis sliding-window backend
-# ─────────────────────────────────────────────────────────────────────────────
 
 class _RedisWindow:
     """
@@ -195,7 +173,7 @@ return {1, new_count}
             count   = int(result[1])
             return allowed, count
         except Exception:
-            return True, 0   
+            return True, 0
 
     def reset(self, key: str) -> None:
         try:
@@ -211,11 +189,6 @@ return {1, new_count}
             return self._redis.zcard(key)
         except Exception:
             return 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  RateLimiter
-# ─────────────────────────────────────────────────────────────────────────────
 
 class RateLimiter:
     """
@@ -267,10 +240,6 @@ class RateLimiter:
                 pass
 
         return cls(redis=redis, plan=plan)
-
-    # ------------------------------------------------------------------
-    # Main check entry point
-    # ------------------------------------------------------------------
 
     async def check(
         self,
@@ -327,10 +296,6 @@ class RateLimiter:
             reset_at  = last_reset,
         )
 
-    # ------------------------------------------------------------------
-    # Sync version (for non-async contexts)
-    # ------------------------------------------------------------------
-
     def check_sync(
         self,
         api_key: str,
@@ -344,10 +309,6 @@ class RateLimiter:
             return asyncio.ensure_future(self.check(api_key, goal_id, user_id))
         except RuntimeError:
             return asyncio.run(self.check(api_key, goal_id, user_id))
-
-    # ------------------------------------------------------------------
-    # Admin operations
-    # ------------------------------------------------------------------
 
     def reset(self, api_key: str = "", goal_id: str = "", user_id: str = "") -> None:
         """Reset rate limit counters (admin use — e.g. after a billing upgrade)."""

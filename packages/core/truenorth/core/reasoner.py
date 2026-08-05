@@ -22,38 +22,27 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Decision types
-# ---------------------------------------------------------------------------
-
 class ReasonerAction(str, Enum):
-    ASK_FIELD         = "ask_field"          # ask for the next missing required field
-    ASK_OPTIONAL      = "ask_optional"       # ask for an optional field
-    CLARIFY           = "clarify"            # user answer was ambiguous, ask to clarify
-    ACKNOWLEDGE       = "acknowledge"        # brief ack before asking next Q
-    RESOLVE_CONFLICT  = "resolve_conflict"   # detected contradiction, ask which is correct
-    HANDLE_EMOTION    = "handle_emotion"     # user is distressed, pivot to empathetic response
-    GENERATE_OUTPUT   = "generate_output"    # all required fields collected, produce output
-    WAIT              = "wait"               # async / multi-turn: wait for more user input
-    END               = "end"               # session is complete, nothing more to do
-    BUDGET_EXCEEDED   = "budget_exceeded"    # cost cap hit, end gracefully
-
+    ASK_FIELD         = "ask_field"
+    ASK_OPTIONAL      = "ask_optional"
+    CLARIFY           = "clarify"
+    ACKNOWLEDGE       = "acknowledge"
+    RESOLVE_CONFLICT  = "resolve_conflict"
+    HANDLE_EMOTION    = "handle_emotion"
+    GENERATE_OUTPUT   = "generate_output"
+    WAIT              = "wait"
+    END               = "end"
+    BUDGET_EXCEEDED   = "budget_exceeded"
 
 @dataclass
 class ReasonerDecision:
     action: ReasonerAction
-    target_field: Optional[str] = None       # field name to ask about (if action == ASK_*)
-    reason: str = ""                         # human-readable explanation (for logs/tracing)
+    target_field: Optional[str] = None
+    reason: str = ""
     metadata: dict = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"ReasonerDecision(action={self.action.value}, field={self.target_field}, reason={self.reason!r})"
-
-
-# ---------------------------------------------------------------------------
-# Reasoner
-# ---------------------------------------------------------------------------
 
 class Reasoner:
     """
@@ -70,20 +59,14 @@ class Reasoner:
       8. End
     """
 
-    # Confidence below this threshold triggers a clarification ask
     CLARIFY_THRESHOLD: float = 0.45
 
-    # Emotion scores above this trigger empathy handling
     DISTRESS_THRESHOLD: float = 0.70
 
     def __init__(self, config: Optional[dict] = None):
         self.config = config or {}
         self.clarify_threshold = self.config.get("clarify_threshold", self.CLARIFY_THRESHOLD)
         self.distress_threshold = self.config.get("distress_threshold", self.DISTRESS_THRESHOLD)
-
-    # ------------------------------------------------------------------
-    # Main entry point
-    # ------------------------------------------------------------------
 
     def decide(self, state: "GraphState") -> ReasonerDecision:
         """
@@ -95,7 +78,7 @@ class Reasoner:
         Returns:
             ReasonerDecision describing what the engine should do next.
         """
-        # 1. Budget guard
+
         if self._budget_exceeded(state):
             logger.warning("session=%s budget exceeded — ending session", state.session_id)
             return ReasonerDecision(
@@ -103,29 +86,24 @@ class Reasoner:
                 reason="Cost budget exceeded for this session",
             )
 
-        # 2. Emotion / distress
         emotion_decision = self._check_emotion(state)
         if emotion_decision:
             return emotion_decision
 
-        # 3. Unresolved conflicts
         conflict_decision = self._check_conflicts(state)
         if conflict_decision:
             return conflict_decision
 
-        # 4. Required fields — find the next one
         required_decision = self._next_required_field(state)
         if required_decision:
             return required_decision
 
-        # 5. Clarification on last low-confidence extraction
         clarify_decision = self._check_clarification(state)
         if clarify_decision:
             return clarify_decision
 
-        # 6. All required collected — generate output
         if self._all_required_collected(state):
-            # Optionally ask a few optional fields first
+
             optional_decision = self._next_optional_field(state)
             if optional_decision:
                 return optional_decision
@@ -136,13 +114,8 @@ class Reasoner:
                 reason="All required fields collected",
             )
 
-        # Fallback — should not normally reach here
         logger.error("session=%s reasoner fell through all checks — ending", state.session_id)
         return ReasonerDecision(action=ReasonerAction.END, reason="No further action determined")
-
-    # ------------------------------------------------------------------
-    # Internal checks
-    # ------------------------------------------------------------------
 
     def _budget_exceeded(self, state: "GraphState") -> bool:
         budget = getattr(state, "cost_budget_usd", None)
@@ -169,7 +142,7 @@ class Reasoner:
         conflicts = getattr(state, "active_conflicts", [])
         if not conflicts:
             return None
-        # Take the most recent unresolved conflict
+
         conflict = conflicts[-1]
         return ReasonerDecision(
             action=ReasonerAction.RESOLVE_CONFLICT,
@@ -244,8 +217,8 @@ class Reasoner:
         Evaluate if_true / if_value_is gates on a field.
         Returns True if the field should be asked (condition satisfied or no condition).
         """
-        if_true = field_cfg.get("if_true")            # ask only if another field is truthy
-        if_value_is = field_cfg.get("if_value_is")    # {field: X, value: Y} — ask if field==value
+        if_true = field_cfg.get("if_true")
+        if_value_is = field_cfg.get("if_value_is")
 
         if if_true:
             gate_val = collected.get(if_true)
@@ -259,10 +232,6 @@ class Reasoner:
                 return False
 
         return True
-
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
 
     def explain(self, state: "GraphState") -> str:
         """Return a human-readable explanation of the current decision (for dry-run / debug)."""

@@ -53,14 +53,8 @@ from truenorth.llm.cost_tracker import (
     _compute_cost,
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _ct() -> CostTracker:
     return CostTracker()
-
 
 def _record(
     ct: CostTracker,
@@ -83,25 +77,20 @@ def _record(
         goal_id       = goal,
     )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  1. Pricing
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestPricing:
 
     def test_haiku_cost(self):
-        # $0.80/M input, $4.00/M output
+
         cost = _compute_cost("claude-haiku-4-5-20251001", 1_000_000, 0)
         assert cost == pytest.approx(0.80, abs=0.001)
 
     def test_sonnet_cost(self):
-        # $3.00/M input, $15.00/M output
+
         cost = _compute_cost("claude-sonnet-4-20250514", 1_000_000, 0)
         assert cost == pytest.approx(3.00, abs=0.001)
 
     def test_gemini_flash_cost(self):
-        # $0.075/M input
+
         cost = _compute_cost("gemini-3.5-flash", 1_000_000, 0)
         assert cost == pytest.approx(0.075, abs=0.001)
 
@@ -115,12 +104,12 @@ class TestPricing:
             assert _compute_cost(model, 10_000, 10_000) == 0.0, f"Failed for {model}"
 
     def test_unknown_model_uses_fallback(self):
-        # Fallback pricing: $1.00/M in, $5.00/M out
+
         cost = _compute_cost("unknown-model-xyz", 1_000_000, 0)
         assert cost == pytest.approx(1.00, abs=0.01)
 
     def test_small_call_tiny_cost(self):
-        # 150 input + 80 output with haiku ≈ $0.00044
+
         cost = _compute_cost("claude-haiku-4-5-20251001", 150, 80)
         assert 0.0001 < cost < 0.001
 
@@ -130,17 +119,12 @@ class TestPricing:
         assert cost_long > cost_short
 
     def test_gpt4o_pricing(self):
-        # $2.50/M input, $10.00/M output
+
         cost = _compute_cost("gpt-4o", 1_000_000, 0)
         assert cost == pytest.approx(2.50, abs=0.01)
 
     def test_zero_tokens_zero_cost(self):
         assert _compute_cost("claude-sonnet-4-20250514", 0, 0) == 0.0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  2. CallRecord
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestCallRecord:
 
@@ -178,11 +162,6 @@ class TestCallRecord:
         rec = _record(ct)
         assert time.time() - rec.timestamp < 5.0
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  3. SessionCost
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestSessionCost:
 
     def test_initial_state(self):
@@ -215,7 +194,7 @@ class TestSessionCost:
         s = ct.get_session_cost("s1")
         assert TASK_EXTRACT  in s.by_task
         assert TASK_CONVERSE in s.by_task
-        assert s.by_task[TASK_EXTRACT] > s.by_task[TASK_CONVERSE]  
+        assert s.by_task[TASK_EXTRACT] > s.by_task[TASK_CONVERSE]
 
     def test_by_model_breakdown(self):
         ct = _ct()
@@ -248,11 +227,6 @@ class TestSessionCost:
         assert "budget_status"    in d
         assert "budget_used_pct"  in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  4. TurnCost
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTurnCost:
 
     def test_cost_is_sum_of_records(self):
@@ -277,11 +251,6 @@ class TestTurnCost:
         assert "by_task"    in d
         assert "call_count" in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. GoalCost
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestGoalCost:
 
     def test_avg_cost_per_session(self):
@@ -295,11 +264,6 @@ class TestGoalCost:
                     "avg_cost_per_session", "by_task", "by_model"]:
             assert key in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6. BudgetStatus transitions
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestBudgetStatus:
 
     def _session(self, spent: float, budget: float) -> SessionCost:
@@ -308,34 +272,29 @@ class TestBudgetStatus:
         return s
 
     def test_ok_when_under_80pct(self):
-        s = self._session(0.39, 0.50)   # 78%
+        s = self._session(0.39, 0.50)
         assert s.budget_status == BudgetStatus.OK
 
     def test_warning_at_80pct(self):
-        s = self._session(0.40, 0.50)   # 80%
+        s = self._session(0.40, 0.50)
         assert s.budget_status == BudgetStatus.WARNING
 
     def test_critical_at_95pct(self):
-        s = self._session(0.475, 0.50)  # 95%
+        s = self._session(0.475, 0.50)
         assert s.budget_status == BudgetStatus.CRITICAL
 
     def test_exceeded_at_100pct(self):
-        s = self._session(0.50, 0.50)   # 100%
+        s = self._session(0.50, 0.50)
         assert s.budget_status == BudgetStatus.EXCEEDED
 
     def test_exceeded_over_budget(self):
-        s = self._session(0.60, 0.50)   # 120%
+        s = self._session(0.60, 0.50)
         assert s.budget_status == BudgetStatus.EXCEEDED
 
     def test_no_budget_always_ok(self):
         s = SessionCost(session_id="s")
         s.total_cost_usd = 999.99
         assert s.budget_status == BudgetStatus.OK
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  7. Budget exception attributes
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestBudgetExceptions:
 
@@ -360,41 +319,36 @@ class TestBudgetExceptions:
         with pytest.raises(GracefulBudgetStop):
             raise GracefulBudgetStop("s", 0.48, 0.50, 2)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  8. check_budget enforcement tiers
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestCheckBudget:
 
     def test_no_budget_always_passes(self):
         ct = _ct()
-        ct.check_budget("s1", estimated_cost=9999.0)  # should not raise
+        ct.check_budget("s1", estimated_cost=9999.0)
 
     def test_well_within_budget_passes(self):
         ct = _ct()
         ct.set_budget("s1", 1.0)
-        ct.check_budget("s1", estimated_cost=0.10)  # 10% — fine
+        ct.check_budget("s1", estimated_cost=0.10)
 
     def test_100pct_raises_budget_exceeded_error(self):
         ct = _ct()
         ct.set_budget("s1", 0.50)
-        ct.get_session_cost("s1").total_cost_usd = 0.50  # already at limit
+        ct.get_session_cost("s1").total_cost_usd = 0.50
         with pytest.raises(BudgetExceededError):
             ct.check_budget("s1", estimated_cost=0.01)
 
     def test_95pct_raises_graceful_stop(self):
         ct = _ct()
         ct.set_budget("s1", 0.50)
-        ct.get_session_cost("s1").total_cost_usd = 0.475  # 95%
+        ct.get_session_cost("s1").total_cost_usd = 0.475
         with pytest.raises(GracefulBudgetStop):
             ct.check_budget("s1", estimated_cost=0.001)
 
     def test_80pct_does_not_raise(self):
         ct = _ct()
         ct.set_budget("s1", 0.50)
-        ct.get_session_cost("s1").total_cost_usd = 0.40  # 80% — warning only
-        ct.check_budget("s1", estimated_cost=0.001)  # should not raise
+        ct.get_session_cost("s1").total_cost_usd = 0.40
+        ct.check_budget("s1", estimated_cost=0.001)
 
     def test_warning_logged_at_80pct(self, caplog):
         import logging
@@ -408,15 +362,10 @@ class TestCheckBudget:
     def test_warning_fires_only_once(self):
         ct = _ct()
         ct.set_budget("s1", 0.50)
-        ct.get_session_cost("s1").total_cost_usd = 0.41  # 82%
-        ct.check_budget("s1")   # first time — fires warning
-        ct.check_budget("s1")   # second time — suppressed
+        ct.get_session_cost("s1").total_cost_usd = 0.41
+        ct.check_budget("s1")
+        ct.check_budget("s1")
         assert "s1" in ct._warned
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  9. record() API
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRecord:
 
@@ -460,11 +409,6 @@ class TestRecord:
         ct  = _ct()
         rec = _record(ct, model="ollama", inp=10000, out=5000)
         assert rec.cost_usd == 0.0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  10. record_turn() API
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRecordTurn:
 
@@ -514,11 +458,6 @@ class TestRecordTurn:
         s = ct.get_session_cost("s1")
         assert s.call_count == 2
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  11. Task breakdown
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTaskBreakdown:
 
     def test_breakdown_has_all_recorded_tasks(self):
@@ -554,11 +493,6 @@ class TestTaskBreakdown:
         _record(ct, "s1", task=TASK_EXTRACT)
         bd = ct.task_breakdown("s1")
         assert bd[TASK_EXTRACT]["call_count"] == 2
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  12. Goal tracking
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestGoalTracking:
 
@@ -596,12 +530,7 @@ class TestGoalTracking:
         _record(ct, "s2", goal="medical_intake")
         g1 = ct.goal_cost("fitness_plan")
         g2 = ct.goal_cost("medical_intake")
-        assert g1.total_cost_usd != g2.total_cost_usd or True  # both tracked
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  13. Projection
-# ─────────────────────────────────────────────────────────────────────────────
+        assert g1.total_cost_usd != g2.total_cost_usd or True
 
 class TestProjection:
 
@@ -637,22 +566,17 @@ class TestProjection:
         s.turn_count = 3
         assert s.avg_cost_per_turn == pytest.approx(0.001, abs=0.0001)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  14. Top expensive calls
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestTopExpensiveCalls:
 
     def test_sorted_by_cost_descending(self):
         ct = _ct()
-        # Cheap calls
+
         for _ in range(3):
             ct.record("s1","gemini-3.5-flash", TASK_EXTRACT, 100, 50, goal_id="g")
         ct.record("s1","claude-sonnet-4-20250514", TASK_OUTPUT, 2000, 5000, goal_id="g")
 
         top = ct.top_expensive_calls("s1", limit=4)
-        assert top[0]["cost_usd"] >= top[1]["cost_usd"]   # sorted desc
+        assert top[0]["cost_usd"] >= top[1]["cost_usd"]
 
     def test_limit_respected(self):
         ct = _ct()
@@ -669,11 +593,6 @@ class TestTopExpensiveCalls:
         top_s2 = ct.top_expensive_calls("s2", limit=5)
         assert all(r["session_id"] == "s1" for r in top_s1)
         assert all(r["session_id"] == "s2" for r in top_s2)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  15. Export
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestExport:
 
@@ -697,7 +616,7 @@ class TestExport:
         _record(ct, "s1")
         csv_str = ct.export_csv("s1")
         lines   = csv_str.strip().split("\n")
-        # header + at least 1 data row
+
         assert len(lines) >= 2
         assert "call_id" in lines[0]
 
@@ -714,11 +633,6 @@ class TestExport:
         extract_only = ct.get_call_log(session_id="s1", task_type=TASK_EXTRACT)
         assert all(r["task_type"] == TASK_EXTRACT for r in extract_only)
         assert all(r["session_id"] == "s1"        for r in extract_only)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  16. Summary
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestSummary:
 
@@ -755,11 +669,6 @@ class TestSummary:
         assert "task_breakdown" in d
         assert "top_calls"      in d
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  17. Rate limiting
-# ─────────────────────────────────────────────────────────────────────────────
-
 class TestRateLimiting:
 
     def test_within_hourly_limit_allowed(self):
@@ -780,17 +689,12 @@ class TestRateLimiting:
 
     def test_no_limit_no_warning(self, caplog):
         import logging
-        ct = CostTracker()  
+        ct = CostTracker()
         with caplog.at_level(logging.WARNING, logger="truenorth.llm.cost_tracker"):
             for _ in range(100):
                 _record(ct, "s1")
         rate_warnings = [m for m in caplog.messages if "rate" in m.lower()]
         assert len(rate_warnings) == 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  18. Redis integration (mock)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestRedisIntegration:
 
@@ -828,14 +732,9 @@ class TestRedisIntegration:
             def get(self, *a, **kw): raise ConnectionError("redis down")
 
         ct = CostTracker(redis=_BadRedis())
-        _record(ct, "s1")   # should not raise
+        _record(ct, "s1")
         s = ct.get_session_cost("s1")
         assert s.call_count == 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  19. Alert callback
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestAlertCallback:
 
@@ -846,8 +745,8 @@ class TestAlertCallback:
 
         ct = CostTracker(alert_callback=cb)
         ct.set_budget("s1", 0.50)
-        ct.get_session_cost("s1").total_cost_usd = 0.41   # 82%
-        ct.check_budget("s1", estimated_cost=0.001)        # triggers warning
+        ct.get_session_cost("s1").total_cost_usd = 0.41
+        ct.check_budget("s1", estimated_cost=0.001)
 
         assert len(alerts) == 1
         assert alerts[0][0] == "s1"
@@ -859,20 +758,15 @@ class TestAlertCallback:
         ct.set_budget("s1", 0.50)
         ct.get_session_cost("s1").total_cost_usd = 0.41
 
-        ct.check_budget("s1")   # fires callback
-        ct.check_budget("s1")   # suppressed
+        ct.check_budget("s1")
+        ct.check_budget("s1")
         assert len(alerts) == 1
 
     def test_no_callback_no_error(self):
-        ct = CostTracker()   # no callback
+        ct = CostTracker()
         ct.set_budget("s1", 0.50)
         ct.get_session_cost("s1").total_cost_usd = 0.41
-        ct.check_budget("s1")  
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  20. Engine integration
-# ─────────────────────────────────────────────────────────────────────────────
+        ct.check_budget("s1")
 
 class TestEngineIntegration:
 
@@ -922,7 +816,7 @@ class TestEngineIntegration:
                         "question": "Name?"}],
             "persona": {"name": "Bot", "tone": "neutral"},
             "output":  {"format": "json"},
-            "budget":  {"max_cost_usd": 0.0000001},   # absurdly low
+            "budget":  {"max_cost_usd": 0.0000001},
         }
         engine = TrueNorthEngine(goal_config=goal, router=router, cost_tracker=ct)
         await engine.start()
@@ -931,7 +825,7 @@ class TestEngineIntegration:
             resp = await engine.process_message("hi")
             assert resp is not None
         except (BudgetExceededError, GracefulBudgetStop):
-            pass  
+            pass
 
     @pytest.mark.asyncio
     async def test_cost_tracker_injected_directly(self):

@@ -30,18 +30,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  FieldMap — field name mappings between two goals
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class FieldMapping:
     """One field-to-field mapping between source and target goal."""
     source_field:  str
     target_field:  str
-    transform:     Optional[Callable[[Any], Any]] = None   # optional value transform
-    condition:     Optional[Callable[[Any], bool]] = None  # only carry if condition met
+    transform:     Optional[Callable[[Any], Any]] = None
+    condition:     Optional[Callable[[Any], bool]] = None
 
     def apply(self, value: Any) -> Tuple[bool, Any]:
         """
@@ -59,7 +54,6 @@ class FieldMapping:
                 )
                 return False, None
         return True, value
-
 
 class FieldMap:
     """
@@ -123,19 +117,14 @@ class FieldMap:
     def mappings(self) -> List[FieldMapping]:
         return list(self._mappings)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  StateTransfer — the main extraction + seeding engine
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class TransferResult:
     """Result of one state transfer."""
     source_goal_id:  str
     target_goal_id:  str
-    carried_fields:  Dict[str, Any]    # what was actually transferred
-    skipped_fields:  List[str]         # source fields that had no mapping or failed condition
-    missing_fields:  List[str]         # target required fields that still have no value
+    carried_fields:  Dict[str, Any]
+    skipped_fields:  List[str]
+    missing_fields:  List[str]
 
     @property
     def coverage_pct(self) -> float:
@@ -152,7 +141,6 @@ class TransferResult:
             "coverage_pct":   self.coverage_pct,
             "carried_fields": list(self.carried_fields.keys()),
         }
-
 
 class StateTransfer:
     """
@@ -254,7 +242,7 @@ class StateTransfer:
 
     def seed_engine(
         self,
-        engine:         Any,     # TrueNorthEngine
+        engine:         Any,
         carried_fields: Dict[str, Any],
         confidences:    Optional[Dict[str, float]] = None,
     ) -> int:
@@ -281,17 +269,12 @@ class StateTransfer:
                 )
         return count
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  GoalChain — declarative multi-goal sequences
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class ChainStep:
     """One step in a goal chain."""
     goal_id:      str
-    carry_fields: List[Any] = field(default_factory=list)   
-    condition:    Optional[Dict[str, Any]] = None           
+    carry_fields: List[Any] = field(default_factory=list)
+    condition:    Optional[Dict[str, Any]] = None
     metadata:     Dict[str, Any] = field(default_factory=dict)
 
     def condition_met(self, collected_fields: dict) -> bool:
@@ -303,7 +286,6 @@ class ChainStep:
             if actual != expected:
                 return False
         return True
-
 
 class GoalChain:
     """
@@ -366,7 +348,7 @@ class GoalChain:
         """
         for step in self._steps:
             if step.goal_id == current_goal_id:
-                continue   # don't repeat current goal
+                continue
             if step.condition_met(collected_fields):
                 logger.info(
                     "goal_chain: %s → %s (condition_met)",

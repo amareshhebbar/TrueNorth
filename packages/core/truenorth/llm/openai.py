@@ -2,7 +2,6 @@ from __future__ import annotations
 from openai import AsyncOpenAI
 from truenorth.llm.base import BaseLLMClient, LLMResponse
 
-
 class OpenAIClient(BaseLLMClient):
     def __init__(self, api_key: str):
         self._client = AsyncOpenAI(api_key=api_key)

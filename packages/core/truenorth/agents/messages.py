@@ -24,34 +24,27 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Enums
-# ─────────────────────────────────────────────────────────────────────────────
-
 class AgentRole(str, Enum):
-    ORCHESTRATOR = "orchestrator"   # routes tasks, coordinates
-    EXTRACTOR    = "extractor"      # field extraction specialist
-    VALIDATOR    = "validator"      # validates extracted values
-    RESEARCHER   = "researcher"     # web search / tool calls
-    WRITER       = "writer"         # output generation specialist
-    SUPERVISOR   = "supervisor"     # quality control, escalation
-    CUSTOM       = "custom"         # user-defined specialist
-
+    ORCHESTRATOR = "orchestrator"
+    EXTRACTOR    = "extractor"
+    VALIDATOR    = "validator"
+    RESEARCHER   = "researcher"
+    WRITER       = "writer"
+    SUPERVISOR   = "supervisor"
+    CUSTOM       = "custom"
 
 class MessageType(str, Enum):
-    TASK_ASSIGN     = "task_assign"      # assign a task to an agent
-    TASK_CANCEL     = "task_cancel"      # cancel an in-progress task
-    CONTEXT_UPDATE  = "context_update"   # push new context to agent
+    TASK_ASSIGN     = "task_assign"
+    TASK_CANCEL     = "task_cancel"
+    CONTEXT_UPDATE  = "context_update"
 
-    TASK_RESULT     = "task_result"      # task completed successfully
-    TASK_FAILED     = "task_failed"      # task failed, needs rerouting
-    TASK_BLOCKED    = "task_blocked"     # task blocked, needs human input
-    PARTIAL_RESULT  = "partial_result"   # intermediate result (streaming)
+    TASK_RESULT     = "task_result"
+    TASK_FAILED     = "task_failed"
+    TASK_BLOCKED    = "task_blocked"
+    PARTIAL_RESULT  = "partial_result"
 
-    REVIEW_REQUEST  = "review_request"   # request supervisor review
-    REVIEW_VERDICT  = "review_verdict"   # supervisor's verdict
-
+    REVIEW_REQUEST  = "review_request"
+    REVIEW_VERDICT  = "review_verdict"
 
 class TaskStatus(str, Enum):
     PENDING    = "pending"
@@ -62,17 +55,11 @@ class TaskStatus(str, Enum):
     CANCELLED  = "cancelled"
     REVIEWING  = "reviewing"
 
-
 class Priority(str, Enum):
-    CRITICAL = "critical"   # must complete before next user turn
-    HIGH     = "high"       # complete this turn
-    NORMAL   = "normal"     # complete within 2 turns
-    LOW      = "low"        # best-effort, can be deferred
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Core message types
-# ─────────────────────────────────────────────────────────────────────────────
+    CRITICAL = "critical"
+    HIGH     = "high"
+    NORMAL   = "normal"
+    LOW      = "low"
 
 @dataclass
 class AgentMessage:
@@ -84,15 +71,15 @@ class AgentMessage:
     returns an AgentResponse.
     """
     message_id:   str
-    sender:       str               
-    recipient:    str              
+    sender:       str
+    recipient:    str
     message_type: MessageType
-    task:         str               # human-readable task description
-    payload:      Dict[str, Any]    # task-specific data
+    task:         str
+    payload:      Dict[str, Any]
     session_id:   str = ""
     turn:         int = 0
     priority:     Priority = Priority.NORMAL
-    parent_id:    Optional[str] = None    # if this is a sub-task
+    parent_id:    Optional[str] = None
     timeout_s:    float = 30.0
     created_at:   float = field(default_factory=time.time)
 
@@ -129,17 +116,16 @@ class AgentMessage:
             "created_at":   self.created_at,
         }
 
-
 @dataclass
 class AgentResponse:
     """
     Result returned by a SpecialistAgent to the Orchestrator.
     """
-    message_id:    str              
+    message_id:    str
     agent_id:      str
     status:        TaskStatus
-    result:        Any              # the actual output (str, dict, etc.)
-    confidence:    float = 1.0      # 0–1 confidence in this result
+    result:        Any
+    confidence:    float = 1.0
     error:         Optional[str] = None
     metadata:      Dict[str, Any] = field(default_factory=dict)
     latency_ms:    int = 0
@@ -170,7 +156,6 @@ class AgentResponse:
             "tokens_used":self.tokens_used,
         }
 
-
 @dataclass
 class SupervisorVerdict:
     """
@@ -179,10 +164,10 @@ class SupervisorVerdict:
     message_id:  str
     agent_id:    str
     approved:    bool
-    score:       float         
+    score:       float
     feedback:    str
-    retry:       bool = False   # should the agent retry?
-    escalate:    bool = False   # escalate to human?
+    retry:       bool = False
+    escalate:    bool = False
     issues:      List[str] = field(default_factory=list)
     created_at:  float = field(default_factory=time.time)
 

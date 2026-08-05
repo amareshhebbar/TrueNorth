@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class ResearchAgent(BaseAgent):
     """
     Calls registered MCP tools to gather supplementary information.

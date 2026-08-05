@@ -7,8 +7,6 @@ import { TrueNorthError } from './types'
 
 export { TrueNorthError }
 
-// ─── Raw API response types (snake_case from server) ─────────────────────────
-
 interface RawSession {
   session_id: string; goal_id: string; status: string
   current_turn?: number; turn?: number
@@ -31,8 +29,6 @@ interface RawOutput {
   fields?: Record<string, unknown>; metadata?: Record<string, unknown>
   generated_at?: number
 }
-
-// ─── Mappers ─────────────────────────────────────────────────────────────────
 
 export function mapSession(r: RawSession): Session {
   return {
@@ -78,11 +74,9 @@ export function mapOutput(r: RawOutput): Output {
   }
 }
 
-// ─── HTTP Transport ───────────────────────────────────────────────────────────
-
 export class Transport {
   readonly baseUrl: string
-  // FIX: typed as HeadersInit-compatible object
+
   private readonly headers: Record<string, string>
   private readonly timeout: number
 
@@ -111,13 +105,12 @@ export class Transport {
       if (qs) url += '?' + qs
     }
 
-    // FIX: AbortController is in DOM lib (tsconfig lib: ["ES2020", "DOM"])
     const ctrl  = new AbortController()
-    // FIX: setTimeout / clearTimeout are in DOM lib or @types/node
+
     const timer = setTimeout(() => ctrl.abort(), this.timeout)
 
     try {
-      // FIX: fetch is in DOM lib (tsconfig lib: ["ES2020", "DOM"])
+
       const resp = await fetch(url, {
         method,
         headers: this.headers,
@@ -128,7 +121,7 @@ export class Transport {
       if (!resp.ok) {
         const text = await resp.text()
         let e: { error?: string; message?: string } = {}
-        try { e = JSON.parse(text) } catch { /* ignore parse errors */ }
+        try { e = JSON.parse(text) } catch {  }
         throw new TrueNorthError(
           resp.status,
           e.error ?? 'http_error',
@@ -155,8 +148,6 @@ export class Transport {
     return this.request<T>('DELETE', path)
   }
 }
-
-// ─── Resource Clients ─────────────────────────────────────────────────────────
 
 export class SessionsClient {
   constructor(private readonly t: Transport) {}

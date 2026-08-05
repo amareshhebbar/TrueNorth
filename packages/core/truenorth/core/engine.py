@@ -42,21 +42,16 @@ from truenorth.safety.hallucination_firewall import HallucinationFirewall
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Engine response type
-# ---------------------------------------------------------------------------
-
 @dataclass
 class EngineResponse:
     """Returned by process_message() after each conversation turn."""
-    text:          str                     # agent message to show the user
+    text:          str
     session_id:    str
     turn:          int
-    action:        str                     # what the reasoner decided
-    target_field:  Optional[str]           # which field was being asked
-    is_complete:   bool                    # True when all required fields collected
-    final_output:  Optional[Dict[str, Any]] = None  # populated when is_complete=True
+    action:        str
+    target_field:  Optional[str]
+    is_complete:   bool
+    final_output:  Optional[Dict[str, Any]] = None
     state_summary: Dict[str, Any] = field(default_factory=dict)
     cost_usd:      float = 0.0
     latency_ms:    int   = 0
@@ -74,11 +69,6 @@ class EngineResponse:
             "latency_ms":    self.latency_ms,
             "state_summary": self.state_summary,
         }
-
-
-# ---------------------------------------------------------------------------
-# TrueNorthEngine
-# ---------------------------------------------------------------------------
 
 class TrueNorthEngine:
     """
@@ -100,7 +90,7 @@ class TrueNorthEngine:
         session_id:      Optional[str]     = None,
         user_id:         Optional[str]     = None,
         tenant_id:       Optional[str]     = None,
-        router=None,                     
+        router=None,
         session_manager: Optional[SessionManager] = None,
         cost_tracker:    Optional[CostTracker]    = None,
         firewall:        Optional[HallucinationFirewall] = None,
@@ -145,7 +135,6 @@ class TrueNorthEngine:
             tracer   = _tracer,
         )
 
-        # MCP / tool execution — built from goal YAML mcp_servers block
         _mcp_servers = goal_config.get("mcp_servers", [])
         _registry    = mcp_registry or MCPRegistry()
         if _mcp_servers:
@@ -160,9 +149,8 @@ class TrueNorthEngine:
             if (_mcp_servers or mcp_registry) else None
         )
         self._firewall     = _firewall
-        self._orchestrator = orchestrator   # optional multi-agent orchestrator
+        self._orchestrator = orchestrator
 
-        # Budget setup
         budget = goal_config.get("budget", {}).get("max_cost_usd")
         if budget:
             self._cost_tracker.set_budget(session_id, float(budget))
@@ -173,10 +161,6 @@ class TrueNorthEngine:
             goal_config.get("id", "?"),
             len(self.state.fields_config),
         )
-
-    # ------------------------------------------------------------------
-    # Factory methods
-    # ------------------------------------------------------------------
 
     @classmethod
     async def from_yaml(
@@ -217,10 +201,6 @@ class TrueNorthEngine:
         engine.state.is_resumed = True
         return engine
 
-    # ------------------------------------------------------------------
-    # Main API
-    # ------------------------------------------------------------------
-
     async def start(self) -> EngineResponse:
         """
         Start the conversation — returns the first agent message.
@@ -258,18 +238,16 @@ class TrueNorthEngine:
         self.state.current_input = user_message
 
         try:
-            # ── Stage 1: PII scan ────────────────────────────────────────
-            pii_result = self._pii.scan(user_message)
-            safe_text  = pii_result.redacted  
 
-            # ── Stage 2: Language detection ──────────────────────────────
+            pii_result = self._pii.scan(user_message)
+            safe_text  = pii_result.redacted
+
             lang_result = self._lang.detect_from_history(
                 self.state.user_messages + [user_message]
             )
             self.state.detected_language = lang_result.language_code
             self.state.is_romanized      = lang_result.is_romanized
 
-            # ── Stage 3: Field extraction ────────────────────────────────
             _last_target = (
                 self.state.turn_history[-1].get("target_field")
                 if self.state.turn_history else None
@@ -281,11 +259,9 @@ class TrueNorthEngine:
                 target_field  = _last_target,
             )
 
-            # ── Stage 4: Emotion detection ───────────────────────────────
             emotion = await self._emotion.detect(safe_text, use_llm=self._router is not None)
             self.state.current_emotion = emotion.to_dict()
 
-            # ── Stage 5: Conflict detection ──────────────────────────────
             new_values = extraction.as_map()
             _turn_map = getattr(self.state, "_field_turn_map", {})
             conflicts  = self._conflict.check(
@@ -299,7 +275,6 @@ class TrueNorthEngine:
             for c in conflicts:
                 self.state.active_conflicts.append(c.to_dict())
 
-            # ── Stage 6: State update ─────────────────────────────────────
             conflict_fields = {c.get("field") for c in self.state.active_conflicts if not c.get("resolved")}
             if not hasattr(self.state, "_field_turn_map"):
                 self.state._field_turn_map = {}
@@ -312,7 +287,6 @@ class TrueNorthEngine:
                 extraction.fields[0].to_dict() if extraction.fields else None
             )
 
-            # ── Stage 7: Confidence scoring ──────────────────────────────
             confidence_scores = self._confidence.score_all(
                 collected_fields = self.state.collected_fields,
                 fields_config    = self.state.fields_config,
@@ -325,7 +299,6 @@ class TrueNorthEngine:
                 k: v.score for k, v in confidence_scores.items()
             }
 
-            # ── Stage 8: Conversation quality ────────────────────────────
             quality = self._quality.check(
                 turn_number            = self.state.current_turn,
                 user_message           = user_message,
@@ -335,7 +308,6 @@ class TrueNorthEngine:
             )
             self.state.quality_reports.append(quality.to_dict())
 
-            # ── Stage 9: Add user turn to history ────────────────────────
             self.state.add_turn("user", user_message, metadata={
                 "pii_detected":   pii_result.has_pii,
                 "language":       lang_result.language_code,
@@ -343,11 +315,9 @@ class TrueNorthEngine:
                 "fields_extracted": [ef.name for ef in extraction.fields],
             })
 
-            # ── Stage 10: Reason + Plan ───────────────────────────────────
             decision      = self._reasoner.decide(self.state)
             response_text = await self._planner.plan(decision, self.state)
 
-            # ── Stage 11: Generate output if complete ────────────────────
             final_output = None
             if decision.action == ReasonerAction.GENERATE_OUTPUT:
                 final_output = await self._output.generate(self.state)
@@ -358,11 +328,9 @@ class TrueNorthEngine:
                         self.state.session_id, output=final_output
                     )
 
-            # ── Stage 12: Record cost ────────────────────────────────────
             session_cost = self._cost_tracker.get_session_cost(self.state.session_id)
             self.state.total_cost_usd = session_cost.total_cost_usd
 
-            # ── Stage 13: MCP tool execution ─────────────────────────────────
             if self._tool_executor and response_text:
                 response_text, tool_logs = await self._tool_executor.run(
                     response_text = response_text,
@@ -372,7 +340,6 @@ class TrueNorthEngine:
                     self.state.tool_call_log = []
                 self.state.tool_call_log.extend([t.to_dict() for t in tool_logs])
 
-            # Add assistant turn to history (with target_field for extractor lookup)
             self.state.add_turn("assistant", response_text, metadata={
                 "target_field": decision.target_field,
             })
@@ -507,10 +474,6 @@ class TrueNorthEngine:
         )
         yield json.dumps(meta.to_dict())
 
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
-
     def get_state(self) -> dict:
         """Return current session state as a serializable dict."""
         return self.state.to_dict()
@@ -533,10 +496,6 @@ class TrueNorthEngine:
     async def force_output(self) -> Dict[str, Any]:
         """Force final output generation even if not all fields collected."""
         return await self._output.generate(self.state)
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     async def _save_state(self) -> None:
         """Persist state to session manager if available."""

@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class SemanticSearchResult:
     session_id: str
@@ -35,7 +34,6 @@ class SemanticSearchResult:
             "snippet":    self.snippet[:200],
         }
 
-
 class VectorStore:
     """
     Semantic search over past session summaries.
@@ -47,11 +45,11 @@ class VectorStore:
     def __init__(
         self,
         postgres:  Optional[Any] = None,
-        embedding_fn: Optional[Any] = None,  
+        embedding_fn: Optional[Any] = None,
     ):
         self._pg          = postgres
         self._embed_fn    = embedding_fn
-        self._docs:       Dict[str, dict] = {}   
+        self._docs:       Dict[str, dict] = {}
     async def add(
         self,
         session_id: str,
@@ -81,7 +79,7 @@ class VectorStore:
         scores: List[tuple] = []
 
         for session_id, doc in self._docs.items():
-            # Apply metadata filter
+
             if filter_meta:
                 if not all(doc["metadata"].get(k) == v for k, v in filter_meta.items()):
                     continue
@@ -109,10 +107,6 @@ class VectorStore:
     def count(self) -> int:
         return len(self._docs)
 
-    # ------------------------------------------------------------------
-    # Vectorization (bag-of-words fallback — no ML deps)
-    # ------------------------------------------------------------------
-
     async def _vectorize(self, text: str) -> Dict[str, float]:
         """
         Create a sparse bag-of-words vector.
@@ -128,7 +122,7 @@ class VectorStore:
         tf:    Dict[str, float] = {}
         total  = max(len(words), 1)
         for w in words:
-            # strip punctuation
+
             w = w.strip(".,!?;:\"'()")
             if len(w) > 2:
                 tf[w] = tf.get(w, 0) + 1 / total

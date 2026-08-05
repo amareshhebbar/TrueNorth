@@ -30,58 +30,45 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# PII patterns
-# ---------------------------------------------------------------------------
-
 @dataclass
 class PIIPattern:
     name:    str
     pattern: re.Pattern
-    group:   int = 0          # which capture group to redact (0 = whole match)
-    risk:    str = "medium"   # low | medium | high
-
+    group:   int = 0
+    risk:    str = "medium"
 
 _PII_PATTERNS: List[PIIPattern] = [
-    # Email
+
     PIIPattern("email",
         re.compile(r"\b[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}\b"),
         risk="high"),
 
-    # Indian mobile (10 digits starting with 6-9)
     PIIPattern("phone_in",
         re.compile(r"\b(?:\+91[\s-]?)?[6-9]\d{9}\b"),
         risk="high"),
 
-    # International phone (+ prefix)
     PIIPattern("phone_intl",
         re.compile(r"\+\d{1,3}[\s-]?\(?\d{1,4}\)?[\s-]?\d{3,4}[\s-]?\d{3,4}"),
         risk="high"),
 
-    # Aadhaar (12-digit, may have spaces: XXXX XXXX XXXX)
     PIIPattern("aadhaar",
         re.compile(r"\b\d{4}\s\d{4}\s\d{4}\b|\b\d{12}\b"),
         risk="high"),
 
-    # PAN card (AAAAA1234A pattern)
     PIIPattern("pan",
         re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b"),
         risk="high"),
 
-    # Credit/debit card (13-19 digits, with optional spaces/dashes)
     PIIPattern("card_number",
         re.compile(r"\b(?:\d[\s-]?){13,19}\b"),
         risk="high"),
 
-    # UPI ID (e.g. name@upi, name@okicici)
     PIIPattern("upi_id",
         re.compile(r"\b[\w.\-]+@(?:upi|oksbi|okicici|okaxis|okhdfcbank|paytm|ybl|ibl|axl|"
                    r"apl|freecharge|airtelpaymentsbank|mahb|waicici|waaxis|waidfcbank)\b",
                    re.IGNORECASE),
         risk="high"),
 
-    # IFSC code (e.g. HDFC0001234)
     PIIPattern("ifsc",
         re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b"),
         risk="medium"),
@@ -95,22 +82,16 @@ _PII_PATTERNS: List[PIIPattern] = [
         risk="low"),
 ]
 
-
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 @dataclass
 class PIIMatch:
-    type:    str      
-    value:   str      
+    type:    str
+    value:   str
     start:   int
     end:     int
     risk:    str
 
     def to_dict(self) -> dict:
         return {"type": self.type, "risk": self.risk, "start": self.start, "end": self.end}
-
 
 @dataclass
 class PIIScanResult:
@@ -127,11 +108,6 @@ class PIIScanResult:
             "match_count":   len(self.matches),
             "types":         list({m.type for m in self.matches}),
         }
-
-
-# ---------------------------------------------------------------------------
-# PIIDetector
-# ---------------------------------------------------------------------------
 
 class PIIDetector:
     """
@@ -215,10 +191,6 @@ class PIIDetector:
         """Return list of field names marked as PII in the goal config."""
         return [name for name, cfg in fields_config.items() if cfg.get("pii", False)]
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _deduplicate(matches: List[PIIMatch]) -> List[PIIMatch]:
         """Remove overlapping matches — keep the highest-risk, longest match."""
@@ -235,7 +207,7 @@ class PIIDetector:
     def _apply_redaction(text: str, matches: List[PIIMatch]) -> str:
         """Replace matched spans with <TYPE> placeholders."""
         result    = list(text)
-        # Work right-to-left so offsets stay valid
+
         for m in reversed(matches):
             placeholder = list(f"<{m.type.upper()}>")
             result[m.start:m.end] = placeholder

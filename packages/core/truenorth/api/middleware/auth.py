@@ -46,16 +46,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Auth result
-# ─────────────────────────────────────────────────────────────────────────────
-
 class AuthScheme(str, Enum):
     API_KEY  = "api_key"
     JWT      = "jwt"
     NONE     = "none"
-
 
 @dataclass
 class AuthResult:
@@ -66,7 +60,7 @@ class AuthResult:
     plan:          str         = "free"
     scopes:        List[str]   = field(default_factory=list)
     reason:        str         = ""
-    api_key_id:    str         = ""    # hashed key id for logging
+    api_key_id:    str         = ""
     is_test_key:   bool        = False
 
     @property
@@ -88,11 +82,6 @@ class AuthResult:
             "is_test_key":   self.is_test_key,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  API Key management
-# ─────────────────────────────────────────────────────────────────────────────
-
 class APIKeyManager:
     """
     Creates, validates, and revokes API keys.
@@ -105,15 +94,11 @@ class APIKeyManager:
     KEY_PREFIX_LIVE = "tn_live_"
     KEY_PREFIX_TEST = "tn_test_"
     REDIS_PREFIX    = "tn:apikey:"
-    REDIS_TTL       = 86_400 * 365   # 1 year cache TTL
+    REDIS_TTL       = 86_400 * 365
 
     def __init__(self, redis: Optional[Any] = None):
         self._redis  = redis
-        self._memory: Dict[str, dict] = {}   # hash → metadata (in-memory fallback)
-
-    # ------------------------------------------------------------------
-    # Key creation
-    # ------------------------------------------------------------------
+        self._memory: Dict[str, dict] = {}
 
     def create_key(
         self,
@@ -160,10 +145,6 @@ class APIKeyManager:
         self._store(key_id, meta)
         return True
 
-    # ------------------------------------------------------------------
-    # Key validation
-    # ------------------------------------------------------------------
-
     def validate(self, raw_key: str) -> Optional[dict]:
         """
         Validate a raw API key. Returns metadata dict or None.
@@ -205,10 +186,6 @@ class APIKeyManager:
         })
         return key_id
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _hash_key(raw_key: str) -> str:
         return hashlib.sha256(raw_key.encode()).hexdigest()
@@ -235,11 +212,6 @@ class APIKeyManager:
                 pass
         return self._memory.get(key_id)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  JWT handling (minimal, no external deps)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class JWTHandler:
     """
     Minimal HS256 JWT for Studio dashboard sessions.
@@ -249,7 +221,7 @@ class JWTHandler:
     """
 
     ALGORITHM = "HS256"
-    DEFAULT_TTL = 3600 * 8   # 8 hours
+    DEFAULT_TTL = 3600 * 8
 
     def __init__(self, secret: str):
         if not secret:
@@ -299,27 +271,19 @@ class JWTHandler:
                 return None
             h, p, s = parts
 
-            # Verify signature
             expected_sig = hmac.new(self._secret, f"{h}.{p}".encode(), hashlib.sha256).digest()
             actual_sig   = _pad(s)
             if not hmac.compare_digest(expected_sig, actual_sig):
                 return None
 
-            # Decode payload
             payload = json.loads(_pad(p))
 
-            # Check expiry
             if payload.get("exp", 0) < time.time():
                 return None
 
             return payload
         except Exception:
             return None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  AuthMiddleware — main entry point
-# ─────────────────────────────────────────────────────────────────────────────
 
 class AuthMiddleware:
     """
@@ -381,10 +345,6 @@ class AuthMiddleware:
 
         return cls(key_manager=keys, jwt_handler=jwt_handler)
 
-    # ------------------------------------------------------------------
-    # Main verify
-    # ------------------------------------------------------------------
-
     async def verify(self, request: Any) -> AuthResult:
         """
         Extract and verify credentials from a request.
@@ -437,10 +397,6 @@ class AuthMiddleware:
         except RuntimeError:
             return asyncio.run(self.verify(req))
 
-    # ------------------------------------------------------------------
-    # Scheme-specific verification
-    # ------------------------------------------------------------------
-
     def _verify_api_key(self, raw_key: str) -> AuthResult:
         meta = self._keys.validate(raw_key)
         if meta is None:
@@ -482,10 +438,6 @@ class AuthMiddleware:
             scopes        = payload.get("scopes", ["read"]),
         )
 
-    # ------------------------------------------------------------------
-    # Header / path extraction (works with FastAPI Request + plain dicts)
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _get_path(request: Any) -> str:
         if hasattr(request, "url"):
@@ -507,10 +459,6 @@ class AuthMiddleware:
             return {k.lower().replace("-", "_"): v
                     for k, v in request.get("headers", {}).items()}
         return {}
-
-    # ------------------------------------------------------------------
-    # Key management helpers
-    # ------------------------------------------------------------------
 
     def create_api_key(self, tenant_id: str, **kwargs) -> tuple[str, str]:
         return self._keys.create_key(tenant_id, **kwargs)

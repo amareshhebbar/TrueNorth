@@ -201,5 +201,4 @@ func main() {
 	if err := r.Run(":"+port); err != nil { log.Fatal(err) }
 }
 
-// suppress unused io import
 var _ = io.Discard

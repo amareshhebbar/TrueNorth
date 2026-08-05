@@ -97,15 +97,11 @@ from truenorth.core.engine      import TrueNorthEngine
 from truenorth.core.yaml_loader import YAMLLoader
 from truenorth.llm.router       import LLMRouter
 
-# ── Logging ─────────────────────────────────────────────────────────────────
-
 logging.basicConfig(
     level   = logging.INFO,
     format  = "%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("kisansathi")
-
-# ── Config ───────────────────────────────────────────────────────────────────
 
 APP_NAME        = os.environ.get("APP_NAME", "KisanSathi")
 VERIFY_TOKEN    = os.environ.get("WA_VERIFY_TOKEN", "kisansathi-token")
@@ -115,8 +111,6 @@ GOAL_YAML       = os.environ.get("GOAL_YAML", "goal.yaml")
 EXT_WORKER_WA   = os.environ.get("EXTENSION_WORKER_WA", "")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
-# ── Inline goal (fallback if goal.yaml not found) ────────────────────────────
 
 INLINE_GOAL = {
     "id": "crop_advisory",
@@ -173,18 +167,12 @@ INLINE_GOAL = {
     },
 }
 
-# ── Storage ───────────────────────────────────────────────────────────────────
-
 _sessions:  Dict[str, TrueNorthEngine] = {}
 _advisories: List[dict]                 = []
 _meta:       Dict[str, dict]            = {}
 _goal_config = None
 
-
-# ── App ───────────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=f"{APP_NAME}", version="1.0.0")
-
 
 @app.on_event("startup")
 async def startup():
@@ -199,13 +187,11 @@ async def startup():
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — console mode")
 
-
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     today = datetime.now().strftime("%d %B %Y")
     today_adv = [a for a in _advisories if a.get("date") == datetime.now().strftime("%Y-%m-%d")]
 
-    # Crop distribution
     crop_counts: Dict[str, int] = {}
     for a in _advisories:
         crop = a.get("crop", "other")
@@ -255,7 +241,6 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {
@@ -267,11 +252,9 @@ async def health():
         "wa_connected":    bool(ACCESS_TOKEN and PHONE_NUMBER_ID),
     }
 
-
 @app.get("/advisories")
 async def all_advisories():
     return {"advisories": _advisories, "total": len(_advisories)}
-
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -282,7 +265,6 @@ async def verify(request: Request):
     if mode == "subscribe" and token == VERIFY_TOKEN:
         return PlainTextResponse(challenge)
     raise HTTPException(403, "Bad token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -300,7 +282,6 @@ async def handle(request: Request, background: BackgroundTasks):
     except (KeyError, IndexError):
         return {"status": "ignored"}
 
-
 async def process_message(phone: str, text: str):
     session_id = f"ks_{hashlib.md5(phone.encode()).hexdigest()[:12]}"
     engine     = _sessions.get(session_id)
@@ -317,7 +298,6 @@ async def process_message(phone: str, text: str):
         first = await engine.start()
         await send_wa(phone, first.text)
 
-        # Process their first message if it has content
         if text.lower() not in ("hi", "hello", "हेलो", "नमस्ते", "ನಮಸ್ಕಾರ", "start"):
             resp = await engine.process_message(text)
             await send_wa(phone, resp.text)
@@ -328,7 +308,6 @@ async def process_message(phone: str, text: str):
     await send_wa(phone, resp.text)
     await _check_complete(session_id, phone, resp)
 
-
 async def _check_complete(session_id: str, phone: str, response):
     if not (response.is_complete and response.final_output):
         return
@@ -337,7 +316,6 @@ async def _check_complete(session_id: str, phone: str, response):
     lang     = _sessions.get(session_id)
     detected = lang.state.detected_language if lang else "unknown"
 
-    # Store advisory
     advisory = {
         "session_id":     session_id,
         "date":           datetime.now().strftime("%Y-%m-%d"),
@@ -349,10 +327,9 @@ async def _check_complete(session_id: str, phone: str, response):
     }
     _advisories.append(advisory)
 
-    # Send advice to farmer in their language
     farmer_advice = content.get("advisory_in_farmer_language", "")
     if not farmer_advice:
-        # Fallback: structured summary
+
         farmer_advice = (
             f"✅ *{APP_NAME} Advisory*\n\n"
             f"*Problem:* {content.get('likely_cause', 'See details')}\n"
@@ -364,7 +341,6 @@ async def _check_complete(session_id: str, phone: str, response):
 
     await send_wa(phone, farmer_advice)
 
-    # Escalate URGENT cases to extension worker
     if content.get("red_flag") and EXT_WORKER_WA:
         eng_advice = content.get("advisory_english", "No English advisory")
         alert = (
@@ -379,7 +355,6 @@ async def _check_complete(session_id: str, phone: str, response):
 
     del _sessions[session_id]
     log.info(f"Advisory delivered to {phone}")
-
 
 async def send_wa(phone: str, text: str):
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
@@ -396,9 +371,6 @@ async def send_wa(phone: str, text: str):
             )
             if r.status_code != 200:
                 log.error(f"WhatsApp error {r.status_code}")
-
-
-# ── Local test ────────────────────────────────────────────────────────────────
 
 async def local_test():
     print("\n" + "=" * 60)
@@ -444,7 +416,6 @@ async def local_test():
             if content.get("red_flag"):
                 print("\n⚠️  RED FLAG: Critical case — extension worker would be notified")
             break
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

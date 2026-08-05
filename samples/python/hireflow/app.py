@@ -110,8 +110,6 @@ from truenorth.llm.router       import LLMRouter
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("hireflow")
 
-# ── Config from environment ───────────────────────────────────────────────────
-
 COMPANY_NAME     = os.environ.get("COMPANY_NAME",    "TechCorp")
 ROLE_TITLE       = os.environ.get("ROLE_TITLE",      "Senior Backend Engineer")
 ROLE_MIN_EXP     = int(os.environ.get("ROLE_MIN_EXP", "4"))
@@ -125,8 +123,6 @@ ACCESS_TOKEN     = os.environ.get("WA_ACCESS_TOKEN",    "")
 PHONE_NUMBER_ID  = os.environ.get("WA_PHONE_NUMBER_ID", "")
 
 WA_API_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
-# ── Dynamic goal built from env config ───────────────────────────────────────
 
 def build_goal() -> dict:
     return {
@@ -206,18 +202,11 @@ def build_goal() -> dict:
         },
     }
 
-
-# ── Storage ───────────────────────────────────────────────────────────────────
-
 _sessions:    Dict[str, TrueNorthEngine] = {}
 _candidates:  List[dict]                  = []
 _goal_config: Optional[dict]              = None
 
-
-# ── FastAPI ───────────────────────────────────────────────────────────────────
-
 app = FastAPI(title=f"HireFlow — {COMPANY_NAME}")
-
 
 @app.on_event("startup")
 async def startup():
@@ -226,7 +215,6 @@ async def startup():
     log.info(f"✅ {_goal_config['name']} ready")
     if not ACCESS_TOKEN:
         log.warning("WA_ACCESS_TOKEN not set — console mode")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -274,23 +262,19 @@ async def dashboard():
     </body></html>
     """
 
-
 @app.get("/health")
 async def health():
     return {"status": "ok", "role": ROLE_TITLE, "company": COMPANY_NAME,
             "active": len(_sessions), "completed": len(_candidates)}
-
 
 @app.get("/shortlist")
 async def shortlist():
     return {"candidates": [c for c in _candidates
                            if c.get("recommendation") in ("SHORTLIST", "STRONG_HIRE")]}
 
-
 @app.get("/all")
 async def all_candidates():
     return {"candidates": sorted(_candidates, key=lambda x: -x.get("overall_score", 0))}
-
 
 @app.get("/webhook")
 async def verify(request: Request):
@@ -298,7 +282,6 @@ async def verify(request: Request):
     if p.get("hub.mode") == "subscribe" and p.get("hub.verify_token") == VERIFY_TOKEN:
         return PlainTextResponse(p.get("hub.challenge"))
     raise HTTPException(403, "Bad token")
-
 
 @app.post("/webhook")
 async def handle(request: Request, background: BackgroundTasks):
@@ -314,7 +297,6 @@ async def handle(request: Request, background: BackgroundTasks):
         return {"status": "ok"}
     except (KeyError, IndexError):
         return {"status": "ignored"}
-
 
 async def process_message(phone: str, text: str):
     sid    = f"hf_{hashlib.md5(phone.encode()).hexdigest()[:12]}"
@@ -338,7 +320,6 @@ async def process_message(phone: str, text: str):
     resp = await engine.process_message(text)
     await send_wa(phone, resp.text)
     await _check_done(sid, phone, resp)
-
 
 async def _check_done(sid: str, phone: str, response):
     if not (response.is_complete and response.final_output):
@@ -366,7 +347,6 @@ async def _check_done(sid: str, phone: str, response):
     }
     _candidates.append(record)
 
-    # Thank the candidate
     rec  = content.get("recommendation", "")
     msg  = (
         f"✅ *{COMPANY_NAME} — Application Received*\n\n"
@@ -376,14 +356,12 @@ async def _check_done(sid: str, phone: str, response):
     )
     await send_wa(phone, msg)
 
-    # Push to ATS
     if ATS_WEBHOOK:
         async with httpx.AsyncClient() as client:
             await client.post(ATS_WEBHOOK, json=record, timeout=5.0)
 
     del _sessions[sid]
     log.info(f"Candidate screened: {record['name']} → {rec} ({record['overall_score']}/100)")
-
 
 async def send_wa(phone: str, text: str):
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
@@ -399,9 +377,6 @@ async def send_wa(phone: str, text: str):
         )
         if r.status_code != 200:
             log.error(f"WA error {r.status_code}")
-
-
-# ── Local test ────────────────────────────────────────────────────────────────
 
 async def local_test():
     print("\n" + "=" * 60)
@@ -456,7 +431,6 @@ async def local_test():
             for q in content.get("questions_for_next_round", []):
                 print(f"    Q: {q}")
             break
-
 
 if __name__ == "__main__":
     asyncio.run(local_test())

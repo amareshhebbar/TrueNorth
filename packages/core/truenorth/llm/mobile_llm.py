@@ -46,17 +46,11 @@ from truenorth.llm.base import LLMBase, LLMResponse, Message, StreamChunk, _Time
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Platform defaults
-# ─────────────────────────────────────────────────────────────────────────────
-
 class MobilePlatform:
     IOS     = "ios"
     ANDROID = "android"
     GENERIC = "generic"
     AUTO    = "auto"
-
 
 _PLATFORM_DEFAULTS = {
     MobilePlatform.IOS: {
@@ -87,11 +81,6 @@ _PLATFORM_DEFAULTS = {
 
 MOBILE_PREFERRED_TASKS = {"extract", "classify", "embed"}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Device capability report
-# ─────────────────────────────────────────────────────────────────────────────
-
 @dataclass
 class DeviceCapabilities:
     """Reported by the mobile SDK's /capabilities endpoint."""
@@ -100,11 +89,11 @@ class DeviceCapabilities:
     context_window:    int     = 4096
     supports_streaming: bool   = True
     supports_vision:   bool    = False
-    max_tokens:        int     = 512     # mobile models have smaller output limits
-    battery_level:     float   = 1.0    # 0–1; throttle inference if low
-    thermal_state:     str     = "nominal"  # nominal | fair | serious | critical
+    max_tokens:        int     = 512
+    battery_level:     float   = 1.0
+    thermal_state:     str     = "nominal"
     is_available:      bool    = True
-    preferred_tasks:   List[str] = None  # tasks this device handles well
+    preferred_tasks:   List[str] = None
 
     def __post_init__(self):
         if self.preferred_tasks is None:
@@ -131,11 +120,6 @@ class DeviceCapabilities:
             "should_throttle":   self.should_throttle,
         }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  MobileLLMClient
-# ─────────────────────────────────────────────────────────────────────────────
-
 class MobileLLMClient(LLMBase):
     """
     On-device LLM client. Connects to the TrueNorth Mobile SDK running
@@ -153,7 +137,7 @@ class MobileLLMClient(LLMBase):
     """
 
     supports_streaming: bool = True
-    max_context_tokens: int  = 4096      # conservative for mobile
+    max_context_tokens: int  = 4096
 
     def __init__(self, config: Optional[dict] = None):
         super().__init__(config)
@@ -185,19 +169,11 @@ class MobileLLMClient(LLMBase):
         self._client      = None
         self._capabilities: Optional[DeviceCapabilities] = None
 
-    # ------------------------------------------------------------------
-    # Factory
-    # ------------------------------------------------------------------
-
     @classmethod
     def auto_detect(cls, config: Optional[dict] = None) -> "MobileLLMClient":
         cfg = dict(config or {})
         cfg["platform"] = MobilePlatform.AUTO
         return cls(config=cfg)
-
-    # ------------------------------------------------------------------
-    # LLMBase implementation
-    # ------------------------------------------------------------------
 
     async def generate(
         self,
@@ -210,7 +186,6 @@ class MobileLLMClient(LLMBase):
         if self._max_tok_cap:
             max_tokens = min(max_tokens, self._max_tok_cap)
 
-        # Check throttling
         caps = await self._get_capabilities()
         if caps and caps.should_throttle:
             logger.warning(
@@ -228,7 +203,7 @@ class MobileLLMClient(LLMBase):
                 resp = await client.post(
                     self._chat_path,
                     json=payload,
-                    timeout=self._connect_to + max_tokens * 0.05,  # generous for inference
+                    timeout=self._connect_to + max_tokens * 0.05,
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -286,10 +261,6 @@ class MobileLLMClient(LLMBase):
 
         yield StreamChunk(delta="", is_final=True)
 
-    # ------------------------------------------------------------------
-    # Health and capabilities
-    # ------------------------------------------------------------------
-
     async def health_check(self) -> bool:
         client = self._get_client()
         try:
@@ -312,10 +283,6 @@ class MobileLLMClient(LLMBase):
             logger.debug("mobile_llm: list_models failed: %s", e)
             return []
 
-    # ------------------------------------------------------------------
-    # Task routing helpers
-    # ------------------------------------------------------------------
-
     def can_handle(self, task: str) -> bool:
         return task in MOBILE_PREFERRED_TASKS
 
@@ -326,10 +293,6 @@ class MobileLLMClient(LLMBase):
     @property
     def endpoint(self) -> str:
         return self._endpoint
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _get_client(self):
         if self._client is None:
@@ -421,11 +384,6 @@ class MobileLLMClient(LLMBase):
             return MobilePlatform.IOS
 
         return MobilePlatform.GENERIC
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Exceptions
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MobileUnavailableError(Exception):
     """

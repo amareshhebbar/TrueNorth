@@ -10,7 +10,6 @@ import (
 	truenorth "github.com/amareshhebbar/truenorth"
 )
 
-// Note: NewClient takes (apiKey, baseURL) in that order!
 var tn = truenorth.NewClient(
 	os.Getenv("TRUENORTH_API_KEY"),
 	os.Getenv("TRUENORTH_API_URL"),
@@ -28,14 +27,12 @@ func main() {
 			return
 		}
 
-		// Use the new nested tn.Sessions.Create method
 		session, err := tn.Sessions.Create(context.Background(), req.GoalID, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		
-		// Use the updated struct fields (ID and AgentMessage)
+
 		c.JSON(http.StatusOK, gin.H{
 			"session_id": session.ID,
 			"message":    session.AgentMessage,
@@ -51,7 +48,6 @@ func main() {
 			return
 		}
 
-		// Use the new nested tn.Sessions.Message method
 		resp, err := tn.Sessions.Message(context.Background(), c.Param("id"), req.Message)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

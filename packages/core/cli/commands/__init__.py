@@ -22,11 +22,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-
-# ---------------------------------------------------------------------------
-# Shared terminal helpers (no external deps — just ANSI)
-# ---------------------------------------------------------------------------
-
 _RESET  = "\033[0m"
 _BOLD   = "\033[1m"
 _DIM    = "\033[2m"
@@ -72,11 +67,6 @@ def _progress_bar(collected: int, total: int, width: int = 28) -> str:
     bar   = "█" * filled + "░" * (width - filled)
     return f"{_c(_GREEN, bar)} {collected}/{total}"
 
-
-# ---------------------------------------------------------------------------
-# cmd_chat — interactive conversation
-# ---------------------------------------------------------------------------
-
 async def cmd_chat(
     goal:       str,
     mock:       bool,
@@ -94,30 +84,19 @@ async def cmd_chat(
       /skip     — skip the current question (marks field optional)
       /save     — save progress and exit (resumable)
     """
-    # ------------------------------------------------------------------
-    # Import engine
-    # ------------------------------------------------------------------
+
     _add_package_to_path()
     from truenorth.core.engine import TrueNorthEngine
     from truenorth.llm.router import LLMRouter
 
-    # ------------------------------------------------------------------
-    # Validate goal path
-    # ------------------------------------------------------------------
     goal_path = _resolve_goal_path(goal)
     if not goal_path:
         _error(f"Goal YAML not found: {goal}")
         _warn("Tried: current dir, examples/goals/, packages/core/examples/goals/")
         sys.exit(1)
 
-    # ------------------------------------------------------------------
-    # Build router (mock or real)
-    # ------------------------------------------------------------------
     router = _build_router(mock)
 
-    # ------------------------------------------------------------------
-    # Start engine
-    # ------------------------------------------------------------------
     try:
         engine = await TrueNorthEngine.from_yaml(
             str(goal_path),
@@ -133,9 +112,6 @@ async def cmd_chat(
     agent_name  = persona.get("name", "TrueNorth")
     total_req   = len(engine.state.required_fields)
 
-    # ------------------------------------------------------------------
-    # Header
-    # ------------------------------------------------------------------
     _header(f"TrueNorth Chat — {goal_config.get('name', goal_path.stem)}")
     _info("Goal YAML",    str(goal_path))
     _info("Session ID",   engine.get_session_id())
@@ -144,9 +120,6 @@ async def cmd_chat(
     _info("Required fields", str(total_req))
     print(f"\n  {_c(_DIM, 'Type /quit to exit  •  /status to see progress  •  /skip to skip a question')}")
 
-    # ------------------------------------------------------------------
-    # First message
-    # ------------------------------------------------------------------
     try:
         start_resp = await engine.start()
         _agent(agent_name, start_resp.text)
@@ -154,11 +127,8 @@ async def cmd_chat(
         _error(f"Engine failed to start: {e}")
         sys.exit(1)
 
-    # ------------------------------------------------------------------
-    # Conversation loop
-    # ------------------------------------------------------------------
     while not engine.state.is_complete:
-        # Show field progress inline
+
         collected = len(engine.state.collected_fields)
         print(f"  {_c(_DIM, _progress_bar(collected, total_req))}", end="\r")
 
@@ -167,7 +137,6 @@ async def cmd_chat(
         if not user_input:
             continue
 
-        # ── Special commands ──────────────────────────────────────────
         if user_input.lower() in ("/quit", "/exit", "/q"):
             print(f"\n  {_c(_YELLOW, 'Session paused. Resume with:')} "
                   f"truenorth chat --session-id {engine.get_session_id()}")
@@ -200,11 +169,6 @@ async def cmd_chat(
             break
 
     _print_session_summary(engine)
-
-
-# ---------------------------------------------------------------------------
-# cmd_dry_run — automated test without human input
-# ---------------------------------------------------------------------------
 
 async def cmd_dry_run(
     goal:     str,
@@ -248,11 +212,6 @@ async def cmd_dry_run(
 
     sys.exit(0 if report.passed else 1)
 
-
-# ---------------------------------------------------------------------------
-# cmd_validate — validate YAML against schema
-# ---------------------------------------------------------------------------
-
 def cmd_validate(goal: str) -> None:
     """Validate a goal YAML file against the JSON Schema."""
     _add_package_to_path()
@@ -288,11 +247,6 @@ def cmd_validate(goal: str) -> None:
         _error(f"Unexpected error: {e}")
         sys.exit(1)
 
-
-# ---------------------------------------------------------------------------
-# cmd_cost — show cost breakdown for a session
-# ---------------------------------------------------------------------------
-
 async def cmd_cost(session_id: str) -> None:
     """Show cost breakdown for a session ID."""
     _add_package_to_path()
@@ -321,11 +275,6 @@ async def cmd_cost(session_id: str) -> None:
             print(f"    {model:<36} ${cost:.6f}")
     print()
 
-
-# ---------------------------------------------------------------------------
-# Helper: print current session status
-# ---------------------------------------------------------------------------
-
 def _print_status(engine) -> None:
     state = engine.state
     total = len(state.required_fields)
@@ -348,7 +297,6 @@ def _print_status(engine) -> None:
             print(f"    {_c(_YELLOW, '○')} {m}")
     print()
 
-
 def _print_cost(engine) -> None:
     state = engine.state
     print()
@@ -359,7 +307,6 @@ def _print_cost(engine) -> None:
         _info("Budget",       f"${budget:.4f}")
         _info("Remaining",    f"${remaining:.4f}")
     print()
-
 
 def _print_final_output(final_output: dict, goal_config: dict) -> None:
     fmt     = final_output.get("format", "text")
@@ -372,7 +319,6 @@ def _print_final_output(final_output: dict, goal_config: dict) -> None:
         print(content)
     print()
 
-
 def _print_session_summary(engine) -> None:
     state = engine.state
     print()
@@ -384,15 +330,10 @@ def _print_session_summary(engine) -> None:
     _info("Language",      state.detected_language)
     print()
 
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
 def _add_package_to_path() -> None:
     """Ensure the packages/core directory is on sys.path."""
     candidates = [
-        Path(__file__).parent.parent.parent,                 
+        Path(__file__).parent.parent.parent,
         Path.cwd() / "packages" / "core",
         Path.cwd() / "core",
         Path.cwd(),
@@ -402,7 +343,6 @@ def _add_package_to_path() -> None:
             if str(p) not in sys.path:
                 sys.path.insert(0, str(p))
             return
-
 
 def _resolve_goal_path(goal: str) -> Optional[Path]:
     """
@@ -423,7 +363,6 @@ def _resolve_goal_path(goal: str) -> Optional[Path]:
             return p.resolve()
     return None
 
-
 def _build_router(mock: bool):
     """Build LLMRouter — mock for testing, real for production."""
     _add_package_to_path()
@@ -438,7 +377,7 @@ def _build_router(mock: bool):
             async def generate(self, messages, system=None, max_tokens=1024, temperature=0.7, **kw):
                 import json as _json
                 resp = await super().generate(messages, system, max_tokens, temperature, **kw)
-                # If this looks like an extraction call, return empty JSON
+
                 content = " ".join(m.content for m in messages).lower()
                 if "extract field values" in content or "extractions" in content:
                     resp.content = '{"extractions": []}'
@@ -456,7 +395,6 @@ def _build_router(mock: bool):
 
     _warn_missing_keys()
     return LLMRouter.from_env()
-
 
 def _warn_missing_keys() -> None:
     """Warn about missing API keys before real LLM calls."""

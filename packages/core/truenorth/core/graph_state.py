@@ -12,7 +12,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-
 @dataclass
 class GraphState:
     """
@@ -25,52 +24,43 @@ class GraphState:
       4. Restored by .from_dict() on session resume
     """
 
-    # ------------------------------------------------------------------ identity
     session_id:   str = ""
     goal_id:      str = ""
     user_id:      Optional[str] = None
     tenant_id:    Optional[str] = None
 
-    # ------------------------------------------------------------------ goal config (from YAML)
     goal_config:      Dict[str, Any] = field(default_factory=dict)
-    fields_config:    Dict[str, Any] = field(default_factory=dict)  # field_name → field spec
-    persona:          Dict[str, Any] = field(default_factory=dict)  # name, tone, language
+    fields_config:    Dict[str, Any] = field(default_factory=dict)
+    persona:          Dict[str, Any] = field(default_factory=dict)
     output_template:  str = ""
 
-    # ------------------------------------------------------------------ collection state
-    collected_fields:     Dict[str, Any] = field(default_factory=dict)   # field_name → value
-    field_confidences:    Dict[str, float] = field(default_factory=dict) # field_name → 0-1
+    collected_fields:     Dict[str, Any] = field(default_factory=dict)
+    field_confidences:    Dict[str, float] = field(default_factory=dict)
     skipped_fields:       Set[str]  = field(default_factory=set)
     asked_optional_fields: Set[str] = field(default_factory=set)
 
-    # ------------------------------------------------------------------ conversation
     turn_history:   List[Dict[str, Any]] = field(default_factory=list)
     current_turn:   int = 0
-    current_input:  str = ""     # raw user message this turn
-    current_output: str = ""     # agent response this turn
+    current_input:  str = ""
+    current_output: str = ""
 
-    # ------------------------------------------------------------------ intelligence signals
-    current_emotion:   Optional[Dict[str, Any]] = None  # {label, score, raw}
+    current_emotion:   Optional[Dict[str, Any]] = None
     active_conflicts:  List[Dict[str, Any]] = field(default_factory=list)
-    last_extraction:   Optional[Dict[str, Any]] = None  # {field, value, confidence}
+    last_extraction:   Optional[Dict[str, Any]] = None
     detected_language: str = "en"
     is_romanized:      bool = False
     quality_reports:   List[Dict[str, Any]] = field(default_factory=list)
 
-    # ------------------------------------------------------------------ cost / budget
     total_cost_usd:  float = 0.0
     cost_budget_usd: Optional[float] = None
-    token_counts:    Dict[str, int] = field(default_factory=dict)  # model → total_tokens
+    token_counts:    Dict[str, int] = field(default_factory=dict)
 
-    # ------------------------------------------------------------------ session flags
     is_complete:  bool = False
     is_resumed:   bool = False
     final_output: Optional[Dict[str, Any]] = None
     error:        Optional[str] = None
     created_at:   float = field(default_factory=time.time)
     updated_at:   float = field(default_factory=time.time)
-
-    # ------------------------------------------------------------------ helpers
 
     def add_turn(self, role: str, content: str, metadata: Optional[dict] = None) -> None:
         """Append a turn to the conversation history."""
@@ -117,8 +107,6 @@ class GraphState:
     @property
     def agent_messages(self) -> List[str]:
         return [t["content"] for t in self.turn_history if t.get("role") == "assistant"]
-
-    # ------------------------------------------------------------------ serialization
 
     def to_dict(self) -> dict:
         return {
@@ -208,7 +196,6 @@ class GraphState:
             **kwargs,
         )
 
-# ── FieldValue — extracted field with confidence metadata ─────────────────────
 from typing import TypedDict, Any
 
 class FieldValue(TypedDict, total=False):

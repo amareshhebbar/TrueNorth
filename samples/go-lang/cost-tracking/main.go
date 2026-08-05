@@ -149,7 +149,7 @@ func demo4Dashboard() {
 
 func main() {
 	flag.Parse()
-	_ = json.Marshal // keep json imported
+	_ = json.Marshal
 	fmt.Println()
 	fmt.Println(col("  TrueNorth Cost Tracking Demo (Go)", bold, cyan))
 	fmt.Println(col("  DEMO: "+*demoArg, dim))

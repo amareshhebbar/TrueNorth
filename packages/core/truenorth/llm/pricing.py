@@ -22,13 +22,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Pricing table — (input_per_1M_tokens, output_per_1M_tokens) in USD
-# ─────────────────────────────────────────────────────────────────────────────
-
 PRICING: Dict[str, Tuple[float, float]] = {
 
-    # ── Anthropic ────────────────────────────────────────────────────────────
     "claude-opus-4-20250514":     (15.00, 75.00),
     "claude-opus-4-7":            (15.00, 75.00),
     "claude-opus-4-8":            (15.00, 75.00),
@@ -41,16 +36,14 @@ PRICING: Dict[str, Tuple[float, float]] = {
     "claude-3-sonnet-20240229":   ( 3.00, 15.00),
     "claude-3-haiku-20240307":    ( 0.25,  1.25),
 
-    # ── Google Gemini ────────────────────────────────────────────────────────
     "gemini-3.5-flash":           ( 0.075, 0.30),
     "gemini-3.5-flash-8b":        ( 0.0375, 0.15),
     "gemini-1.5-pro":             ( 3.50, 10.50),
     "gemini-2.0-flash":           ( 0.10,  0.40),
     "gemini-2.0-flash-lite":      ( 0.075, 0.30),
     "gemini-2.0-pro":             ( 3.50, 10.50),
-    "gemini-exp-1206":            ( 0.00,  0.00),  
+    "gemini-exp-1206":            ( 0.00,  0.00),
 
-    # ── OpenAI ───────────────────────────────────────────────────────────────
     "gpt-4o":                     ( 2.50, 10.00),
     "gpt-4o-mini":                ( 0.15,  0.60),
     "gpt-4o-mini-2024-07-18":     ( 0.15,  0.60),
@@ -65,35 +58,29 @@ PRICING: Dict[str, Tuple[float, float]] = {
     "o3-mini":                    ( 1.10,  4.40),
     "o4-mini":                    ( 1.10,  4.40),
 
-    # ── Cohere ───────────────────────────────────────────────────────────────
     "command-r":                  ( 0.50,  1.50),
     "command-r-plus":             ( 3.00, 15.00),
     "command-r-08-2024":          ( 0.50,  1.50),
 
-    # ── Groq (fast inference) ────────────────────────────────────────────────
     "llama-3.1-70b-versatile":    ( 0.59,  0.79),
     "llama-3.1-8b-instant":       ( 0.05,  0.08),
     "llama-3.3-70b-versatile":    ( 0.59,  0.79),
     "mixtral-8x7b-32768":         ( 0.24,  0.24),
 
-    # ── Together AI ──────────────────────────────────────────────────────────
     "meta-llama/Llama-3.1-70B-Instruct-Turbo": (0.88, 0.88),
     "meta-llama/Llama-3.1-8B-Instruct-Turbo":  (0.18, 0.18),
     "mistralai/Mixtral-8x7B-Instruct-v0.1":    (0.60, 0.60),
 
-    # ── Mistral ──────────────────────────────────────────────────────────────
     "mistral-large-latest":       ( 3.00,  9.00),
     "mistral-small-latest":       ( 0.20,  0.60),
     "mistral-nemo":               ( 0.15,  0.15),
     "open-mistral-7b":            ( 0.25,  0.25),
 
-    # ── Local / free — always $0.00 ──────────────────────────────────────────
     "ollama":                     ( 0.00,  0.00),
     "local":                      ( 0.00,  0.00),
     "llama-cpp":                  ( 0.00,  0.00),
     "lmstudio":                   ( 0.00,  0.00),
 
-    # ── On-device (mobile) — always $0.00 ────────────────────────────────────
     "apple/on-device-3b":         ( 0.00,  0.00),
     "gemini-nano":                ( 0.00,  0.00),
     "gemini-nano-2":              ( 0.00,  0.00),
@@ -128,11 +115,6 @@ PROVIDERS: Dict[str, List[str]] = {
 _FREE_PREFIXES = ("ollama", "local", "apple/", "gemini-nano", "on-device",
                   "mobile", "llama-cpp", "lmstudio")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
 def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     """
     Compute USD cost for one LLM call.
@@ -141,12 +123,11 @@ def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     """
     if not model:
         return 0.0
-    base = model.split(":")[0].strip() 
+    base = model.split(":")[0].strip()
     if any(base.startswith(pfx) for pfx in _FREE_PREFIXES):
         return 0.0
     pin, pout = PRICING.get(base, FALLBACK)
     return round((input_tokens * pin + output_tokens * pout) / 1_000_000, 8)
-
 
 def get_model_price(model: str) -> Tuple[float, float]:
     """Return (input_per_1M, output_per_1M) for a model."""
@@ -154,7 +135,6 @@ def get_model_price(model: str) -> Tuple[float, float]:
     if any(base.startswith(pfx) for pfx in _FREE_PREFIXES):
         return (0.0, 0.0)
     return PRICING.get(base, FALLBACK)
-
 
 def get_provider(model: str) -> str:
     """Return the provider name for a model string."""
@@ -169,7 +149,6 @@ def get_provider(model: str) -> str:
     if m.startswith("gemini"):
         return "google"
     return "unknown"
-
 
 def list_models(provider: Optional[str] = None) -> List[dict]:
     """
@@ -191,7 +170,6 @@ def list_models(provider: Optional[str] = None) -> List[dict]:
         })
     return sorted(result, key=lambda x: (x["provider"], x["model"]))
 
-
 def cheapest_for_task(task: str, exclude_local: bool = False) -> Optional[str]:
     """
     Return the cheapest model appropriate for a given task type.
@@ -203,11 +181,11 @@ def cheapest_for_task(task: str, exclude_local: bool = False) -> Optional[str]:
     for model, (pin, pout) in PRICING.items():
         if exclude_local and (pin == 0.0 and pout == 0.0):
             continue
-        if requires_top and pin < 1.0:   
+        if requires_top and pin < 1.0:
             continue
         avg = (pin + pout) / 2
         candidates.append((avg, model))
 
     if not candidates:
         return None
-    return sorted(candidates)[0][1]   
+    return sorted(candidates)[0][1]

@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "gemini-3.5-flash"
 
-
 class GeminiClient(LLMBase):
     """
     Google Gemini adapter.

@@ -8,10 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from truenorth.storage.postgres import PostgresStore
 from truenorth.storage.redis import RedisStore
 
-
 db_store: PostgresStore | None = None
 redis_store: RedisStore | None = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,7 +30,6 @@ async def lifespan(app: FastAPI):
 
     if db_store:
         await db_store.engine.dispose()
-
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -58,6 +55,5 @@ def create_app() -> FastAPI:
     app.include_router(websocket.router, tags=["websocket"])
 
     return app
-
 
 app = create_app()

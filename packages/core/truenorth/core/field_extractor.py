@@ -21,17 +21,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 @dataclass
 class ExtractedField:
     name:       str
     value:      Any
-    confidence: float   
-    raw_text:   str    
+    confidence: float
+    raw_text:   str
 
     def to_dict(self) -> dict:
         return {
@@ -41,13 +36,12 @@ class ExtractedField:
             "raw_text":   self.raw_text,
         }
 
-
 @dataclass
 class ExtractionResult:
     fields:       List[ExtractedField]
     input_tokens: int = 0
     output_tokens: int = 0
-    skipped:      List[str] = field(default_factory=list)  # fields that couldn't be extracted
+    skipped:      List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -61,11 +55,6 @@ class ExtractionResult:
 
     def confidence_map(self) -> Dict[str, float]:
         return {f.name: f.confidence for f in self.fields}
-
-
-# ---------------------------------------------------------------------------
-# FieldExtractor
-# ---------------------------------------------------------------------------
 
 class FieldExtractor:
     """
@@ -92,8 +81,8 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
         self,
         user_message:  str,
         fields_config: Dict[str, dict],
-        context:       Optional[Dict[str, Any]] = None,  
-        target_field:  Optional[str] = None,          
+        context:       Optional[Dict[str, Any]] = None,
+        target_field:  Optional[str] = None,
     ) -> ExtractionResult:
         """
         Extract field values from a user message.
@@ -113,7 +102,6 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
         if not fields_config:
             return ExtractionResult(fields=[])
 
-        # Try LLM extraction first
         if self._router is not None:
             try:
                 return await self._llm_extract(
@@ -131,10 +119,6 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
     ) -> ExtractionResult:
         """Synchronous rule-based extraction (for dry-run / testing)."""
         return self._rule_extract(user_message, fields_config)
-
-    # ------------------------------------------------------------------
-    # LLM extraction
-    # ------------------------------------------------------------------
 
     async def _llm_extract(
         self,
@@ -203,7 +187,7 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
         output_tokens: int = 0,
     ) -> ExtractionResult:
         """Parse the LLM's JSON response into ExtractedField objects."""
-        # Strip markdown code fences if present
+
         cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
         try:
             data = json.loads(cleaned)
@@ -227,7 +211,6 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
             if name not in fields_config or val is None:
                 continue
 
-            # Cast to declared type
             val = self._cast_value(val, fields_config[name].get("type", "text"))
 
             extracted.append(ExtractedField(
@@ -239,10 +222,6 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
-
-    # ------------------------------------------------------------------
-    # Rule-based extraction (fallback / simple types)
-    # ------------------------------------------------------------------
 
     def _rule_extract(
         self,
@@ -260,7 +239,7 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
             return ExtractionResult(fields=[])
 
         extracted = []
-        
+
         if target_field and target_field in fields_config:
             cfg   = fields_config[target_field]
             ftype = cfg.get("type", "text")
@@ -272,8 +251,6 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
                 ))
                 return ExtractionResult(fields=extracted)
 
-        # ── General scan when no target hint ────────────────────────────────────
-        
         for name, cfg in fields_config.items():
             ftype = cfg.get("type", "text")
 
@@ -281,7 +258,7 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
                 val = self._extract_number(msg)
                 if val is not None:
                     extracted.append(ExtractedField(name=name, value=val, confidence=0.70, raw_text=msg))
-                    break  # only assign a number to the FIRST numeric field
+                    break
 
             elif ftype == "boolean":
                 val = self._extract_boolean(msg)
@@ -304,14 +281,14 @@ For confidence, use 1.0 if the value is stated explicitly, 0.7 if inferred, 0.4 
             return None
         if ftype in ("integer", "int"):
             n = self._extract_number(text)
-            return int(n) if n is not None else text  
+            return int(n) if n is not None else text
         if ftype in ("number", "float"):
             n = self._extract_number(text)
             return float(n) if n is not None else text
         if ftype == "boolean":
             b = self._extract_boolean(text)
             return b if b is not None else text
-        return text  # text, email, etc — return as-is
+        return text
 
     @staticmethod
     def _extract_number(text: str) -> Optional[float]:

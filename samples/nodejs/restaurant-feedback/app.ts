@@ -1,103 +1,7 @@
-/**
- * restaurant-feedback (Node.js / TypeScript) — Web Chat + Manager Dashboard
- * ===========================================================================
- *
- * WHAT THIS DOES
- * ──────────────────────────────────────────────────────────────────────────────
- * A web-based conversational feedback system for restaurants.
- * Guest scans QR code at table → chat opens in their phone browser
- * → answers conversationally → manager sees live dashboard with NPS and issues.
- *
- * This is the TypeScript equivalent of restaurant-feedback/app.py
- * Python used Flask; this uses Express.
- *
- * FILE STRUCTURE
- * ──────────────────────────────────────────────────────────────────────────────
- *   restaurant-feedback/
- *   ├── app.ts          ← this file (Express server)
- *   ├── goal.yaml       ← copy from python/restaurant-feedback/goal.yaml
- *   ├── package.json
- *   ├── tsconfig.json
- *   └── public/
- *       └── index.html  ← guest chat UI (mobile-first)
- *
- * package.json:
- * ──────────────────────────────────────────────────────────────────────────────
- *   {
- *     "scripts": { "dev": "ts-node app.ts" },
- *     "dependencies": { "express": "^4.18.0" },
- *     "devDependencies": {
- *       "@types/express": "^4.17.0",
- *       "@types/node":    "^20.0.0",
- *       "ts-node":        "^10.9.0",
- *       "typescript":     "^5.3.0"
- *     }
- *   }
- *
- * tsconfig.json:
- * ──────────────────────────────────────────────────────────────────────────────
- *   {
- *     "compilerOptions": {
- *       "target": "ES2020", "module": "commonjs",
- *       "lib": ["ES2020"], "outDir": "./dist",
- *       "strict": true, "esModuleInterop": true,
- *       "skipLibCheck": true, "types": ["node"]
- *     }
- *   }
- *
- * INSTALL
- * ──────────────────────────────────────────────────────────────────────────────
- *   cd packages/core && uvicorn truenorth.api.main:app --port 8000
- *   cd samples/nodejs/restaurant-feedback && npm install
- *
- * HOW TO RUN
- * ──────────────────────────────────────────────────────────────────────────────
- *   export TRUENORTH_BASE_URL=http://localhost:8000
- *   export RESTAURANT_NAME="The Spice Garden"
- *   npx ts-node app.ts
- *
- *   # Guest link (share or QR code)
- *   open http://localhost:5002/
- *
- *   # Manager dashboard
- *   open http://localhost:5002/dashboard
- *
- * QR CODE FOR TABLES
- * ──────────────────────────────────────────────────────────────────────────────
- *   npm install -g qrcode-terminal
- *   qrcode-terminal "http://YOUR_LAN_IP:5002/" --small
- *   → Print and laminate. One per table.
- *
- * WHAT MANAGERS SEE (dashboard)
- * ──────────────────────────────────────────────────────────────────────────────
- *   The Spice Garden — 15 June 2025
- *   ────────────────────────────────────────────────
- *   23 responses | 7.8/10 avg | NPS: +42
- *
- *   ⚠ Priority issues:
- *     • Biryani was cold when served to table 4
- *     • Long wait time between starter and main course
- *
- *   ✅ Share with team:
- *     • "Suresh the waiter was incredibly attentive"
- *     • "Best dal makhani we have had in years"
- *
- * API ENDPOINTS
- * ──────────────────────────────────────────────────────────────────────────────
- *   GET  /              → Guest chat UI
- *   GET  /dashboard     → Manager dashboard
- *   GET  /health        → Health check
- *   POST /api/start     → Start feedback session
- *   POST /api/message   → Continue session
- *   GET  /api/stats     → Raw stats (JSON)
- */
-
 import express, { Request, Response } from 'express'
 import path    from 'path'
 import crypto  from 'crypto'
 import { TrueNorth, Session, MessageResult } from '../../../packages/sdk-node'
-
-// ── Config ────────────────────────────────────────────────────────────────────
 
 const RESTAURANT_NAME = process.env.RESTAURANT_NAME    ?? 'The Spice Garden'
 const GOAL_ID         = process.env.GOAL_ID            ?? 'restaurant_feedback'
@@ -105,11 +9,7 @@ const TN_URL          = process.env.TRUENORTH_BASE_URL  ?? 'http://localhost:800
 const TN_KEY          = process.env.TRUENORTH_API_KEY   ?? ''
 const PORT            = parseInt(process.env.PORT       ?? '5002')
 
-// ── TrueNorth client ──────────────────────────────────────────────────────────
-
 const tn = new TrueNorth({ apiKey: TN_KEY, baseUrl: TN_URL, timeout: 90_000 })
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface GuestSession {
   sessionId:  string
@@ -131,12 +31,8 @@ interface FeedbackResult {
   full:         Record<string, unknown>
 }
 
-// ── In-memory store ───────────────────────────────────────────────────────────
-
 const sessions = new Map<string, GuestSession>()
 const results:  FeedbackResult[] = []
-
-// ── Parse feedback output ─────────────────────────────────────────────────────
 
 function parseResult(sid: string, content: Record<string, unknown>): FeedbackResult {
   const nps = Number(content.nps_score ?? 0)
@@ -156,8 +52,6 @@ function parseResult(sid: string, content: Record<string, unknown>): FeedbackRes
     full:          content,
   }
 }
-
-// ── Dashboard HTML ────────────────────────────────────────────────────────────
 
 function buildDashboard(): string {
   const totalScore   = results.reduce((s, r) => s + r.overallScore, 0)
@@ -212,23 +106,18 @@ li{margin:6px 0;font-size:.88rem;color:#374151;line-height:1.5;}
 </body></html>`
 }
 
-// ── Express app ───────────────────────────────────────────────────────────────
-
 const app = express()
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-// Guest chat UI — served from public/index.html
 app.get('/', (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-// Manager dashboard
 app.get('/dashboard', (_req: Request, res: Response) => {
   res.type('html').send(buildDashboard())
 })
 
-// Health
 app.get('/health', async (_req: Request, res: Response) => {
   try {
     const h = await tn.health()
@@ -244,12 +133,10 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 })
 
-// Raw stats
 app.get('/api/stats', (_req: Request, res: Response) => {
   res.json({ results, total: results.length })
 })
 
-// Start a feedback session
 app.post('/api/start', async (_req: Request, res: Response) => {
   const sid = `rf_${crypto.randomBytes(6).toString('hex')}`
   try {
@@ -263,7 +150,6 @@ app.post('/api/start', async (_req: Request, res: Response) => {
   }
 })
 
-// Continue a feedback session
 app.post('/api/message', async (req: Request, res: Response) => {
   const { session_id: sid, text } = req.body as { session_id: string; text: string }
 
@@ -310,8 +196,6 @@ app.post('/api/message', async (req: Request, res: Response) => {
     res.status(500).json({ error: String(err) })
   }
 })
-
-// ── Start server ──────────────────────────────────────────────────────────────
 
 async function start(): Promise<void> {
   console.log(`\n  Restaurant Feedback (Node.js / TypeScript)`)
