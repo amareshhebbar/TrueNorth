@@ -14,6 +14,8 @@ GREEN := \033[32m
 CYAN  := \033[36m
 DIM   := \033[2m
 
+SAMPLES_REPO := https://github.com/amareshhebbar/TrueNorth-samples.git
+SAMPLES_DIR  := samples
 
 define PRINT_LOGO
 	@echo ""
@@ -32,7 +34,7 @@ endef
         test test-unit test-integration test-all \
         test-node test-go test-rust test-expo \
         migrate migrate-create format lint typecheck \
-        clean docker-build
+        clean docker-build sample-clone sample-list sample-run
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Help
@@ -133,6 +135,9 @@ validate:
 
 cost:
 	@cd $(CORE_DIR) && PYTHONPATH=. python cli/main.py cost --session-id $(SESSION_ID)
+
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Docker / Dev server
@@ -256,3 +261,33 @@ clean:
 	@find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
 	@find . -name "*.pyc" -delete 2>/dev/null || true
 	@printf "$(GREEN)Cleaned.$(RESET)\n"
+
+
+
+sample-clone:
+	@if [ -d "$(SAMPLES_DIR)/.git" ]; then \
+		echo "Samples present — pulling latest"; \
+		cd $(SAMPLES_DIR) && git pull --quiet; \
+	else \
+		echo "Cloning samples..."; \
+		git clone --quiet $(SAMPLES_REPO) $(SAMPLES_DIR); \
+	fi
+
+sample-list: sample-clone
+	@echo "python:"  && ls $(SAMPLES_DIR)/python
+	@echo "nodejs:"  && ls $(SAMPLES_DIR)/nodejs
+	@echo "go-lang:" && ls $(SAMPLES_DIR)/go-lang
+
+sample-run: sample-clone
+	@read -p "Language (python/nodejs/go-lang): " lang; \
+	read -p "Sample name (e.g. kisansathi): " name; \
+	if [ "$$lang" = "python" ]; then \
+		cd packages/core && GOAL_YAML=../../$(SAMPLES_DIR)/python/$$name/goal.yaml \
+		poetry run python ../../$(SAMPLES_DIR)/python/$$name/app.py; \
+	elif [ "$$lang" = "go-lang" ]; then \
+		cd $(SAMPLES_DIR)/go-lang/$$name && go run main.go; \
+	elif [ "$$lang" = "nodejs" ]; then \
+		cd $(SAMPLES_DIR)/nodejs/$$name && npm install --silent && npx tsx app.ts; \
+	else \
+		echo "Unknown language: $$lang"; \
+	fi
