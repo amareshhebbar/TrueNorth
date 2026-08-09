@@ -3,7 +3,7 @@ zerops:
     build:
       base: python@3.12
       buildCommands:
-        - pip install -e .
+        - pip install -e ./packages/core
     run:
       base: python@3.12
       ports:
