@@ -1,0 +1,15 @@
+zerops:
+  - setup: api
+    build:
+      base: python@3.12
+      buildCommands:
+        - pip install -e .
+    run:
+      base: python@3.12
+      ports:
+        - port: 8000
+          httpSupport: true
+      envVariables:
+        DATABASE_URL: ${db_connectionString}
+        REDIS_URL: ${cache_connectionString}
+      start: truenorth serve --port 8000
