@@ -1,6 +1,6 @@
 {
   "name": "truenorth",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,13 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["truenorth", "ai", "agent", "llm", "sdk"],
+  "keywords": [
+    "truenorth",
+    "ai",
+    "agent",
+    "llm",
+    "sdk"
+  ],
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,6 +1,6 @@
 {
-  "packages/core": "0.1.1",
-  "packages/sdk-node": "0.1.1",
-  "packages/sdk-expo": "0.1.1",
-  "packages/sdk-go": "0.1.1"
+  "packages/core": "0.2.0",
+  "packages/sdk-node": "0.2.0",
+  "packages/sdk-expo": "0.2.0",
+  "packages/sdk-go": "0.2.0"
 }
