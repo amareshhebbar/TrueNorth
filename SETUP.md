@@ -39,7 +39,7 @@ export OPENAI_API_KEY=sk-...
 
 # Run the test suite to verify everything works
 python -m pytest tests/ --asyncio-mode=auto -q
-# Expected: 1258 passed
+# Expected: 1282 passed, 1 skipped
 
 # Try the CLI
 truenorth pricing --provider anthropic

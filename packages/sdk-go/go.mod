@@ -1,4 +1,4 @@
-module github.com/amareshhebbar/truenorth
+module github.com/amareshhebbar/TrueNorth/packages/sdk-go
 
 go 1.25.0
 

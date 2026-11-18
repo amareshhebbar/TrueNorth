@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	truenorth "github.com/amareshhebbar/truenorth"
+	truenorth "github.com/amareshhebbar/TrueNorth/packages/sdk-go"
 )
 
 var tn = truenorth.NewClient(

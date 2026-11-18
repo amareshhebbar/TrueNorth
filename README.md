@@ -20,7 +20,7 @@
     <a href="https://pypi.org/project/truenorth-framework/"><img src="https://img.shields.io/pypi/v/truenorth-framework?style=flat-square&color=0d6efd&logo=python&logoColor=white" alt="PyPI Version"></a>
     <a href="https://www.npmjs.com/package/truenorth"><img src="https://img.shields.io/npm/v/truenorth?style=flat-square&color=CB3837&logo=npm&logoColor=white" alt="NPM Version"></a>
     <a href="https://www.npmjs.com/package/truenorth-framework-expo"><img src="https://img.shields.io/npm/v/truenorth-framework-expo?style=flat-square&color=000020&logo=expo&logoColor=white" alt="Expo Version"></a>
-    <a href="https://pkg.go.dev/github.com/amareshhebbar/truenorth"><img src="https://img.shields.io/badge/go-reference-007d9c?style=flat-square&logo=go&logoColor=white" alt="Go Reference"></a>
+    <a href="https://pkg.go.dev/github.com/amareshhebbar/TrueNorth/packages/sdk-go"><img src="https://img.shields.io/badge/go-reference-007d9c?style=flat-square&logo=go&logoColor=white" alt="Go Reference"></a>
     <br/>
     <img src="https://img.shields.io/badge/tests-1%2C282%20passing-brightgreen?style=flat-square" alt="Tests">
     <img src="https://img.shields.io/github/repo-size/amareshhebbar/truenorth?style=flat-square&label=repo%20size" alt="Repo Size">
@@ -346,7 +346,7 @@ Hallucination rate = fraction of output claims that contradict collected fields.
 ### Install
 
 ```bash
-pip install truenorth
+pip install truenorth-framework
 ```
 
 ### Define a goal
@@ -431,7 +431,7 @@ All SDKs share the same interface. One mental model across all languages.
 
 ### Python
 ```python
-from truenorth_sdk import TrueNorth
+from truenorth.sdk import TrueNorth
 
 tn      = TrueNorth(api_key="tn_live_...")
 session = tn.sessions.create("fitness-coach")
@@ -444,6 +444,9 @@ output = tn.sessions.output(session.id)
 ```
 
 ### TypeScript / Node.js / Next.js
+```bash
+npm install truenorth
+```
 ```typescript
 import { TrueNorth } from 'truenorth'
 
@@ -454,6 +457,9 @@ const output  = await tn.sessions.output(session.id)
 ```
 
 ### Go
+```bash
+go get github.com/amareshhebbar/TrueNorth/packages/sdk-go@latest
+```
 ```go
 client  := truenorth.New(truenorth.Options{APIKey: os.Getenv("TRUENORTH_API_KEY")})
 session, _ := client.Sessions.Create(ctx, "fitness-coach", nil)
@@ -462,8 +468,11 @@ output,  _ := client.Sessions.Output(ctx, session.ID)
 ```
 
 ### React Native / Expo
+```bash
+npm install truenorth-framework-expo
+```
 ```tsx
-import { useTrueNorthSession } from 'truenorth-rn'
+import { useTrueNorthSession } from 'truenorth-framework-expo'
 
 function IntakeScreen() {
   const { agentText, send, isComplete, output, isLoading } =
@@ -705,12 +714,12 @@ result = ab.result()                    # p-value, lift %, winner
 | Metric | Value |
 |--------|-------|
 | Production lines | 25,506 |
-| Test suite | 1,258 passing, 0 failures |
+| Test suite | 1,282 passing, 1 skipped ([CI](https://github.com/amareshhebbar/TrueNorth/actions/workflows/ci.yml)) |
 | Phases complete | 10/10 |
 | Supported LLM providers | 8 |
 | Supported models | 53+ |
 | Languages (conversation) | 50+ (auto-detect) |
-| SDK languages | Python, TypeScript, Go, React Native |
+| Published SDKs | [Python](https://pypi.org/project/truenorth-framework/) · [Node](https://www.npmjs.com/package/truenorth) · [React Native](https://www.npmjs.com/package/truenorth-framework-expo) · [Go](https://pkg.go.dev/github.com/amareshhebbar/TrueNorth/packages/sdk-go) |
 | Official goal packages | 6 |
 
 ---

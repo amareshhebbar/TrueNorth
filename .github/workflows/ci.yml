@@ -55,11 +55,26 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run checks and tests
+      - name: Lint
+        run: poetry run ruff check .
+
+      - name: Type check
+        run: poetry run mypy truenorth --ignore-missing-imports
+
+      - name: Tests
+        if: always()
+        run: poetry run pytest tests -q --junitxml=pytest.xml
+
+      - name: Test summary
+        if: always()
         run: |
-          poetry run ruff check .
-          poetry run mypy truenorth --ignore-missing-imports
-          poetry run pytest tests/unit -v
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          r = ET.parse("pytest.xml").getroot()
+          s = r if r.tag == "testsuite" else r.find("testsuite")
+          n, f, e, k = (int(s.get(x, 0)) for x in ("tests", "failures", "errors", "skipped"))
+          print(f"## TrueNorth core tests\n\n**{n - f - e - k} passed**, {f} failed, {e} errors, {k} skipped, {n} total")
+          PY
 
   node:
     name: Node SDK
@@ -84,7 +99,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version-file: packages/sdk-go/go.mod
 
       - name: Run Go checks
         run: make test-go
